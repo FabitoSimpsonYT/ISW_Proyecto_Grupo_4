@@ -1,4 +1,4 @@
-# 🚀 Proyecto Metodología del Desarrollo IECI 2025-1
+# 🚀 Proyecto Ingeniería de Software IECI 2025-2
 
 Este repositorio contiene el proyecto semestral de Ingeniería de Software usando Node.js, Express y PostgreSQL. 
 
