@@ -11,7 +11,7 @@ export const AppDataSource = new DataSource({
   database: `${DATABASE}`,
   entities: ["src/entities/**/*.js"],
   synchronize: true, // Temporalmente true para crear las tablas
-  dropSchema: true, // Temporalmente true para recrear el esquema
+  dropSchema: false, // Cambiado a false para mantener los datos
   logging: false,
 });
 
