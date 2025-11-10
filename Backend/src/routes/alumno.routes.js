@@ -4,7 +4,8 @@ import {
   getAllAlumnosHandler,
   getAlumnoByIdHandler,
   updateAlumnoHandler,
-  deleteAlumnoHandler
+  deleteAlumnoHandler,
+  getEvaluacionesYNotasHandler
 } from "../controllers/alumno.controller.js";
 import { checkRole } from "../middleware/role.middleware.js";
 import { validateRequest } from "../middleware/validation.middleware.js";
@@ -21,30 +22,40 @@ router.post("/",
   createAlumnoHandler
 );
 
-// Admin y profesores pueden listar (por ejemplo)
+// Admin y profesores ven lista, alumno ve su perfil
 router.get("/", 
   authMiddleware,
-  checkRole(["admin", "profesor"]), 
-  getAllAlumnosHandler
+  checkRole(["admin", "profesor", "alumno"]), 
+  getAlumnoByIdHandler
 );
 
+// Admin y profesores pueden ver perfiles específicos
 router.get("/:id", 
   authMiddleware,
   checkRole(["admin", "profesor"]), 
   getAlumnoByIdHandler
 );
 
-router.put("/:id", 
+// Admin o alumno editan perfil (alumno solo puede editar el suyo)
+router.put("/", 
   authMiddleware,
-  checkRole(["admin"]), 
+  checkRole(["admin", "alumno"]), 
   validateRequest(updateAlumnoValidation), 
   updateAlumnoHandler
 );
 
+// Solo admin puede eliminar perfiles
 router.delete("/:id", 
   authMiddleware,
   checkRole(["admin"]), 
   deleteAlumnoHandler
+);
+
+// Obtener evaluaciones y notas de un alumno
+router.get("/:id/evaluaciones", 
+  authMiddleware,
+  checkRole(["admin", "alumno"]), 
+  getEvaluacionesYNotasHandler
 );
 
 export default router;

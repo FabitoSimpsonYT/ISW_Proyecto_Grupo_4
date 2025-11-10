@@ -10,17 +10,11 @@ export const Pauta = new EntitySchema({
             generated: true,
         },
         criterios:{
-            type:"varchar",
-            length: 100,
+            type:"text",
         },
         distribucionPuntaje:{
             type:"json",
             nullable: false,
-            
-        },
-        publicada: {
-            type: "boolean",
-            default: false,
         },
     },
     relations:{
@@ -28,11 +22,7 @@ export const Pauta = new EntitySchema({
             target:"Evaluacion",
             type:"one-to-one",
             inverseSide:"pauta",
-            joinColumn: {
-                name: "evaluacion_id",
-                referencedColumnName: "id",
-            },
-            nullable: true,
+            joinColumn: true,
             onDelete:"CASCADE",
         },
     },

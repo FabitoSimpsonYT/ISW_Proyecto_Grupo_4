@@ -7,6 +7,7 @@ import {
     updateAlumno,
     deleteAlumno
 } from "../services/alumno.service.js";
+import { obtenerEvaluacionesYNotasAlumno } from "../services/pautaEvaluada.service.js";
 import { createAlumnoValidation, updateAlumnoValidation } from "../validations/alumno.validation.js";
 
 export async function getAllAlumnosHandler(req, res) {
@@ -24,8 +25,15 @@ export async function getAllAlumnosHandler(req, res) {
 
 export async function getAlumnoByIdHandler(req, res) {
     try {
-        const { id } = req.params;
+        // Si la ruta es /me, usar el ID del token
+        const id = req.path === '/me' ? req.user.id : req.params.id;
         const alumno = await getAlumnoById(id);
+        
+        // Si es /me y el ID no coincide con el token, denegar acceso
+        if (req.path === '/me' && alumno.user.id !== req.user.id) {
+            return res.status(403).json({ message: "No tienes permiso para ver este perfil" });
+        }
+
         res.status(200).json({ 
             message: "Alumno encontrado", 
             data: alumno 
@@ -99,5 +107,25 @@ export async function deleteAlumnoHandler(req, res) {
         }
         console.error("Error al eliminar alumno: ", error);
         res.status(500).json({ message: "Error al eliminar alumno." });
+    }
+}
+
+/**
+ * Obtiene todas las evaluaciones y notas de un alumno
+ */
+export async function getEvaluacionesYNotasHandler(req, res) {
+    try {
+        const alumnoId = parseInt(req.params.id);
+        const evaluaciones = await obtenerEvaluacionesYNotasAlumno(alumnoId);
+        res.status(200).json({
+            message: "Evaluaciones y notas obtenidas exitosamente",
+            data: evaluaciones
+        });
+    } catch (error) {
+        console.error("Error al obtener evaluaciones y notas:", error);
+        res.status(500).json({
+            message: "Error al obtener evaluaciones y notas",
+            error: error.message
+        });
     }
 }

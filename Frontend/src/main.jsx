@@ -1,65 +1,34 @@
-import ReactDOM from "react-dom/client";
+import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
-import Login from "@pages/Login";
-import Home from "@pages/Home";
-import Error404 from "@pages/Error404";
-import Root from "@pages/Root";
-import ProtectedRoute from "@components/ProtectedRoute";
-import PautaPage from "@pages/PautaPage";
-import EvaluacionPage from "@pages/EvaluacionPage";
-import VisualizarPautas from "@pages/VisualizarPautas";
-import "@styles/styles.css";
+import Login from '@pages/Login';
+import Home from '@pages/Home';
+import Error404 from '@pages/Error404';
+import Root from '@pages/Root';
+import ProtectedRoute from '@components/ProtectedRoute';
+import '@styles/styles.css';
 
 const router = createBrowserRouter([
   {
-    path: "/",
+    path: '/',
     element: <Root />,
     errorElement: <Error404 />,
     children: [
       {
-        path: "/",
-        element: <Login />,
+        path: '/',
+        element: <Login />
       },
       {
-        path: "/auth",
-        element: <Login />,
+        path: '/auth',
+        element: <Login />
       },
       {
-        path: "/home",
-        element: (
-          <ProtectedRoute roles={["profesor", "alumno"]}>
-            <Home />
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: "/pautas",
-        element: (
-          <ProtectedRoute roles={["profesor"]}>
-            <PautaPage />
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: "/ver-pautas",
-        element: (
-          <ProtectedRoute roles={["alumno"]}>
-            <VisualizarPautas />
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: "/evaluaciones",
-        element: (
-          <ProtectedRoute roles={["profesor"]}>
-            <EvaluacionPage />
-          </ProtectedRoute>
-        ),
-      },
-    ],
-  },
+        path: '/home',
+        element: <Home />
+      }
+    ]
+  }
 ]);
 
-ReactDOM.createRoot(document.getElementById("root")).render(
+ReactDOM.createRoot(document.getElementById('root')).render(
   <RouterProvider router={router} />
 );
