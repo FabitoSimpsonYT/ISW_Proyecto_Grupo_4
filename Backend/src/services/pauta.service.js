@@ -21,13 +21,13 @@ export async function createPautaService(data, evaluacionId) {
     return savedPauta;
 }
 export async function getPautaByIdService(id, user){
-  const pauta = await pautaRepository.findOne({
-    where: { id },
-    relations: ["evaluacion"],
-  });
+    const pauta = await pautaRepository.findOneBy({
+        where: {id},
+        relations:["evaluacion"],
+    });
     if (!pauta) return {error : "pauta no encontrada"};
 
-    if(user.role === "alumno" && !pauta.publicada){
+    if(user.role === "estudiante" && !pauta.publicada){
         return {error : "la puata no ha sido publicada"};
     }
     return pauta;
@@ -41,8 +41,7 @@ export async function updatePautaService(id, data, user) {
 
   if (!pauta) return { error: "Pauta no encontrada" };
   if (user.role !== "profesor") return { error: "No autorizado" };
-  // Si la pauta está asociada a una evaluación, permitir modificar solo si la evaluación está pendiente
-  if (pauta.evaluacion && pauta.evaluacion.estado !== "pendiente") {
+  if (pauta.evaluacion.estado !== "pendiente") {
     return { error: "No puede modificar esta pauta en una evaluación aplicada" };
   }
 
@@ -59,7 +58,7 @@ export async function deletePautaService(id, user) {
 
   if (!pauta) return { error: "Pauta no encontrada" };
   if (user.role !== "profesor") return { error: "Solo el profesores puede eliminar la pauta" };
-  if (pauta.evaluacion && pauta.evaluacion.estado !== "pendiente") {
+  if (pauta.evaluacion.estado !== "pendiente") {
     return { error: "No puede eliminar una pauta de evaluación aplicada" };
   }
 

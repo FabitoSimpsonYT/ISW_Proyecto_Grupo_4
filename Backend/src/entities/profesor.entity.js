@@ -16,7 +16,7 @@ export const Profesor = new EntitySchema({
     especialidad: {
       type: "varchar",
       length: 255,
-      nullable: false,
+      nullable: true,
     },
     created_at: {
       type: "timestamp",

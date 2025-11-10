@@ -46,5 +46,10 @@ export const Ramos = new EntitySchema({
       type: "one-to-many",
       inverseSide: "ramo",
     },
+    evaluaciones: {
+      target: "Evaluacion",
+      type: "one-to-many",
+      inverseSide: "ramo",
+    },
   },
 });
