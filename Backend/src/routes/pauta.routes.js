@@ -10,7 +10,7 @@ import{
 const router = Router();
 
 router.get("/:id", authMiddleware, getPautaById);
-router.post("/:evaluacionId", authMiddleware, createPauta);
+router.post("/", authMiddleware, createPauta);
 
 router.patch("/:id", authMiddleware,updatePauta);
 router.delete("/:id", authMiddleware,deletePauta);

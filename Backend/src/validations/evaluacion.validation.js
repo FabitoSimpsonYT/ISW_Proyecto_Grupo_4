@@ -13,12 +13,12 @@ export const createEvaluacionValidation = Joi.object({
         }),
         fechaProgramada: Joi.date()
         .iso()
-        .min(Joi.ref('$tomorrow'))
+        .greater("now")
         .required()
         .messages({
-            "date.base": "la fecha programada debe ser una fecha válida",
-            "date.min": "la fecha programada debe ser igual o posterior a mañana",
-            "any.required": "la fecha programada es obligatoria",
+            "date.base":"la fecha programada debe de ser fecha valida",
+            "date.greater":"la fecha programa debe ser posterior a la fecha anterior",
+            "any.required":"la fecha programa es obligatoria",
         }),
         ponderacion: Joi.number()
         .min(0)
@@ -34,18 +34,12 @@ export const createEvaluacionValidation = Joi.object({
         .min(10)
         .required()
         .messages({
-            "string.empty":"el campo contenido es obligatorio",
-            "string.min":"el contenido debe tener al menos 10 caracteres",
+            "string.empty":"el camppo contenido es obligatorio",
+            "string.min":"el continido debe tener al menos 10 caracteres",
             "any.required":"el contenido es obligatorio",
         }),
-        ramo_id: Joi.number()
-        .required()
-        .messages({
-            "number.base":"el id del ramo debe ser un número",
-            "any.required":"el id del ramo es obligatorio",
-        }),
         estado: Joi.string()
-        .valid("pendiente", "realizada", "cancelada")
+        .valid("pendiente", "aplicada", "finalizada")
         .default("pendiente")
          .messages({
             "any.only": "El estado debe ser 'pendiente', 'realizada' o 'cancelada'.",
@@ -55,14 +49,17 @@ export const createEvaluacionValidation = Joi.object({
         .messages({
             "boolean.base":"el campo pautapublicada deber ser verdadera o false",
         }),
-        pauta: Joi.string()
-        .min(0)
-        .optional()
+        pauta: Joi.number()
+        .integer()
+        .positive()
+        .required()
         .messages({
-            "string.empty":"la pauta es obligatoria ",
-            "string.min":"la pauta debe de tener al menos 3 caracteres"
+            "number.base": "La pauta debe ser un número (id de la pauta)",
+            "number.integer": "La pauta debe ser un número entero",
+            "number.positive": "La pauta debe ser un id válido",
+            "any.required": "La pauta es obligatoria"
         }),
-        
+                
 });
 
 export const updateEvaluacionValidation = Joi.object({
@@ -93,14 +90,14 @@ export const updateEvaluacionValidation = Joi.object({
         "string.min":"los contenidos deben ser al menos 10 caracteres",
     }),
     estado: Joi.string()
-    .valid("pendiente","realizado","cancelado")
+    .valid("pendiente","aplicada","finalizada")
     .messages({
-        "any.only":"el estado debe ser 'pendiente','realizado','cancelado'",
+        "any.only":"el estado debe ser 'pendiente','aplicada','finalizada'",
 
     }),
-    PautaPublicada: Joi.boolean()
+    pautaPublicada: Joi.boolean()
     .messages({
         "boolean.base":"el campo pautaPublicada debe ser verdadero o false",
     }),
-    
+        
 });

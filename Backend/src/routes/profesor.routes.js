@@ -23,26 +23,22 @@ router.post("/",
   createProfesorHandler
 );
 
-// Admin ve todos los profesores, profesor ve su perfil
 router.get("/", 
   checkRole(["admin", "profesor"]), 
-  getProfesorByIdHandler
+  getAllProfesoresHandler
 );
 
-// Admin ve cualquier profesor específico
 router.get("/:id", 
-  checkRole(["admin"]), 
+  checkRole(["admin", "profesor"]), 
   getProfesorByIdHandler
 );
 
-// Admin o profesor editan perfil (profesor solo puede editar el suyo)
-router.put("/", 
-  checkRole(["admin", "profesor"]), 
+router.put("/:id", 
+  checkRole(["admin"]), 
   validateRequest(updateProfesorValidation), 
   updateProfesorHandler
 );
 
-// Solo admin puede eliminar perfiles
 router.delete("/:id", 
   checkRole(["admin"]), 
   deleteProfesorHandler
