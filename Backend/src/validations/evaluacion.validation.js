@@ -59,6 +59,16 @@ export const createEvaluacionValidation = Joi.object({
             "number.positive": "La pauta debe ser un id válido",
             "any.required": "La pauta es obligatoria"
         }),
+        seccion: Joi.number()
+        .integer()
+        .positive()
+        .required()
+        .messages({
+            "number.base": "La sección debe ser un número (id de la sección)",
+            "number.integer": "La sección debe ser un número entero",
+            "number.positive": "La sección debe ser un id válido",
+            "any.required": "La sección es obligatoria"
+        }),
                 
 });
 
@@ -98,6 +108,12 @@ export const updateEvaluacionValidation = Joi.object({
     pautaPublicada: Joi.boolean()
     .messages({
         "boolean.base":"el campo pautaPublicada debe ser verdadero o false",
+    }),
+    seccion: Joi.number()
+    .integer()
+    .positive()
+    .messages({
+        "number.base":"La sección debe ser un número entero",
     }),
         
 });

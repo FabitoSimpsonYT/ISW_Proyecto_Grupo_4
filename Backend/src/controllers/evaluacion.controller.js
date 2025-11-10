@@ -57,9 +57,9 @@ export async function createEvaluacion(req, res) {
       return handleErrorClient(res, 403, "Solo el profesor puede crear evaluaciones");
     }
 
-    const { titulo, fechaProgramada, ponderacion, contenidos, pauta, } = req.body;
+    const { titulo, fechaProgramada, ponderacion, contenidos, pauta, seccion } = req.body;
 
-    if (!titulo || !fechaProgramada || !ponderacion || !contenidos || !pauta ) {
+    if (!titulo || !fechaProgramada || !ponderacion || !contenidos || !pauta || !seccion) {
       return handleErrorClient(res, 400, "Faltan campos obligatorios (incluya sección)");
     }
 
@@ -69,9 +69,14 @@ export async function createEvaluacion(req, res) {
       ponderacion,
       contenidos,
       pauta,
+      seccion,
       creadaPor: user.id,
       aplicada: false,
     });
+
+    if (nuevaEvaluacion && nuevaEvaluacion.error) {
+      return handleErrorClient(res, 400, nuevaEvaluacion.error);
+    }
 
     handleSuccess(res, 201, "Evaluación creada exitosamente", { evaluacion: nuevaEvaluacion });
   } catch (error) {
@@ -95,6 +100,8 @@ export async function updateEvaluacion(req, res) {
 
     const { titulo, fechaProgramada, ponderacion, contenidos, pauta, aplicada} = req.body;
 
+    const seccion = req.body.seccion;
+
     const evaluacionActualizada = await updateEvaluacionService(id, {
       titulo,
       fechaProgramada,
@@ -102,11 +109,16 @@ export async function updateEvaluacion(req, res) {
       contenidos,
       pauta,
       aplicada,
+      seccion,
       userId: user.id,
     });
 
     if (!evaluacionActualizada) {
       return handleErrorClient(res, 404, "No se pudo actualizar la evaluación ");
+    }
+
+    if (evaluacionActualizada.error) {
+      return handleErrorClient(res, 400, evaluacionActualizada.error);
     }
 
     handleSuccess(res, 200, "Evaluación actualizada exitosamente", { evaluacion: evaluacionActualizada });
@@ -127,13 +139,17 @@ export async function deleteEvaluacion(req, res) {
       return  handleErrorClient(res, 403, "Solo el profesor puede eliminar evaluaciones");
     }
 
-    const eliminada =await deleteEvaluacionService(id,user.id);
+    const eliminada = await deleteEvaluacionService(id);
 
     if (!eliminada) {
-      return  handleErrorClient(res, 404,"No se pudo eliminar la evaluación ");
+      return handleErrorClient(res, 404, "No se pudo eliminar la evaluación ");
     }
 
-    handleSuccess(res, 200,"Evaluación eliminada exitosamente");
+    if (eliminada.error) {
+      return handleErrorClient(res, 400, eliminada.error);
+    }
+
+    handleSuccess(res, 200, "Evaluación eliminada exitosamente");
   } catch (error) {
     handleErrorServer(res,500, "Error al eliminar evaluación", error.message);
   }

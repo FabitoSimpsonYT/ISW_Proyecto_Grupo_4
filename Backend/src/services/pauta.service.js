@@ -5,6 +5,22 @@ import { Evaluacion } from "../entities/evaluaciones.entity.js";
 const pautaRepository = AppDataSource.getRepository(Pauta);
 const evaluacionRepository = AppDataSource.getRepository(Evaluacion);
 
+// Publicar pauta solo si la evaluación está aplicada
+export async function publicarPautaService(id, user) {
+  const pauta = await pautaRepository.findOne({
+    where: { id },
+    relations: ["evaluacion"],
+  });
+  if (!pauta) return { error: "Pauta no encontrada" };
+  if (user.role !== "profesor") return { error: "No autorizado" };
+  if (!pauta.evaluacion || pauta.evaluacion.estado !== "aplicada") {
+    return { error: "Solo puede publicar la pauta si la evaluación está aplicada" };
+  }
+  pauta.publicada = true;
+  const updated = await pautaRepository.save(pauta);
+  return updated;
+}
+
 export async function createPautaService(data, evaluacionId) {
     let pauta;
     if (evaluacionId) {
