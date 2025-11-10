@@ -32,6 +32,10 @@ export const Evaluacion = new EntitySchema({
             type: "boolean",
             default:false,
         },
+        promedio: {
+            type: "float",
+            default: 0,
+        },
         created_at: {
             type: "timestamp",
             createDate: true,

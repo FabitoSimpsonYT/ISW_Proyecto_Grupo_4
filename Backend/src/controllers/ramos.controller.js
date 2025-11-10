@@ -77,8 +77,8 @@ export async function createRamoHandler(req, res) {
 
 export async function updateRamoHandler(req, res) {
   try {
-    const { id } = req.params;
-    const updatedRamo = await updateRamo(id, req.body);
+    const { codigo } = req.params;
+    const updatedRamo = await updateRamo(codigo, req.body);
     res.status(200).json({
       message: "Ramo actualizado correctamente",
       data: updatedRamo
@@ -95,10 +95,33 @@ export async function updateRamoHandler(req, res) {
   }
 }
 
+export async function getMisRamosHandler(req, res) {
+  try {
+    // El ID y rol del usuario vienen del token JWT que fue decodificado en el middleware
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    
+    const ramos = await getRamosByUser(userId, userRole);
+    
+    const message = userRole === "alumno" ? "Ramos inscritos encontrados" : "Ramos dictados encontrados";
+    
+    res.status(200).json({
+      message: message,
+      data: ramos
+    });
+  } catch (error) {
+    if (error instanceof NotFoundError || error instanceof BadRequestError) {
+      return res.status(404).json({ message: error.message });
+    }
+    console.error("Error al obtener ramos: ", error);
+    res.status(500).json({ message: "Error al obtener ramos." });
+  }
+}
+
 export async function deleteRamoHandler(req, res) {
   try {
-    const { id } = req.params;
-    await deleteRamo(id);
+    const { codigo } = req.params;
+    await deleteRamo(codigo);
     res.status(200).json({ message: "Ramo eliminado exitosamente" });
   } catch (error) {
     if (error instanceof NotFoundError) {
@@ -111,7 +134,8 @@ export async function deleteRamoHandler(req, res) {
 
 export async function inscribirAlumno(req, res) {
     try {
-        const profesorId = req.user.sub; // ID del profesor desde el token JWT
+        const userId = req.user.id;
+        const userRole = req.user.role;
         const { rutAlumno, codigoRamo } = req.body;
 
         if (!rutAlumno || !codigoRamo) {
@@ -139,12 +163,17 @@ export async function inscribirAlumno(req, res) {
             return handleErrorClient(res, 404, "No se encontró el perfil de alumno");
         }
 
-        // Verificar que el ramo exista y pertenezca al profesor
+        // Verificar que el ramo exista
         const ramo = await getRamoByCodigo(codigoRamo);
 
-        if (ramo.profesor.id !== profesorId) {
-            return handleErrorClient(res, 403, "No tienes permiso para modificar este ramo");
+        // Verificar permisos según el rol
+        if (userRole === "profesor") {
+            // Si es profesor, verificar que el ramo le pertenezca
+            if (ramo.profesor.id !== userId) {
+                return handleErrorClient(res, 403, "No tienes permiso para modificar este ramo");
+            }
         }
+        // Si es admin, tiene permiso automáticamente
 
         // Si el ramo no tiene secciones, crear una por defecto
         if (!ramo.secciones || ramo.secciones.length === 0) {

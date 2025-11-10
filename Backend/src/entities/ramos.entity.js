@@ -15,7 +15,6 @@ export const Ramos = new EntitySchema({
       nullable: false,
     },
     codigo: {
-      primary: true,
       type: "varchar",
       length: 10,
       nullable: false,
