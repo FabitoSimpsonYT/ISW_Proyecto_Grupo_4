@@ -45,8 +45,8 @@ npm install
 
 ### 3. Renombra el archivo `.env.example` a `.env` y configura las variables de entorno
 ```bash
-HOST=localhost
-PORT=3000
+HOST=#tu_host
+PORT=80
 
 DB_USERNAME=postgres
 DB_PASSWORD=#your_db_password_here
@@ -64,36 +64,14 @@ COOKIE_KEY=#your_cookie_key_here
 
 ### 5. Inicia el servidor
 ```bash
-npm start
+pm2 start
 ```
 
-El backend se ejecutará en http://localhost:3000.
+El backend se ejecutará en http://146.83.198.35:#tu_port_80
 
 ------------------------------------------------------
 
 ## 💻 Ejecutar el frontend
 
-### 1. Abre una nueva consola
-
-Asegúrate de mantener corriendo el backend en la consola anterior.
-
-### 2. Accede a la carpeta del frontend
-
-```bash
-cd frontend/
-```
-
-### 3. Instala las dependencias
-
-```bash
-npm install
-```
-
-### 4. Inicia la aplicación frontend
-
-```bash
-npm run dev
-```
-
-La aplicación se abrirá automáticamente en tu navegador, usualmente en `http://localhost:5173` (o el puerto que indique tu terminal).
+### Continuará
 
