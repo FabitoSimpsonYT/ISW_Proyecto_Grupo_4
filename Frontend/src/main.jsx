@@ -7,6 +7,7 @@ import Root from "@pages/Root";
 import ProtectedRoute from "@components/ProtectedRoute";
 import PautaPage from "@pages/PautaPage";
 import EvaluacionPage from "@pages/EvaluacionPage";
+import VisualizarPautas from "@pages/VisualizarPautas";
 import "@styles/styles.css";
 
 const router = createBrowserRouter([
@@ -36,6 +37,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute roles={["profesor"]}>
             <PautaPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/ver-pautas",
+        element: (
+          <ProtectedRoute roles={["alumno"]}>
+            <VisualizarPautas />
           </ProtectedRoute>
         ),
       },

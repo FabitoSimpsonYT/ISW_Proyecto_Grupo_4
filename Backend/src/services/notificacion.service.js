@@ -1,9 +1,11 @@
 import { AppDataSource } from "../config/configDb.js";
 import { Notificacion } from "../entities/notificacion.entity.js";
 import { User } from "../entities/user.entity.js";
+import { Seccion } from "../entities/seccion.entity.js";
 
 const notificacionRepo = AppDataSource.getRepository(Notificacion);
 const userRepo = AppDataSource.getRepository(User);
+const seccionRepo = AppDataSource.getRepository(Seccion);
 
 // Crear una notificación manual
 export const crearNotificacion = async (data) => {
@@ -12,10 +14,33 @@ export const crearNotificacion = async (data) => {
 };
 
 // Enviar notificación automática a todos los alumnos de un ramo/asignatura
-export const notificarAlumnos = async (ramoId, titulo, mensaje, evaluacionId = null) => {
-  const alumnos = await userRepo.find({
-    where: { role: "alumno", ramo: { id: ramoId } },
-  });
+export const notificarAlumnos = async (
+  targetId,
+  titulo,
+  mensaje,
+  evaluacionId = null,
+  options = { bySeccion: false }
+) => {
+  let alumnos = [];
+  // Si se indica bySeccion, buscar la sección y sus alumnos
+  if (options.bySeccion) {
+    const seccion = await seccionRepo.findOne({
+      where: { id: targetId },
+      relations: ["alumnos", "alumnos.user"],
+    });
+    if (seccion && seccion.alumnos) {
+      // seccion.alumnos es un array de Alumno entities con relación user
+      alumnos = seccion.alumnos.map((a) => (a.user ? a.user : null)).filter(Boolean);
+    }
+  } else {
+    // Fallback: intentar buscar alumnos por ramo en User (si existe esa relación en proyecto)
+    try {
+      alumnos = await userRepo.find({ where: { role: "alumno", ramo: { id: targetId } } });
+    } catch (err) {
+      // Si no se puede filtrar por ramo, dejar alumnos vacío
+      alumnos = [];
+    }
+  }
 
   for (const alumno of alumnos) {
     const notificacion = notificacionRepo.create({

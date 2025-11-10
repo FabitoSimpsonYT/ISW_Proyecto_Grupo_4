@@ -6,6 +6,64 @@ import { Alumno } from "../entities/alumno.entity.js";
 import { Profesor } from "../entities/profesor.entity.js";
 import { User } from "../entities/user.entity.js";
 
+export async function crearRamo(req, res) {
+    try {
+        const { codigo, nombre, semestre } = req.body;
+        const ramoRepository = AppDataSource.getRepository(Ramos);
+        
+        // Verificar si ya existe un ramo con el mismo código
+        const ramoExistente = await ramoRepository.findOne({ where: { codigo } });
+        if (ramoExistente) {
+            return handleErrorClient(res, 400, "Ya existe un ramo con este código");
+        }
+
+        // Crear el nuevo ramo
+        const nuevoRamo = ramoRepository.create({ codigo, nombre, semestre });
+        const ramoGuardado = await ramoRepository.save(nuevoRamo);
+
+        handleSuccess(res, 201, "Ramo creado exitosamente", { ramo: ramoGuardado });
+    } catch (error) {
+        handleErrorServer(res, 500, "Error al crear el ramo", error.message);
+    }
+}
+
+export async function crearSeccion(req, res) {
+    try {
+        const { ramoId } = req.params;
+        const { numero } = req.body;
+        
+        const ramoRepository = AppDataSource.getRepository(Ramos);
+        const seccionRepository = AppDataSource.getRepository(Seccion);
+
+        // Verificar si existe el ramo
+        const ramo = await ramoRepository.findOne({ where: { id: parseInt(ramoId) } });
+        if (!ramo) {
+            return handleErrorClient(res, 404, "Ramo no encontrado");
+        }
+
+        // Verificar si ya existe una sección con el mismo número para este ramo
+        const seccionExistente = await seccionRepository
+            .createQueryBuilder("seccion")
+            .where("seccion.ramo = :ramoId AND seccion.numero = :numero", { ramoId, numero })
+            .getOne();
+
+        if (seccionExistente) {
+            return handleErrorClient(res, 400, "Ya existe una sección con este número para este ramo");
+        }
+
+        // Crear la nueva sección
+        const nuevaSeccion = seccionRepository.create({ 
+            numero,
+            ramo: ramo
+        });
+        const seccionGuardada = await seccionRepository.save(nuevaSeccion);
+
+        handleSuccess(res, 201, "Sección creada exitosamente", { seccion: seccionGuardada });
+    } catch (error) {
+        handleErrorServer(res, 500, "Error al crear la sección", error.message);
+    }
+}
+
 export async function inscribirAlumno(req, res) {
     try {
         const profesorId = req.user.sub; // ID del profesor desde el token JWT
