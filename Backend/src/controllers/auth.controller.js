@@ -2,8 +2,6 @@ import { loginUser } from "../services/auth.service.js";
 import { createUser } from "../services/user.service.js";
 import { handleSuccess, handleErrorClient, handleErrorServer } from "../Handlers/responseHandlers.js";
 import { createValidation, loginValidation } from "../validations/users.validation.js";
-import { AppDataSource } from "../config/configDb.js";
-import { User } from "../entities/user.entity.js";
 import jwt from "jsonwebtoken";
 
 export async function login(req, res) {
@@ -26,27 +24,28 @@ export async function login(req, res) {
 export async function register(req, res) {
   try {
     const data = req.body;
-    
-    // El usuario debe estar autenticado (gracias al authMiddleware)
-    const userRole = req.user.role;
-
-    // Verificar el rol del usuario antes de cualquier otra validación
-    if (userRole !== "admin") {
-      return handleErrorClient(res, 403, "Debe ser rango administrador para crear usuarios.");
-    }
-
-    // Una vez verificado el rol, validar los demás campos
     const { error } = createValidation.validate(req.body);
-
-    // Verificar si se intenta crear el primer admin
-    if (data.role === "admin") {
-      const adminExists = await AppDataSource
-        .getRepository(User)
-        .findOne({ where: { role: "admin" } });
-      
-      if (!adminExists) {
-        // Si no hay admin, permitir la creación del primer admin incluso si el usuario no es admin
-        return handleSuccess(res, 201, "Primer administrador registrado exitosamente", newUser);
+    
+    if (error) {
+      return handleErrorClient(res, 400, error.message);
+    }
+    // Si se intenta crear un profesor o alumno, exigir que la petición la haga un admin autenticado
+    if (data.role === "profesor" || data.role === "alumno") {
+      const authHeader = req.headers["authorization"];
+      if (!authHeader) {
+        return handleErrorClient(res, 401, "Acceso denegado. Solo administradores pueden crear profesores o alumnos.");
+      }
+      const token = authHeader.split(" ")[1];
+      if (!token) {
+        return handleErrorClient(res, 401, "Acceso denegado. Token malformado.");
+      }
+      try {
+        const payload = jwt.verify(token, process.env.JWT_SECRET);
+        if (!payload || payload.role !== "admin") {
+          return handleErrorClient(res, 403, "Acceso denegado. Solo administradores pueden realizar esta acción.");
+        }
+      } catch (err) {
+        return handleErrorClient(res, 401, "Token inválido o expirado.");
       }
     }
     
@@ -54,12 +53,8 @@ export async function register(req, res) {
     delete newUser.password; // Nunca devolver la contraseña
     handleSuccess(res, 201, "Usuario registrado exitosamente", newUser);
   } catch (error) {
-    if (error.code === "RUT_IN_USE") {
-      handleErrorClient(res, 409, "El RUT ya está registrado");
-    } else if (error.code === "EMAIL_IN_USE") {
+    if (error.code === '23505') { // Código de error de PostgreSQL para violación de unique constraint
       handleErrorClient(res, 409, "El email ya está registrado");
-    } else if (error.code === "PHONE_IN_USE") {
-      handleErrorClient(res, 409, "El teléfono ya está registrado");
     } else {
       handleErrorServer(res, 500, "Error interno del servidor", error.message);
     }
