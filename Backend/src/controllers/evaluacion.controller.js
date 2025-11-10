@@ -8,11 +8,7 @@ import {
 } from "../services/evaluacion.service.js";
 import { createEvaluacionValidation, updateEvaluacionValidation } from "../validations/evaluacion.validation.js";
 
-/**
- * Obtener todas las evaluaciones
- * profesor: ve todas las evaluaciones completas
- * Estudiante: ve solo parte de la información
- */
+/**Obtener todas las evaluacionesDocente*/
 export async function getEvaluaciones(req, res) {
   try {
     const user = req.user;
@@ -24,9 +20,7 @@ export async function getEvaluaciones(req, res) {
   }
 }
 
-/**
- *  Obtener una evaluación por ID
- */
+/** Obtener una evaluación por ID*/
 export async function getEvaluacionById(req, res) {
   try {
     const { id } = req.params;
@@ -44,63 +38,61 @@ export async function getEvaluacionById(req, res) {
   }
 }
 
-/**
- *  Crear una nueva evaluación 
- */
+/**Crear una nueva evaluaciónes*/
+import { syncEvaluacionWithEvent } from "../utils/evaluation-event.utils.js";
+
 export async function createEvaluacion(req, res) {
   try {
     const user = req.user;
-    const { error } = createEvaluacionValidation.validate(req.body);
-    if (error) return res.status(400).json({ message: error.message });
+    // Calculamos la fecha de mañana (00:00:00)
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+
+    const {error} = createEvaluacionValidation.validate(req.body, {
+      context: { tomorrow }
+    });
+    if(error) return res.status(400).json({message: error.message});
 
     if (user.role !== "profesor") {
       return handleErrorClient(res, 403, "Solo el profesor puede crear evaluaciones");
     }
 
-    const { titulo, fechaProgramada, ponderacion, contenidos, pauta, seccion } = req.body;
-
-    if (!titulo || !fechaProgramada || !ponderacion || !contenidos || !pauta || !seccion) {
-      return handleErrorClient(res, 400, "Faltan campos obligatorios (incluya sección)");
-    }
+    const { titulo, fechaProgramada, ponderacion, contenidos, ramo_id } = req.body;
 
     const nuevaEvaluacion = await createEvaluacionService({
       titulo,
       fechaProgramada,
       ponderacion,
       contenidos,
-      pauta,
-      seccion,
+      ramo_id,
       creadaPor: user.id,
-      aplicada: false,
+      aplicada: false
     });
 
-    if (nuevaEvaluacion && nuevaEvaluacion.error) {
-      return handleErrorClient(res, 400, nuevaEvaluacion.error);
-    }
+    // Crear evento asociado automáticamente
+    await syncEvaluacionWithEvent(nuevaEvaluacion, user, false);
 
-    handleSuccess(res, 201, "Evaluación creada exitosamente", { evaluacion: nuevaEvaluacion });
+    handleSuccess(res, 201,"Evaluación creada exitosamente",{ evaluacion: nuevaEvaluacion });
   } catch (error) {
     handleErrorServer(res, 500, "Error al crear evaluación", error.message);
+    res.status(500).json({message: error.message})
   }
 }
 
-/**
- *  Actualizar una evaluación 
- */
+/**  Actualizar una evaluación */
 export async function updateEvaluacion(req, res) {
   try {
     const user = req.user;
     const { id } = req.params;
-    const { error } = updateEvaluacionValidation.validate(req.body);
-    if (error) return res.status(400).json({ message: error.message });
+    const {error} = updateEvaluacionValidation.validate(req.body);
+    if(error) return res.status(400).json({message: error.message});
 
     if (user.role !== "profesor") {
-      return handleErrorClient(res, 403, "Solo los profesor pueden modificar evaluaciones");
+      return  handleErrorClient(res, 403, "Solo los profesor pueden modificar evaluaciones");
     }
 
-    const { titulo, fechaProgramada, ponderacion, contenidos, pauta, aplicada} = req.body;
-
-    const seccion = req.body.seccion;
+    const { titulo, fechaProgramada, ponderacion, contenidos, pauta, aplicada } = req.body;
 
     const evaluacionActualizada = await updateEvaluacionService(id, {
       titulo,
@@ -109,27 +101,21 @@ export async function updateEvaluacion(req, res) {
       contenidos,
       pauta,
       aplicada,
-      seccion,
       userId: user.id,
     });
 
     if (!evaluacionActualizada) {
-      return handleErrorClient(res, 404, "No se pudo actualizar la evaluación ");
-    }
-
-    if (evaluacionActualizada.error) {
-      return handleErrorClient(res, 400, evaluacionActualizada.error);
+      return  handleErrorClient(res, 404, "No se pudo actualizar la evaluación ");
     }
 
     handleSuccess(res, 200, "Evaluación actualizada exitosamente", { evaluacion: evaluacionActualizada });
   } catch (error) {
     handleErrorServer(res, 500, "Error al actualizar evaluación", error.message);
+    res.status(500).json({message:error.messaje});
   }
 }
 
-/**
- * Eliminar una evaluación 
- */
+/**Eliminar una evaluación */
 export async function deleteEvaluacion(req, res) {
   try {
     const user = req.user;
@@ -139,17 +125,13 @@ export async function deleteEvaluacion(req, res) {
       return  handleErrorClient(res, 403, "Solo el profesor puede eliminar evaluaciones");
     }
 
-    const eliminada = await deleteEvaluacionService(id);
+    const eliminada =await deleteEvaluacionService(id,user.id);
 
     if (!eliminada) {
-      return handleErrorClient(res, 404, "No se pudo eliminar la evaluación ");
+      return  handleErrorClient(res, 404,"No se pudo eliminar la evaluación ");
     }
 
-    if (eliminada.error) {
-      return handleErrorClient(res, 400, eliminada.error);
-    }
-
-    handleSuccess(res, 200, "Evaluación eliminada exitosamente");
+    handleSuccess(res, 200,"Evaluación eliminada exitosamente");
   } catch (error) {
     handleErrorServer(res,500, "Error al eliminar evaluación", error.message);
   }

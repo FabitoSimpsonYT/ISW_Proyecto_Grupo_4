@@ -2,20 +2,29 @@
 import { query, getClient } from '../config/database.js';
 import { checkEventConflict } from '../services/conflictService.js';
 import { createNotification, sendEventChangeEmail } from '../services/notificationService.js';
+import { parseCustomDateFormat, formatToCustomDate } from '../utils/date.utils.js';
 
 export const createEvent = async (req, res, next) => {
   try {
     const professorId = req.user.id;
     const { title, description, event_type, start_time, end_time, status, location, course, section, max_bookings } = req.body;
     
+    // Convertir fechas al formato de la base de datos
+    const parsedStartTime = parseCustomDateFormat(start_time);
+    const parsedEndTime = parseCustomDateFormat(end_time);
+    
     // Verificar conflictos de horario
-    const conflict = await checkEventConflict(professorId, start_time, end_time);
+    const conflict = await checkEventConflict(professorId, parsedStartTime, parsedEndTime);
     
     if (conflict.hasConflict) {
       return res.status(400).json({
         success: false,
         message: 'Conflicto de horario detectado',
-        conflicts: conflict.conflictingEvents
+        conflicts: conflict.conflictingEvents.map(event => ({
+          ...event,
+          start_time: formatToCustomDate(new Date(event.start_time)),
+          end_time: formatToCustomDate(new Date(event.end_time))
+        }))
       });
     }
     
@@ -24,7 +33,7 @@ export const createEvent = async (req, res, next) => {
       `INSERT INTO events (professor_id, title, description, event_type, start_time, end_time, status, location, course, section, max_bookings)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
-      [professorId, title, description, event_type, start_time, end_time, status || 'tentativo', location, course, section, max_bookings || 1]
+      [professorId, title, description, event_type, parsedStartTime, parsedEndTime, status || 'tentativo', location, course, section, max_bookings || 1]
     );
     
     // Registrar en auditoría
@@ -34,10 +43,17 @@ export const createEvent = async (req, res, next) => {
       [professorId, 'CREATE_EVENT', 'event', result.rows[0].id, JSON.stringify(result.rows[0])]
     );
     
+    // Formatear las fechas en la respuesta
+    const eventData = {
+      ...result.rows[0],
+      start_time: formatToCustomDate(new Date(result.rows[0].start_time)),
+      end_time: formatToCustomDate(new Date(result.rows[0].end_time))
+    };
+
     res.status(201).json({
       success: true,
       message: 'Evento creado exitosamente',
-      data: result.rows[0]
+      data: eventData
     });
   } catch (error) {
     next(error);
@@ -64,8 +80,9 @@ export const getEvents = async (req, res, next) => {
     let paramCount = 1;
     
     if (start_date) {
+      const parsedStartDate = parseCustomDateFormat(start_date);
       sql += ` AND e.start_time >= $${paramCount}`;
-      params.push(start_date);
+      params.push(parsedStartDate);
       paramCount++;
     }
     
@@ -113,10 +130,17 @@ export const getEvents = async (req, res, next) => {
     
     const result = await query(sql, params);
     
+    // Formatear las fechas en la respuesta
+    const formattedEvents = result.rows.map(event => ({
+      ...event,
+      start_time: formatToCustomDate(new Date(event.start_time)),
+      end_time: formatToCustomDate(new Date(event.end_time))
+    }));
+
     res.json({
       success: true,
       count: result.rows.length,
-      data: result.rows
+      data: formattedEvents
     });
   } catch (error) {
     next(error);
@@ -149,9 +173,16 @@ export const getEvent = async (req, res, next) => {
       });
     }
     
+    // Formatear las fechas en la respuesta
+    const eventData = {
+      ...result.rows[0],
+      start_time: formatToCustomDate(new Date(result.rows[0].start_time)),
+      end_time: formatToCustomDate(new Date(result.rows[0].end_time))
+    };
+
     res.json({
       success: true,
-      data: result.rows[0]
+      data: eventData
     });
   } catch (error) {
     next(error);
@@ -191,8 +222,8 @@ export const updateEvent = async (req, res, next) => {
     
     // Si se cambian fechas, verificar conflictos
     if (updates.start_time || updates.end_time) {
-      const newStartTime = updates.start_time || currentEvent.start_time;
-      const newEndTime = updates.end_time || currentEvent.end_time;
+      const newStartTime = updates.start_time ? parseCustomDateFormat(updates.start_time) : currentEvent.start_time;
+      const newEndTime = updates.end_time ? parseCustomDateFormat(updates.end_time) : currentEvent.end_time;
       
       const conflict = await checkEventConflict(currentEvent.professor_id, newStartTime, newEndTime, id);
       

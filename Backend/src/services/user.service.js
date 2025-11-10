@@ -6,11 +6,41 @@ import bcrypt from "bcrypt";
 const userRepository = AppDataSource.getRepository(User);
 
 export async function createUser(data) {
+  // Verificar si ya existe un usuario con el mismo RUT
+  const existingRut = await userRepository.findOneBy({ rut: data.rut });
+  if (existingRut) {
+    const error = new Error("El RUT ya está registrado");
+    error.code = "RUT_IN_USE";
+    throw error;
+  }
+
+  // Verificar si ya existe un usuario con el mismo email
+  const existingEmail = await userRepository.findOneBy({ email: data.email });
+  if (existingEmail) {
+    const error = new Error("El email ya está registrado");
+    error.code = "EMAIL_IN_USE";
+    throw error;
+  }
+
+  // Verificar si ya existe un usuario con el mismo teléfono
+  const existingPhone = await userRepository.findOneBy({ telefono: data.telefono });
+  if (existingPhone) {
+    const error = new Error("El teléfono ya está registrado");
+    error.code = "PHONE_IN_USE";
+    throw error;
+  }
+
   const hashedPassword = await bcrypt.hash(data.password, 10);
 
   const newUser = userRepository.create({
     email: data.email,
     password: hashedPassword,
+    rut: data.rut,
+    nombres: data.nombres,
+    apellidoPaterno: data.apellidoPaterno,
+    apellidoMaterno: data.apellidoMaterno,
+    role: data.role,
+    telefono: data.telefono
   });
 
   return await userRepository.save(newUser);
@@ -18,6 +48,10 @@ export async function createUser(data) {
 
 export async function findUserByEmail(email) {
   return await userRepository.findOneBy({ email });
+}
+
+export async function findUserByRut(rut) {
+  return await userRepository.findOneBy({ rut });
 }
 
 export async function updateUserById(id, data) {

@@ -14,8 +14,8 @@ export async function loginUser(email, password) {
   }
 
   const payload = { 
-    sub: user.id,
-    id: user.id,
+    sub: user.rut, // Usamos RUT como identificador natural
+    nombres: user.nombres,
     email: user.email,
     role: user.role 
   };
