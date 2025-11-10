@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.middleware.js";
-import { isAdmin, isProfesor } from "../middleware/authorization.middleware.js";
 import { checkRole } from "../middleware/role.middleware.js";
 import {
   createRamoHandler,
@@ -9,7 +8,8 @@ import {
   getRamoByCodigoHandler,
   updateRamoHandler,
   deleteRamoHandler,
-  inscribirAlumno
+  inscribirAlumno,
+  getMisRamosHandler
 } from "../controllers/ramos.controller.js";
 import { validateRequest } from "../middleware/validation.middleware.js";
 import { createRamoValidation, updateRamoValidation } from "../validations/ramos.validation.js";
@@ -32,26 +32,31 @@ router.get("/",
   getAllRamosHandler
 );
 
-router.get("/:id", 
-  getRamoByIdHandler
+// Ruta para obtener los ramos del usuario (inscritos para alumnos, dictados para profesores)
+router.get("/misRamos",
+  checkRole(["alumno", "profesor"]),
+  getMisRamosHandler
 );
 
-router.get("/codigo/:codigo", 
+router.get("/:codigo", 
   getRamoByCodigoHandler
 );
 
-router.put("/:id", 
+router.put("/:codigo", 
   checkRole(["admin"]),
   validateRequest(updateRamoValidation), 
   updateRamoHandler
 );
 
-router.delete("/:id", 
+router.delete("/:codigo", 
   checkRole(["admin"]), 
   deleteRamoHandler
 );
 
-// Ruta para que el profesor inscriba alumnos en sus ramos
-router.post("/inscribir", isProfesor, inscribirAlumno);
+// Ruta para que el profesor o admin inscriban alumnos en los ramos
+router.post("/inscribir", 
+  checkRole(["profesor", "admin"]), 
+  inscribirAlumno
+);
 
 export default router;

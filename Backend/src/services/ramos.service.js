@@ -87,10 +87,10 @@ export async function getRamoByCodigo(codigo) {
   return ramo;
 }
 
-export async function updateRamo(id, ramoData) {
+export async function updateRamo(codigo, ramoData) {
   // Verificar que el ramo exista
   const ramo = await ramosRepository.findOne({
-    where: { id }
+    where: { codigo }
   });
 
   if (!ramo) {
@@ -98,7 +98,7 @@ export async function updateRamo(id, ramoData) {
   }
 
   // Si se está actualizando el código, verificar que no esté en uso
-  if (ramoData.codigo && ramoData.codigo !== ramo.codigo) {
+  if (ramoData.codigo && ramoData.codigo !== codigo) {
     const existingRamo = await ramosRepository.findOne({
       where: { codigo: ramoData.codigo }
     });
@@ -129,22 +129,46 @@ export async function updateRamo(id, ramoData) {
     }
   }
 
-  // Actualizar el ramo
-  await ramosRepository.update(id, {
+  // Actualizar el ramo usando el código como identificador
+  await ramosRepository.update({ codigo }, {
     ...ramoData,
     profesor: profesor
   });
 
   // Retornar el ramo actualizado
-  return await ramosRepository.findOne({
-    where: { id },
+  const updatedRamo = await ramosRepository.findOne({
+    where: { codigo: ramoData.codigo || codigo },
     relations: ["profesor", "profesor.user", "secciones"]
   });
+
+  // Transformar la respuesta para usar identificadores naturales
+  if (updatedRamo.profesor?.user) {
+    return {
+      codigo: updatedRamo.codigo,
+      nombre: updatedRamo.nombre,
+      profesor: {
+        rut: updatedRamo.profesor.user.rut,
+        nombre: updatedRamo.profesor.user.nombre,
+        apellido: updatedRamo.profesor.user.apellido
+      },
+      secciones: updatedRamo.secciones.map(seccion => ({
+        numero: seccion.numero
+      }))
+    };
+  }
+
+  return {
+    codigo: updatedRamo.codigo,
+    nombre: updatedRamo.nombre,
+    secciones: updatedRamo.secciones.map(seccion => ({
+      numero: seccion.numero
+    }))
+  };
 }
 
-export async function deleteRamo(id) {
+export async function deleteRamo(codigo) {
   const ramo = await ramosRepository.findOne({
-    where: { id }
+    where: { codigo }
   });
 
   if (!ramo) {
@@ -153,4 +177,108 @@ export async function deleteRamo(id) {
 
   await ramosRepository.remove(ramo);
   return { message: "Ramo eliminado correctamente" };
+}
+
+export async function getRamosByUser(userId, role) {
+  if (role === "alumno") {
+    const userRepository = AppDataSource.getRepository(User);
+    const alumnoRepository = AppDataSource.getRepository(Alumno);
+    
+    // Buscar primero el usuario para obtener el RUT
+    const user = await userRepository.findOne({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      throw new NotFoundError("Usuario no encontrado");
+    }
+
+    const alumno = await alumnoRepository.findOne({
+      where: { id: userId },
+      relations: [
+        "secciones",
+        "secciones.ramo",
+        "secciones.ramo.profesor",
+        "secciones.ramo.profesor.user"
+      ]
+    });
+
+    if (!alumno) {
+      throw new NotFoundError("Alumno no encontrado");
+    }
+
+    // Transformar los datos para devolver los ramos con identificadores naturales
+    const ramosInscritos = alumno.secciones.map(seccion => {
+      const { ramo } = seccion;
+      const profesor = ramo.profesor?.user;
+      
+      return {
+        codigo: ramo.codigo,
+        nombre: ramo.nombre,
+        seccion: {
+          numero: seccion.numero
+        },
+        profesor: profesor ? {
+          rut: profesor.rut,
+          nombre: profesor.nombre,
+          apellido: profesor.apellido
+        } : null,
+        alumno: {
+          rut: user.rut
+        }
+      };
+    });
+
+    return ramosInscritos;
+
+  } else if (role === "profesor") {
+    const userRepository = AppDataSource.getRepository(User);
+    const profesorRepository = AppDataSource.getRepository(Profesor);
+    
+    // Buscar primero el usuario para obtener el RUT
+    const user = await userRepository.findOne({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      throw new NotFoundError("Usuario no encontrado");
+    }
+
+    const profesor = await profesorRepository.findOne({
+      where: { id: userId },
+      relations: [
+        "ramos",
+        "ramos.secciones",
+        "ramos.secciones.alumnos",
+        "ramos.secciones.alumnos.user"
+      ]
+    });
+
+    if (!profesor) {
+      throw new NotFoundError("Profesor no encontrado");
+    }
+
+    // Transformar los datos para usar identificadores naturales
+    const ramosDictados = profesor.ramos.map(ramo => ({
+      codigo: ramo.codigo,
+      nombre: ramo.nombre,
+      profesor: {
+        rut: user.rut,
+        nombre: user.nombre,
+        apellido: user.apellido
+      },
+      secciones: ramo.secciones.map(seccion => ({
+        numero: seccion.numero,
+        alumnos: seccion.alumnos.map(alumno => ({
+          rut: alumno.user.rut,
+          nombre: alumno.user.nombre,
+          apellido: alumno.user.apellido
+        }))
+      }))
+    }));
+
+    return ramosDictados;
+  }
+
+  throw new BadRequestError("Rol no válido para esta operación");
 }
