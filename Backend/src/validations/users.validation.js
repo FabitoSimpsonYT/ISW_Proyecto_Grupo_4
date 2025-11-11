@@ -1,32 +1,24 @@
 "use strict";
 import Joi from "joi";
 
-// Telefono pattern centralizado: +569XXXXXXXX (móvil) o +5641XXXXXXX (fijo)
 export const telefonoPattern = /^(?:\+569\d{8}|\+5641\d{7})$/;
 
-// Función para validar el dígito verificador del RUT
 export const validarRut = (rut) => {
-  // Separar el RUT del dígito verificador
   const [numero, dv] = rut.split('-');
-  
-  // Calcular el dígito verificador
+
   let suma = 0;
   let multiplicador = 2;
   
-  // Recorrer los dígitos de derecha a izquierda
   for (let i = numero.length - 1; i >= 0; i--) {
     suma += parseInt(numero[i]) * multiplicador;
     multiplicador = multiplicador === 7 ? 2 : multiplicador + 1;
   }
-  
-  // Calcular el dígito verificador esperado
+
   const resto = suma % 11;
   const dvEsperado = 11 - resto;
   
-  // Convertir el dígito verificador a string (considerando el caso especial del 11 y 10)
   const dvCalculado = dvEsperado === 11 ? '0' : dvEsperado === 10 ? 'K' : dvEsperado.toString();
   
-  // Comparar con el dígito verificador proporcionado (case insensitive para K)
   return dvCalculado.toUpperCase() === dv.toUpperCase();
 };
 
