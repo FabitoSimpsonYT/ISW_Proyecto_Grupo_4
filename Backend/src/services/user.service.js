@@ -7,22 +7,20 @@ import { createValidation, telefonoPattern } from "../validations/users.validati
 const userRepository = AppDataSource.getRepository(User);
 
 export async function createUser(data) {
-  // Validate input using users validation (ensures telefono, rut, email, password, etc.)
   const { error: validationError } = createValidation.validate(data);
   if (validationError) {
     const err = new Error(validationError.message);
     err.code = "VALIDATION_ERROR";
     throw err;
   }
-  // Verificar si ya existe un usuario con el mismo RUT
+  
   const existingRut = await userRepository.findOneBy({ rut: data.rut });
   if (existingRut) {
     const error = new Error("El RUT ya está registrado");
     error.code = "RUT_IN_USE";
     throw error;
   }
-
-  // Verificar si ya existe un usuario con el mismo email
+  
   const existingEmail = await userRepository.findOneBy({ email: data.email });
   if (existingEmail) {
     const error = new Error("El email ya está registrado");
@@ -30,7 +28,6 @@ export async function createUser(data) {
     throw error;
   }
 
-  // Verificar si ya existe un usuario con el mismo teléfono
   const existingPhone = await userRepository.findOneBy({ telefono: data.telefono });
   if (existingPhone) {
     const error = new Error("El teléfono ya está registrado");
@@ -66,7 +63,6 @@ export async function updateUserById(id, data) {
   const user = await userRepository.findOneBy({ id });
   if (!user) throw new Error("Usuario no encontrado");
   if (data.email && data.email !== user.email) {
-    // Verificar si el email ya está en uso por otro usuario
     const existing = await userRepository.findOneBy({ email: data.email });
     if (existing && String(existing.id) !== String(user.id)) {
       const err = new Error("El email ingresado ya está en uso por otro usuario.");
@@ -76,14 +72,12 @@ export async function updateUserById(id, data) {
     user.email = data.email;
   }
   if (data.telefono && data.telefono !== user.telefono) {
-    // Validar formato de teléfono usando patrón centralizado
     if (!telefonoPattern.test(data.telefono) || data.telefono.length !== 12) {
       const err = new Error("El teléfono debe tener el formato +56912345678 o +56411234567 (12 caracteres).");
       err.code = "PHONE_INVALID";
       throw err;
     }
 
-    // Verificar si el teléfono ya está en uso por otro usuario
     const existingPhone = await userRepository.findOneBy({ telefono: data.telefono });
     if (existingPhone && String(existingPhone.id) !== String(user.id)) {
       const err = new Error("El teléfono ingresado ya está en uso por otro usuario.");
@@ -93,7 +87,6 @@ export async function updateUserById(id, data) {
     user.telefono = data.telefono;
   }
   if (data.password) user.password = await bcrypt.hash(data.password, 10);
-  // Otros campos que puede actualizar un admin
   if (data.nombres) user.nombres = data.nombres;
   if (data.apellidoPaterno) user.apellidoPaterno = data.apellidoPaterno;
   if (data.apellidoMaterno) user.apellidoMaterno = data.apellidoMaterno;
