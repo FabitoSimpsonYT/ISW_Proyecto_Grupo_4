@@ -1,8 +1,5 @@
 import { query } from '../config/database.js';
 
-/**
- * Verifica conflictos de horario para un profesor
- */
 export const checkEventConflict = async (professorId, startTime, endTime, excludeEventId = null) => {
   try {
     let sql = `
@@ -89,9 +86,7 @@ programado para el ${formattedDate}
   }
 };
 
-/**
- * Verifica la disponibilidad de un evento para reservas
- */
+
 export const checkEventAvailability = async (eventId) => {
   try {
     const result = await query(
@@ -118,7 +113,6 @@ export const checkEventAvailability = async (eventId) => {
     
     const event = result.rows[0];
     
-    // Verificar si está bloqueado por una evaluación
     if (event.is_blocked) {
       const evaluationInfo = await query(
         `SELECT e.titulo, u.first_name, u.last_name 
@@ -136,7 +130,6 @@ export const checkEventAvailability = async (eventId) => {
       };
     }
 
-    // Verificar si el evento está disponible
     if (!event.is_available) {
       return {
         available: false,
@@ -145,7 +138,6 @@ export const checkEventAvailability = async (eventId) => {
       };
     }
     
-    // Verificar si el evento está cancelado
     if (event.status === 'cancelado') {
       return {
         available: false,
@@ -154,7 +146,6 @@ export const checkEventAvailability = async (eventId) => {
       };
     }
     
-    // Verificar si el evento ya pasó
     if (new Date(event.start_time) < new Date()) {
       const fechaEvento = new Date(event.start_time).toLocaleDateString('es-ES', {
         weekday: 'long',
@@ -170,8 +161,7 @@ export const checkEventAvailability = async (eventId) => {
         type: 'past'
       };
     }
-    
-    // Verificar cupos disponibles
+
     if (event.current_bookings >= event.max_bookings) {
       return {
         available: false,
@@ -189,9 +179,6 @@ export const checkEventAvailability = async (eventId) => {
   }
 };
 
-/**
- * Verifica conflictos de horario para un estudiante
- */
 export const checkStudentBookingConflict = async (studentId, startTime, endTime, excludeBookingId = null) => {
   try {
     let sql = `
@@ -224,9 +211,6 @@ export const checkStudentBookingConflict = async (studentId, startTime, endTime,
   }
 };
 
-/**
- * Verifica límites de reservas por curso/sección
- */
 export const checkBookingLimits = async (studentId, courseId, sectionId) => {
   try {
     const result = await query(
@@ -240,7 +224,6 @@ export const checkBookingLimits = async (studentId, courseId, sectionId) => {
       [studentId, courseId, sectionId]
     );
     
-    // Puedes ajustar este límite según tus necesidades
     const BOOKING_LIMIT = 3;
     
     return {
