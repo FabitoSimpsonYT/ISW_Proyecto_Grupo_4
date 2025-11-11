@@ -93,7 +93,6 @@ export const Evaluacion = new EntitySchema({
             onDelete: "SET NULL",
         },
        
-=======
 
     },
 });
