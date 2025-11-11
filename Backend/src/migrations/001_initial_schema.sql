@@ -1,7 +1,6 @@
--- Crear extensión para UUID si no existe
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Tabla de usuarios
+
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -13,7 +12,7 @@ CREATE TABLE users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabla de eventos
+
 CREATE TABLE events (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     code VARCHAR(8) UNIQUE NOT NULL,
@@ -35,7 +34,7 @@ CREATE TABLE events (
     CONSTRAINT valid_time_range CHECK (end_time > start_time)
 );
 
--- Tabla de reservas
+
 CREATE TABLE bookings (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
@@ -48,7 +47,7 @@ CREATE TABLE bookings (
     UNIQUE(event_id, student_id)
 );
 
--- Tabla de notificaciones
+
 CREATE TABLE notifications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -61,7 +60,6 @@ CREATE TABLE notifications (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabla de logs de auditoría
 CREATE TABLE audit_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -73,7 +71,6 @@ CREATE TABLE audit_logs (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Índices para mejorar el rendimiento
 CREATE INDEX idx_events_professor ON events(professor_id);
 CREATE INDEX idx_events_datetime ON events(start_time, end_time);
 CREATE INDEX idx_events_status ON events(status);
@@ -83,7 +80,6 @@ CREATE INDEX idx_notifications_user ON notifications(user_id);
 CREATE INDEX idx_audit_logs_user ON audit_logs(user_id);
 CREATE INDEX idx_audit_logs_entity ON audit_logs(entity_type, entity_id);
 
--- Triggers para actualizar timestamps
 CREATE OR REPLACE FUNCTION update_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
