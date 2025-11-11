@@ -3,9 +3,7 @@ import { sendEmail } from '../config/email.js';
 import { formatDate } from '../utils/helper.utils.js';
 import { logger } from '../utils/logger.utils.js';
 
-/**
- * Crear una nueva notificación
- */
+
 export const createNotification = async (userId, type, title, message, eventId = null, bookingId = null) => {
   try {
     const result = await query(
@@ -23,9 +21,7 @@ export const createNotification = async (userId, type, title, message, eventId =
   }
 };
 
-/**
- * Enviar email de confirmación de reserva
- */
+
 export const sendBookingConfirmationEmail = async (userEmail, userName, event) => {
   const subject = `Confirmación de reserva: ${event.title}`;
   const html = `
@@ -46,13 +42,9 @@ export const sendBookingConfirmationEmail = async (userEmail, userName, event) =
     await sendEmail(userEmail, subject, html);
   } catch (error) {
     logger.error('Error sending booking confirmation email:', error);
-    // No lanzamos el error para no interrumpir el flujo principal
   }
 };
 
-/**
- * Enviar email de cancelación de reserva
- */
 export const sendBookingCancellationEmail = async (userEmail, userName, booking) => {
   const subject = `Cancelación de reserva: ${booking.event_title}`;
   const html = `
@@ -73,9 +65,6 @@ export const sendBookingCancellationEmail = async (userEmail, userName, booking)
   }
 };
 
-/**
- * Enviar email de cambios en el evento
- */
 export const sendEventChangeEmail = async (userEmail, userName, event, changedFields) => {
   const subject = `Cambios en el evento: ${event.title}`;
   const html = `
@@ -99,12 +88,8 @@ export const sendEventChangeEmail = async (userEmail, userName, event, changedFi
   }
 };
 
-/**
- * Enviar recordatorios de eventos
- */
 export const sendEventReminders = async () => {
   try {
-    // Obtener eventos próximos (24 horas)
     const result = await query(
       `SELECT 
         e.id as event_id,
@@ -127,7 +112,6 @@ export const sendEventReminders = async () => {
     );
     
     for (const booking of result.rows) {
-      // Crear notificación
       await createNotification(
         booking.user_id,
         'recordatorio',
@@ -137,7 +121,6 @@ export const sendEventReminders = async () => {
         booking.booking_id
       );
       
-      // Enviar email
       const subject = `Recordatorio: ${booking.title}`;
       const html = `
         <h2>Recordatorio de Evento</h2>
@@ -154,7 +137,6 @@ export const sendEventReminders = async () => {
       try {
         await sendEmail(booking.email, subject, html);
         
-        // Marcar recordatorio como enviado
         await query(
           'UPDATE bookings SET reminder_sent = true WHERE id = $1',
           [booking.booking_id]
