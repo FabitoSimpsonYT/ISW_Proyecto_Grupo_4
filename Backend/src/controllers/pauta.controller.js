@@ -35,13 +35,11 @@ export async function createPauta(req, res) {
       );
     }
 
-    // Validar el body
     const { error, value } = createPautaValidation.validate(req.body);
     if (error) {
       return handleErrorClient(res, 400, error.message);
     }
 
-    // Permitir crear pauta sin evaluacionId
     const result = await createPautaService(value, evaluacionId || null);
 
     if(result.error) return  handleErrorClient(res, 400, result.error);
