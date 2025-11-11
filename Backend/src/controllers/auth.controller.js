@@ -27,31 +27,31 @@ export async function register(req, res) {
   try {
     const data = req.body;
     
-    // El usuario debe estar autenticado (gracias al authMiddleware)
+    
     const userRole = req.user.role;
 
-    // Verificar el rol del usuario antes de cualquier otra validación
+    
     if (userRole !== "admin") {
       return handleErrorClient(res, 403, "Debe ser rango administrador para crear usuarios.");
     }
 
-    // Una vez verificado el rol, validar los demás campos
+    
     const { error } = createValidation.validate(req.body);
 
-    // Verificar si se intenta crear el primer admin
+    
     if (data.role === "admin") {
       const adminExists = await AppDataSource
         .getRepository(User)
         .findOne({ where: { role: "admin" } });
       
       if (!adminExists) {
-        // Si no hay admin, permitir la creación del primer admin incluso si el usuario no es admin
+        
         return handleSuccess(res, 201, "Primer administrador registrado exitosamente", newUser);
       }
     }
     
     const newUser = await createUser(data);
-    delete newUser.password; // Nunca devolver la contraseña
+    delete newUser.password;
     handleSuccess(res, 201, "Usuario registrado exitosamente", newUser);
   } catch (error) {
     if (error.code === "RUT_IN_USE") {
