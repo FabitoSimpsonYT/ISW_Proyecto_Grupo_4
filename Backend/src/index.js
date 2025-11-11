@@ -10,12 +10,10 @@ const app = express();
 app.use(express.json());
 app.use(morgan("dev"));
 
-// Ruta principal de bienvenida
 app.get("/", (req, res) => {
   res.send("¡Bienvenido a mi API REST con TypeORM!");
 });
 
-// Middleware para loguear todas las peticiones
 app.use((req, res, next) => {
   console.log(`\n[REQUEST] ${req.method} ${req.path}`);
   console.log(`Headers:`, req.headers);
@@ -25,16 +23,12 @@ app.use((req, res, next) => {
   next();
 });
 
-// Inicializa la conexión a la base de datos
 connectDB()
   .then(() => {
-    // Inicializar datos por defecto (usuarios, etc.)
     initDB()
       .then(() => {
-        // Carga todas las rutas de la aplicación
         routerApi(app);
 
-        // Middleware de error global - Debe ir al final
         app.use((err, req, res, next) => {
           console.error("\n[ERROR] ERROR EN LA PETICIÓN:");
           console.error(`Método: ${req.method}`);
@@ -49,7 +43,6 @@ connectDB()
           });
         });
 
-        // Ruta 404
         app.use((req, res) => {
           console.warn(`\n[WARN] RUTA NO ENCONTRADA: ${req.method} ${req.path}`);
           res.status(404).json({
@@ -58,7 +51,6 @@ connectDB()
           });
         });
 
-        // Levanta el servidor Express usando el PORT importado de configEnv.js
         app.listen(PORT, () => {
           console.log(`\n[OK] Servidor iniciado en http://${HOST}:${PORT}`);
           console.log(`[READY] Ready to accept connections\n`);
