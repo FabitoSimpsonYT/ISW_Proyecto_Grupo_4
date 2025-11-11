@@ -16,6 +16,11 @@ export const Evaluacion = new EntitySchema({
         fechaProgramada:{
             type:"date",
         },
+        horaProgramada: {
+            type: "varchar",
+            length: 20,
+            nullable: true,
+        },
         ponderacion: {
             type:"float",
         },
@@ -56,6 +61,19 @@ export const Evaluacion = new EntitySchema({
             cascade: true,
             nullable:true,
         },
+        seccion: {
+            target: "Seccion",
+            type: "many-to-one",
+            joinColumn: {
+                name: "seccion_id",
+                referencedColumnName: "id",
+            },
+            nullable: true,
+            onDelete: "SET NULL",
+        },
+       
+=======
+
     },
 });
 

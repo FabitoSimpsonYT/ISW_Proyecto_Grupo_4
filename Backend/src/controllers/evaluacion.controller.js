@@ -44,7 +44,8 @@ import { syncEvaluacionWithEvent } from "../utils/evaluation-event.utils.js";
 export async function createEvaluacion(req, res) {
   try {
     const user = req.user;
-    // Calculamos la fecha de mañana (00:00:00)
+    const { error } = createEvaluacionValidation.validate(req.body);
+    if (error) return res.status(400).json({ message: error.message });
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(0, 0, 0, 0);
@@ -54,15 +55,25 @@ export async function createEvaluacion(req, res) {
     });
     if(error) return res.status(400).json({message: error.message});
 
+=======
+
+
     if (user.role !== "profesor") {
       return handleErrorClient(res, 403, "Solo el profesor puede crear evaluaciones");
     }
 
+    const { titulo, fechaProgramada, ponderacion, contenidos, pauta, seccion } = req.body;
+
+    if (!titulo || !fechaProgramada || !ponderacion || !contenidos || !pauta || !seccion) {
+      return handleErrorClient(res, 400, "Faltan campos obligatorios (incluya sección)");
+    }
+=======
     const { titulo, fechaProgramada, ponderacion, contenidos, ramo_id } = req.body;
 
     const nuevaEvaluacion = await createEvaluacionService({
       titulo,
       fechaProgramada,
+      horaProgramada,
       ponderacion,
       contenidos,
       ramo_id,
