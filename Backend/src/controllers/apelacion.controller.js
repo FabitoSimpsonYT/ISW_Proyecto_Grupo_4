@@ -3,7 +3,6 @@ import { Apelacion } from "../entities/apelacion.entity.js";
 import { User } from "../entities/user.entity.js";
 
 
-
 export const createApelacion = async (req, res) => {
   try {
     const apelacionRepo = AppDataSource.getRepository(Apelacion);
@@ -33,6 +32,7 @@ export const createApelacion = async (req, res) => {
       return res.status(400).json({ message: "Profesor no válido o no encontrado" });
     }
 
+    // Crear apelación base
     const apelacion = apelacionRepo.create({
       tipo,
       mensaje,
@@ -42,21 +42,36 @@ export const createApelacion = async (req, res) => {
       profesor,
     });
 
+    // Guardar en BD
     await apelacionRepo.save(apelacion);
+
+    // ⚙️ Calcular campos del formato final
+    const ahora = new Date();
+    let puedeEditar = apelacion.puedeEditar;
+
+    if (apelacion.fechaLimiteEdicion) {
+      const horasRestantes = (apelacion.fechaLimiteEdicion - ahora) / (1000 * 60 * 60);
+      puedeEditar = horasRestantes >= 24;
+    }
+
+    // 🎯 Respuesta con formato idéntico a getMisApelaciones
+    const apelacionLimpia = {
+      tipo: apelacion.tipo,
+      mensaje: apelacion.mensaje,
+      estado: apelacion.estado,
+      respuestaDocente: apelacion.respuestaDocente || null,
+      fechaCreacion: apelacion.fechaCreacion,
+      fechaLimiteEdicion: apelacion.fechaLimiteEdicion,
+      puedeEditar,
+      profesor: {
+        nombre: profesor.nombre,
+        email: profesor.email,
+      },
+    };
 
     return res.status(201).json({
       message: "Apelación creada correctamente",
-      data: {
-        id: apelacion.id,
-        tipo: apelacion.tipo,
-        mensaje: apelacion.mensaje,
-        estado: apelacion.estado,
-        puedeEditar: apelacion.puedeEditar,
-        profesor: {
-          nombre: profesor.nombre,
-          email: profesor.email,
-        },
-      },
+      data: apelacionLimpia,
     });
   } catch (error) {
     console.error("Error al crear apelación:", error);

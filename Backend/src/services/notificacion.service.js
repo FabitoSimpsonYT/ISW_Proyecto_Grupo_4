@@ -22,22 +22,19 @@ export const notificarAlumnos = async (
   options = { bySeccion: false }
 ) => {
   let alumnos = [];
-  // Si se indica bySeccion, buscar la sección y sus alumnos
   if (options.bySeccion) {
     const seccion = await seccionRepo.findOne({
       where: { id: targetId },
       relations: ["alumnos", "alumnos.user"],
     });
     if (seccion && seccion.alumnos) {
-      // seccion.alumnos es un array de Alumno entities con relación user
+     
       alumnos = seccion.alumnos.map((a) => (a.user ? a.user : null)).filter(Boolean);
     }
   } else {
-    // Fallback: intentar buscar alumnos por ramo en User (si existe esa relación en proyecto)
     try {
       alumnos = await userRepo.find({ where: { role: "alumno", ramo: { id: targetId } } });
     } catch (err) {
-      // Si no se puede filtrar por ramo, dejar alumnos vacío
       alumnos = [];
     }
   }

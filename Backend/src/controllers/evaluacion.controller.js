@@ -52,7 +52,6 @@ import { syncEvaluacionWithEvent } from "../utils/evaluation-event.utils.js";
 export async function createEvaluacion(req, res) {
   try {
     const user = req.user;
-    console.log("Body recibido:", JSON.stringify(req.body, null, 2)); // DEBUG
     
     // Calculamos la fecha de mañana (00:00:00)
     const tomorrow = new Date();
@@ -69,6 +68,9 @@ export async function createEvaluacion(req, res) {
     
     console.log("Datos validados:", JSON.stringify(value, null, 2)); // DEBUG
 
+=======
+
+
     if (user.role !== "profesor") {
       return handleErrorClient(res, 403, "Solo el profesor puede crear evaluaciones");
     }
@@ -80,7 +82,6 @@ export async function createEvaluacion(req, res) {
       return handleErrorClient(res, 400, "El código del ramo es obligatorio");
     }
 
-    console.log("Buscando ramo con código:", codigoRamo); // DEBUG
 
     // Buscar el ramo por código e incluir el profesor asignado
     const ramosRepository = AppDataSource.getRepository(Ramos);
@@ -93,7 +94,6 @@ export async function createEvaluacion(req, res) {
       return handleErrorClient(res, 404, `No se encontró ramo con código: ${codigoRamo}`);
     }
 
-    console.log("Ramo encontrado:", ramo.id); // DEBUG
 
     // Verificar que el profesor autenticado dicta este ramo
     // Normalizamos a string para evitar discrepancias de tipo (number vs string)
