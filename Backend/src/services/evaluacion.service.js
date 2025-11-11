@@ -39,6 +39,7 @@ export async function getEvaluacionByIdService(id, user){
 
 
 export async function createEvaluacionService(data) {
+<<<<<<< Updated upstream
   // Verificar si la sección existe antes de crear la evaluación
   if (data.seccionId) {
     const seccionExistente = await seccionRepository.findOne({
@@ -73,6 +74,19 @@ export async function createEvaluacionService(data) {
   }
 
   return savedWithRelations || saved;
+=======
+  const { titulo, fechaProgramada, horaProgramada, ponderacion, contenidos, ramo_id } = data;
+  const nueva = evaluacionRepository.create({
+    titulo,
+    fechaProgramada,
+    horaProgramada,
+    ponderacion,
+    contenidos,
+    ramo: { id: ramo_id }
+  });
+  const saved = await evaluacionRepository.save(nueva);
+  return await evaluacionRepository.findOne({ where: { id: saved.id }, relations: ["ramo"] });
+>>>>>>> Stashed changes
 }
 
 export async function updateEvaluacionService(id, data) {

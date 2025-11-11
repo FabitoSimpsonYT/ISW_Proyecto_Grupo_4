@@ -50,22 +50,45 @@ export async function getEvaluacionById(req, res) {
 export async function createEvaluacion(req, res) {
   try {
     const user = req.user;
+<<<<<<< Updated upstream
     const { error } = createEvaluacionValidation.validate(req.body);
     if (error) return res.status(400).json({ message: error.message });
+=======
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+
+    const {error} = createEvaluacionValidation.validate(req.body, {
+      context: { tomorrow }
+    });
+    if(error) return res.status(400).json({message: error.message});
+>>>>>>> Stashed changes
 
     if (user.role !== "profesor") {
       return handleErrorClient(res, 403, "Solo el profesor puede crear evaluaciones");
     }
 
+<<<<<<< Updated upstream
     const { titulo, fechaProgramada, ponderacion, contenidos, pauta, seccion } = req.body;
 
     if (!titulo || !fechaProgramada || !ponderacion || !contenidos || !pauta || !seccion) {
       return handleErrorClient(res, 400, "Faltan campos obligatorios (incluya sección)");
+=======
+    let { titulo, fechaProgramada, ponderacion, contenidos, ramo_id } = req.body;
+
+    
+    let horaProgramada = null;
+    if (typeof fechaProgramada === 'string' && fechaProgramada.includes('T')) {
+      const [datePart, timePart] = fechaProgramada.split('T');
+      fechaProgramada = datePart;
+      horaProgramada = `T${timePart}`; 
+>>>>>>> Stashed changes
     }
 
     const nuevaEvaluacion = await createEvaluacionService({
       titulo,
       fechaProgramada,
+      horaProgramada,
       ponderacion,
       contenidos,
       pauta,
