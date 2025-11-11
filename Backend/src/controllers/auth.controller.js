@@ -60,6 +60,8 @@ export async function register(req, res) {
       handleErrorClient(res, 409, "El email ya está registrado");
     } else if (error.code === "PHONE_IN_USE") {
       handleErrorClient(res, 409, "El teléfono ya está registrado");
+    } else if (error.code === "VALIDATION_ERROR") {
+      handleErrorClient(res, 400, error.message);
     } else {
       handleErrorServer(res, 500, "Error interno del servidor", error.message);
     }

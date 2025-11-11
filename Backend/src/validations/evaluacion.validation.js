@@ -16,9 +16,23 @@ export const createEvaluacionValidation = Joi.object({
         .min(Joi.ref('$tomorrow'))
         .required()
         .messages({
-            "date.base": "la fecha programada debe ser una fecha válida",
-            "date.min": "la fecha programada debe ser igual o posterior a mañana",
-            "any.required": "la fecha programada es obligatoria",
+            "date.base": "la fecha debe ser una fecha válida",
+            "date.min": "la fecha debe ser igual o posterior a mañana",
+            "any.required": "la fecha es obligatoria",
+        }),
+        horaInicio: Joi.string()
+        .pattern(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/)
+        .required()
+        .messages({
+            "string.pattern.base": "la hora de inicio debe estar en formato HH:mm (ej: 10:30)",
+            "any.required": "la hora de inicio es obligatoria",
+        }),
+        horaFin: Joi.string()
+        .pattern(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/)
+        .required()
+        .messages({
+            "string.pattern.base": "la hora de fin debe estar en formato HH:mm (ej: 11:30)",
+            "any.required": "la hora de fin es obligatoria",
         }),
         ponderacion: Joi.number()
         .min(0)
@@ -38,11 +52,11 @@ export const createEvaluacionValidation = Joi.object({
             "string.min":"el contenido debe tener al menos 10 caracteres",
             "any.required":"el contenido es obligatorio",
         }),
-        ramo_id: Joi.number()
+        codigoRamo: Joi.string()
         .required()
         .messages({
-            "number.base":"el id del ramo debe ser un número",
-            "any.required":"el id del ramo es obligatorio",
+            "string.empty":"el código del ramo es obligatorio",
+            "any.required":"el código del ramo es obligatorio",
         }),
         estado: Joi.string()
         .valid("pendiente", "realizada", "cancelada")
@@ -63,7 +77,7 @@ export const createEvaluacionValidation = Joi.object({
             "string.min":"la pauta debe de tener al menos 3 caracteres"
         }),
         
-});
+}).unknown(false);
 
 export const updateEvaluacionValidation = Joi.object({
     titulo:Joi.string()

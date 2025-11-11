@@ -23,10 +23,11 @@ router.post("/",
 );
 
 // Admin y profesores ven lista, alumno ve su perfil
+// Listar todos los alumnos (solo admin y profesores)
 router.get("/", 
   authMiddleware,
-  checkRole(["admin", "profesor", "alumno"]), 
-  getAlumnoByIdHandler
+  checkRole(["admin", "profesor"]), 
+  getAllAlumnosHandler
 );
 
 // Admin y profesores pueden ver perfiles específicos

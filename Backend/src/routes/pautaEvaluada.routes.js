@@ -5,6 +5,7 @@ import { createPautaEvaluada, getPautaEvaluada, updatePautaEvaluada, deletePauta
 const router = Router();
 
 // Crear pauta evaluada para una evaluación (profesor)
+// POST /pauta-evaluadas/{evaluacionId}
 router.post("/:evaluacionId", authMiddleware, createPautaEvaluada);
 
 // Obtener pauta evaluada por id

@@ -1,4 +1,4 @@
-import { handleSuccess, handleErrorClient, handleErrorServer } from "../Handlers/responseHandlers.js";
+import { handleSuccess, handleErrorClient, handleErrorServer, BadRequestError, NotFoundError, UnauthorizedError } from "../Handlers/responseHandlers.js";
 import {
   getAllEvaluacionesService,
   getEvaluacionByIdService,
@@ -7,6 +7,8 @@ import {
   deleteEvaluacionService,
 } from "../services/evaluacion.service.js";
 import { createEvaluacionValidation, updateEvaluacionValidation } from "../validations/evaluacion.validation.js";
+import { AppDataSource } from "../config/configDb.js";
+import { Ramos } from "../entities/ramos.entity.js";
 
 /**Obtener todas las evaluacionesDocente*/
 export async function getEvaluaciones(req, res) {
@@ -16,6 +18,9 @@ export async function getEvaluaciones(req, res) {
 
     handleSuccess(res, 200, "Evaluacion obtenida exitosamente", { evaluaciones });
   } catch (error) {
+      if (error instanceof BadRequestError || error instanceof NotFoundError || error instanceof UnauthorizedError) {
+        return handleErrorClient(res, error.statusCode || 400, error.message);
+      }
       handleErrorServer(res, 500,"Error al obtener evaluaciones", error.message);
   }
 }
@@ -34,6 +39,9 @@ export async function getEvaluacionById(req, res) {
 
     handleSuccess(res, 200, "Evaluación obtenida exitosamente", { evaluacion });
   } catch (error) {
+    if (error instanceof BadRequestError || error instanceof NotFoundError || error instanceof UnauthorizedError) {
+      return handleErrorClient(res, error.statusCode || 400, error.message);
+    }
     handleErrorServer(res, 500, "Error al obtener evaluación", error.message);
   }
 }
@@ -45,31 +53,55 @@ import { checkEventConflict } from "../services/conflictService.js";
 export async function createEvaluacion(req, res) {
   try {
     const user = req.user;
-    const { error } = createEvaluacionValidation.validate(req.body);
-    if (error) return res.status(400).json({ message: error.message });
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(0, 0, 0, 0);
 
-    const {error} = createEvaluacionValidation.validate(req.body, {
+    const {error, value} = createEvaluacionValidation.validate(req.body, {
       context: { tomorrow }
     });
-    if(error) return res.status(400).json({message: error.message});
-
-=======
+    if(error) {
+      console.log("Error de validación:", error.message); // DEBUG
+      return res.status(400).json({message: error.message});
+    }
+    
 
 
     if (user.role !== "profesor") {
       return handleErrorClient(res, 403, "Solo el profesor puede crear evaluaciones");
     }
 
-    const { titulo, fechaProgramada, ponderacion, contenidos, pauta, seccion } = req.body;
+    const { titulo, fechaProgramada, horaInicio, horaFin, ponderacion, contenidos, codigoRamo } = value;
 
-    if (!titulo || !fechaProgramada || !ponderacion || !contenidos || !pauta || !seccion) {
-      return handleErrorClient(res, 400, "Faltan campos obligatorios (incluya sección)");
+    // Validar que codigoRamo está presente
+    if (!codigoRamo) {
+      return handleErrorClient(res, 400, "El código del ramo es obligatorio");
     }
-=======
-    const { titulo, fechaProgramada, ponderacion, contenidos, ramo_id } = req.body;
+
+    console.log("Buscando ramo con código:", codigoRamo); // DEBUG
+
+    // Buscar el ramo por código e incluir el profesor asignado
+    const ramosRepository = AppDataSource.getRepository(Ramos);
+    const ramo = await ramosRepository.findOne({
+      where: { codigo: codigoRamo },
+      relations: ["profesor"]
+    });
+
+    if (!ramo) {
+      return handleErrorClient(res, 404, `No se encontró ramo con código: ${codigoRamo}`);
+    }
+
+    console.log("Ramo encontrado:", ramo.id); // DEBUG
+
+    // Verificar que el profesor autenticado dicta este ramo
+    // Normalizamos a string para evitar discrepancias de tipo (number vs string)
+    const ramoProfesorId = ramo.profesor ? String(ramo.profesor.id) : null;
+    const userIdStr = user && user.id ? String(user.id) : null;
+    console.log(`Verificando profesor: ramo.profesor.id=${ramoProfesorId} req.user.id=${userIdStr}`);
+
+    if (!ramo.profesor || ramoProfesorId !== userIdStr) {
+      return handleErrorClient(res, 403, "El profesor autenticado no dicta este ramo");
+    }
 
     // Calcular rango horario de la evaluación (fechaProgramada a +2 horas)
     const fechaEval = new Date(fechaProgramada);
@@ -86,21 +118,26 @@ export async function createEvaluacion(req, res) {
     const nuevaEvaluacion = await createEvaluacionService({
       titulo,
       fechaProgramada,
-      horaProgramada,
+      horaInicio,
+      horaFin,
       ponderacion,
       contenidos,
-      ramo_id,
+      ramo_id: ramo.id,
       creadaPor: user.id,
       aplicada: false
     });
 
-    // Crear evento asociado automáticamente (esto también insertará un evento bloqueado)
-    await syncEvaluacionWithEvent(nuevaEvaluacion, user, false);
+    // TODO: Crear evento asociado automáticamente (requiere tabla 'events' en la BD)
+    // await syncEvaluacionWithEvent(nuevaEvaluacion, user, false);
 
     handleSuccess(res, 201,"Evaluación creada exitosamente",{ evaluacion: nuevaEvaluacion });
   } catch (error) {
+    // If service threw a client error, map it to a 4xx response instead of 500
+    if (error instanceof BadRequestError || error instanceof NotFoundError || error instanceof UnauthorizedError) {
+      return handleErrorClient(res, error.statusCode || 400, error.message);
+    }
     handleErrorServer(res, 500, "Error al crear evaluación", error.message);
-    res.status(500).json({message: error.message})
+    // No enviar dos respuestas (handleErrorServer ya lo hace)
   }
 }
 
@@ -109,14 +146,14 @@ export async function updateEvaluacion(req, res) {
   try {
     const user = req.user;
     const { id } = req.params;
-    const {error} = updateEvaluacionValidation.validate(req.body);
-    if(error) return res.status(400).json({message: error.message});
+    const { error, value } = updateEvaluacionValidation.validate(req.body);
+    if (error) return res.status(400).json({ message: error.message });
 
     if (user.role !== "profesor") {
       return  handleErrorClient(res, 403, "Solo los profesor pueden modificar evaluaciones");
     }
 
-    const { titulo, fechaProgramada, ponderacion, contenidos, pauta, aplicada } = req.body;
+  const { titulo, fechaProgramada, horaInicio, horaFin, ponderacion, contenidos, codigoRamo, pauta, aplicada } = value;
 
     // Si se actualiza la fechaProgramada, validar conflictos
     if (fechaProgramada) {
@@ -135,12 +172,7 @@ export async function updateEvaluacion(req, res) {
     }
 
     const evaluacionActualizada = await updateEvaluacionService(id, {
-      titulo,
-      fechaProgramada,
-      ponderacion,
-      contenidos,
-      pauta,
-      aplicada,
+      ...value,
       userId: user.id,
     });
 
@@ -150,8 +182,10 @@ export async function updateEvaluacion(req, res) {
 
     handleSuccess(res, 200, "Evaluación actualizada exitosamente", { evaluacion: evaluacionActualizada });
   } catch (error) {
+    if (error instanceof BadRequestError || error instanceof NotFoundError || error instanceof UnauthorizedError) {
+      return handleErrorClient(res, error.statusCode || 400, error.message);
+    }
     handleErrorServer(res, 500, "Error al actualizar evaluación", error.message);
-    res.status(500).json({message:error.messaje});
   }
 }
 
@@ -173,6 +207,9 @@ export async function deleteEvaluacion(req, res) {
 
     handleSuccess(res, 200,"Evaluación eliminada exitosamente");
   } catch (error) {
+    if (error instanceof BadRequestError || error instanceof NotFoundError || error instanceof UnauthorizedError) {
+      return handleErrorClient(res, error.statusCode || 400, error.message);
+    }
     handleErrorServer(res,500, "Error al eliminar evaluación", error.message);
   }
 }

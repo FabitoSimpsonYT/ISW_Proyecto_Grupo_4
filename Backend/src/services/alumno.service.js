@@ -34,7 +34,11 @@ export async function createAlumno(alumnoData) {
   };
 
   const newAlumno = await alumnoRepository.save(alumnoProfile);
-  delete newAlumno.user.password;
+  if (newAlumno.user) {
+    delete newAlumno.user.password;
+    // Eliminar id anidado para evitar duplicidad con el id del perfil (shared PK)
+    delete newAlumno.user.id;
+  }
   return newAlumno;
 }
 
@@ -46,7 +50,11 @@ export async function getAllAlumnos() {
   });
 
   return alumnos.map(alumno => {
-    if (alumno.user) delete alumno.user.password;
+    if (alumno.user) {
+      delete alumno.user.password;
+      // Evitar que el objeto anidado `user` contenga su propio `id` (es la misma PK compartida)
+      delete alumno.user.id;
+    }
     return alumno;
   });
 }
@@ -61,7 +69,10 @@ export async function getAlumnoById(id) {
     throw new NotFoundError("Alumno no encontrado");
   }
 
-  if (alumno.user) delete alumno.user.password;
+  if (alumno.user) {
+    delete alumno.user.password;
+    delete alumno.user.id;
+  }
   return alumno;
 }
 
@@ -107,7 +118,10 @@ export async function updateAlumno(id, alumnoData) {
     relations: ["user", "secciones"]
   });
 
-  if (updatedAlumno.user) delete updatedAlumno.user.password;
+  if (updatedAlumno.user) {
+    delete updatedAlumno.user.password;
+    delete updatedAlumno.user.id;
+  }
   return updatedAlumno;
 }
 

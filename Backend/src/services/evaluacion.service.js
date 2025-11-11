@@ -1,5 +1,7 @@
 import { AppDataSource } from "../config/configDb.js";
 import { Evaluacion } from "../entities/evaluaciones.entity.js";
+import { Ramos } from "../entities/ramos.entity.js";
+import { BadRequestError } from "../Handlers/responseHandlers.js";
 
 const evaluacionRepository = AppDataSource.getRepository(Evaluacion); 
 
@@ -14,7 +16,7 @@ export async function getAllEvaluacionesService(user) {
 }
 
 export async function getEvaluacionByIdService(id, user){
-  const evaluacion = await evaluacionRepository.findOneBy(id);
+  const evaluacion = await evaluacionRepository.findOneBy({ id });
 
   if (!evaluacion) return null;
 
@@ -32,48 +34,91 @@ export async function getEvaluacionByIdService(id, user){
 
 
 export async function createEvaluacionService(data) {
-  if (data.seccionId) {
-    const seccionExistente = await seccionRepository.findOne({
-      where: { id: Number(data.seccionId) }
-    });
-    if (!seccionExistente) {
-      return { error: "La sección especificada no existe" };
+  const { titulo, fechaProgramada, horaInicio, horaFin, ponderacion, contenidos, ramo_id, codigoRamo } = data;
+  // Resolve ramo_id from codigoRamo if not provided
+  let resolvedRamoId = ramo_id;
+  if (!resolvedRamoId && codigoRamo) {
+    const ramosRepository = AppDataSource.getRepository(Ramos);
+    const ramo = await ramosRepository.findOne({ where: { codigo: codigoRamo } });
+    if (!ramo) {
+      throw new BadRequestError(`No se encontró ramo con código: ${codigoRamo}`);
     }
+    resolvedRamoId = ramo.id;
   }
-
-  const nueva = evaluacionRepository.create({ ...data });
-
-  if (data.pauta && (typeof data.pauta === "number" || typeof data.pauta === "string")) {
-    nueva.pauta = { id: Number(data.pauta) };
+  if (!resolvedRamoId) {
+    throw new BadRequestError('Se requiere ramo_id o codigoRamo para crear la evaluación');
   }
-
-  if (data.seccionId && (typeof data.seccionId === "number" || typeof data.seccionId === "string")) {
-    nueva.seccion = { id: Number(data.seccionId) };
-  }
-
-  const saved = await evaluacionRepository.save(nueva);
- 
-  const savedWithRelations = await evaluacionRepository.findOne({ where: { id: saved.id }, relations: ["seccion"] });
   
-  try {
-    if (savedWithRelations && savedWithRelations.seccion && savedWithRelations.seccion.id) {
-      await notificarAlumnos(savedWithRelations.seccion.id, `Nueva evaluación: ${savedWithRelations.titulo}`, `Se ha creado una nueva evaluación. Fecha: ${savedWithRelations.fechaProgramada}` , savedWithRelations.id, { bySeccion: true });
-    }
-  } catch (err) {
-    console.error("Error notificando alumnos (createEvaluacion):", err.message || err);
+  // Parse horaInicio and horaFin to extract hours and minutes (format: "HH:mm")
+  const [newHoraInicioHH, newHoraInicioMM] = horaInicio.split(':').map(Number);
+  const [newHoraFinHH, newHoraFinMM] = horaFin.split(':').map(Number);
+  const newHoraInicioTotal = newHoraInicioHH * 60 + newHoraInicioMM; // Convert to minutes
+  const newHoraFinTotal = newHoraFinHH * 60 + newHoraFinMM; // Convert to minutes
+
+  // Format fechaProgramada as string (YYYY-MM-DD) for comparison
+  let fechaStr;
+  if (fechaProgramada instanceof Date) {
+    fechaStr = fechaProgramada.toISOString().split('T')[0];
+  } else if (typeof fechaProgramada === 'string') {
+    // Si es string, asegurarse que es YYYY-MM-DD
+    fechaStr = fechaProgramada.includes('T') ? fechaProgramada.split('T')[0] : fechaProgramada;
+  } else {
+    fechaStr = String(fechaProgramada);
   }
 
-  return savedWithRelations || saved;
+  
+
+  // Consultar en la base de datos las evaluaciones que tienen la misma fechaProgramada
+  // Normalizamos la fecha a 'YYYY-MM-DD' y la usamos en la consulta para evitar comparaciones en memoria
+  const fechaQuery = fechaStr; // 'YYYY-MM-DD'
+  const evaluacionesMismaFecha = await evaluacionRepository.find({ where: { fechaProgramada: fechaQuery } });
+  
+  // Si hay evaluaciones en la misma fecha, verificar solapamiento de horas
+  if (evaluacionesMismaFecha.length > 0) {
+    for (const evaluacion of evaluacionesMismaFecha) {
+      if (evaluacion.horaInicio && evaluacion.horaFin) {
+        const [evalHoraInicioHH, evalHoraInicioMM] = evaluacion.horaInicio.split(':').map(Number);
+        const [evalHoraFinHH, evalHoraFinMM] = evaluacion.horaFin.split(':').map(Number);
+        const evalHoraInicioTotal = evalHoraInicioHH * 60 + evalHoraInicioMM;
+        const evalHoraFinTotal = evalHoraFinHH * 60 + evalHoraFinMM;
+
+       
+
+        // Verificar si hay solapamiento: 
+        // Dos rangos se solapan si: inicio1 < fin2 AND fin1 > inicio2
+        const haysolapamiento = newHoraInicioTotal < evalHoraFinTotal && newHoraFinTotal > evalHoraInicioTotal;
+
+        if (haysolapamiento) {
+          throw new BadRequestError(
+            `Existe un solapamiento de horarios en la fecha ${fechaStr}. ` +
+            `Ya hay una evaluación programada de ${evaluacion.horaInicio} a ${evaluacion.horaFin}. ` +
+            `No se puede crear evaluación de ${horaInicio} a ${horaFin}.`
+          );
+        }
+      }
+    }
+  }
+
+  
+
+  const nueva = evaluacionRepository.create({
+    titulo,
+    fechaProgramada: fechaStr,
+    horaInicio,
+    horaFin,
     ponderacion,
     contenidos,
-    ramo: { id: ramo_id }
+    ramo: { id: resolvedRamoId }
   });
-
   const saved = await evaluacionRepository.save(nueva);
-  return await evaluacionRepository.findOne({ where: { id: saved.id }, relations: ["ramo"] });
-=======
-  return await evaluacionRepository.save(nueva);
-
+  
+  // Recargar la evaluación con la relación ramo completa
+  const evaluacionCompleta = await evaluacionRepository.findOne({
+    where: { id: saved.id },
+    relations: ["ramo"]
+  });
+  
+  return evaluacionCompleta;
 }
 
 export async function updateEvaluacionService(id, data) {

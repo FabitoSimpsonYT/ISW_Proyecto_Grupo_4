@@ -5,12 +5,15 @@ import {
   getRamoById,
   getRamoByCodigo,
   updateRamo,
-  deleteRamo
+  deleteRamo,
+  getRamosByUser
 } from "../services/ramos.service.js";
 import { AppDataSource } from "../config/configDb.js";
 import { Seccion } from "../entities/seccion.entity.js";
 import { Alumno } from "../entities/alumno.entity.js";
 import { User } from "../entities/user.entity.js";
+import { Profesor } from "../entities/profesor.entity.js";
+import { Ramos } from "../entities/ramos.entity.js";
 
 export async function getAllRamosHandler(req, res) {
   try {
@@ -61,17 +64,38 @@ export async function getRamoByCodigoHandler(req, res) {
 
 export async function createRamoHandler(req, res) {
   try {
+    // Si se proporcionó rutProfesor, asegurarse que exista perfil de profesor
+    const { rutProfesor } = req.body;
+    if (rutProfesor) {
+      const userRepository = AppDataSource.getRepository(User);
+      const profesorRepository = AppDataSource.getRepository(Profesor);
+
+      // Buscar usuario con role 'profesor'
+      const user = await userRepository.findOne({ where: { rut: rutProfesor, role: "profesor" } });
+      if (!user) {
+        return handleErrorClient(res, 400, "No se encontró un usuario con ese RUT y role 'profesor'");
+      }
+
+      // Si falta el perfil en la tabla profesores, crearlo automáticamente
+      const existingProfesor = await profesorRepository.findOne({ where: { id: user.id } });
+      if (!existingProfesor) {
+        const profile = profesorRepository.create({
+          id: user.id,
+          especialidad: req.body.especialidad || null,
+          user
+        });
+        await profesorRepository.save(profile);
+      }
+    }
+
     const newRamo = await createRamo(req.body);
-    res.status(201).json({
-      message: "Ramo creado exitosamente",
-      data: newRamo
-    });
+    handleSuccess(res, 201, "Ramo creado exitosamente", newRamo);
   } catch (error) {
     if (error instanceof BadRequestError) {
-      return res.status(400).json({ message: error.message });
+      return handleErrorClient(res, 400, error.message);
     }
     console.error("Error al crear ramo: ", error);
-    res.status(500).json({ message: "Error al crear ramo." });
+    return handleErrorServer(res, 500, "Error al crear ramo", error.message);
   }
 }
 
@@ -97,13 +121,15 @@ export async function updateRamoHandler(req, res) {
 
 export async function getMisRamosHandler(req, res) {
   try {
-    // El ID y rol del usuario vienen del token JWT que fue decodificado en el middleware
-    const userId = req.user.id;
-    const userRole = req.user.role;
     
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
+
     const ramos = await getRamosByUser(userId, userRole);
     
     const message = userRole === "alumno" ? "Ramos inscritos encontrados" : "Ramos dictados encontrados";
+    
+
     
     res.status(200).json({
       message: message,
@@ -111,9 +137,10 @@ export async function getMisRamosHandler(req, res) {
     });
   } catch (error) {
     if (error instanceof NotFoundError || error instanceof BadRequestError) {
+      console.error(`❌ [ramos] Known error: ${error.message}`);
       return res.status(404).json({ message: error.message });
     }
-    console.error("Error al obtener ramos: ", error);
+    console.error(`❌ [ramos] Error: ${error?.message}`);
     res.status(500).json({ message: "Error al obtener ramos." });
   }
 }
@@ -209,4 +236,61 @@ export async function inscribirAlumno(req, res) {
     } catch (error) {
         handleErrorServer(res, 500, "Error al inscribir alumno", error.message);
     }
+}
+
+export async function createSeccionHandler(req, res) {
+  try {
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
+    const { codigoRamo, numero, alumnosRut } = req.body;
+
+    if (!codigoRamo || !numero) {
+      return handleErrorClient(res, 400, "Se requiere codigoRamo y numero para crear la sección");
+    }
+
+    const ramosRepository = AppDataSource.getRepository(Ramos);
+    const ramo = await ramosRepository.findOne({ where: { codigo: codigoRamo }, relations: ["profesor", "secciones", "secciones.alumnos"] });
+
+    if (!ramo) {
+      return handleErrorClient(res, 404, `No se encontró ramo con código: ${codigoRamo}`);
+    }
+
+    // Si es profesor, verificar que dicta el ramo
+    if (userRole === "profesor" && (!ramo.profesor || String(ramo.profesor.id) !== String(userId))) {
+      return handleErrorClient(res, 403, "No tienes permiso para crear secciones en este ramo");
+    }
+
+    const seccionRepository = AppDataSource.getRepository(Seccion);
+    // Crear la nueva sección
+    const nuevaSeccion = seccionRepository.create({ numero, ramo: ramo });
+
+    // Resolver alumnos por RUT si vienen
+    if (Array.isArray(alumnosRut) && alumnosRut.length > 0) {
+      const userRepo = AppDataSource.getRepository(User);
+      const alumnoRepo = AppDataSource.getRepository(Alumno);
+
+      nuevaSeccion.alumnos = [];
+      for (const rut of alumnosRut) {
+        const userAlumno = await userRepo.findOne({ where: { rut, role: "alumno" } });
+        if (!userAlumno) {
+          return handleErrorClient(res, 404, `No se encontró alumno con RUT: ${rut}`);
+        }
+        const alumno = await alumnoRepo.findOne({ where: { id: userAlumno.id }, relations: ["user"] });
+        if (!alumno) {
+          return handleErrorClient(res, 404, `Perfil de alumno no encontrado para RUT: ${rut}`);
+        }
+        // Evitar duplicados
+        if (!nuevaSeccion.alumnos.some(a => a.id === alumno.id)) {
+          nuevaSeccion.alumnos.push(alumno);
+        }
+      }
+    }
+
+    await seccionRepository.save(nuevaSeccion);
+
+    handleSuccess(res, 201, "Sección creada exitosamente", { seccion: { numero: nuevaSeccion.numero, id: nuevaSeccion.id } });
+  } catch (error) {
+    console.error("Error al crear sección:", error);
+    handleErrorServer(res, 500, "Error al crear sección", error.message);
+  }
 }
