@@ -11,11 +11,7 @@ const pautaRepository = AppDataSource.getRepository(Pauta);
 const alumnoRepository = AppDataSource.getRepository(Alumno);
 const seccionRepository = AppDataSource.getRepository(Seccion);
 
-/**
- * Obtiene todas las evaluaciones y notas de un alumno
- * @param {number} alumnoId - ID del alumno
- * @returns {Promise<Array>} Array con nombre de evaluación y nota
- */
+
 export async function obtenerEvaluacionesYNotasAlumno(alumnoId) {
   const pautasEvaluadas = await pautaEvaluadaRepository.find({
     where: { alumno: { id: alumnoId } },
@@ -36,7 +32,6 @@ export async function obtenerEvaluacionesYNotasAlumno(alumnoId) {
 }
 
 function calcNotaFinal(distribucionPuntaje, puntajesObtenidos) {
-  // distribucionPuntaje y puntajesObtenidos son objetos con las mismas claves
   const claves = Object.keys(distribucionPuntaje);
   let sumaMax = 0;
   let sumaObtenida = 0;
@@ -49,10 +44,6 @@ function calcNotaFinal(distribucionPuntaje, puntajesObtenidos) {
   if (sumaMax === 0) return 0;
   const porcentaje = (sumaObtenida / sumaMax) * 100;
 
-  // Regla de negocio: escala de nota 1.0 - 7.0
-  // - Se requiere al menos 51% para obtener nota mínima de aprobación (4.0)
-  // - Porcentaje en [0,51) se mapea linealmente a [1.0, 4.0)
-  // - Porcentaje en [51,100] se mapea linealmente a [4.0, 7.0]
   const porcentajeAcotado = Math.max(0, Math.min(100, porcentaje));
 
   let nota;
@@ -65,15 +56,8 @@ function calcNotaFinal(distribucionPuntaje, puntajesObtenidos) {
     nota = 4.0 + ((porcentajeAcotado - minimoParaAprobar) / (denominador === 0 ? 1 : denominador)) * (7.0 - 4.0);
   }
 
-  // Aplicar regla de redondeo solicitada:
-  // - Calculamos la nota con dos decimales
   const dosDecimales = Math.round(nota * 100) / 100;
-  // - Obtenemos el segundo decimal
   const segundoDigito = Math.floor((dosDecimales * 100) % 10);
-  // Siempre devolvemos una cifra decimal:
-  // - si el segundo decimal es 0, devolvemos la nota con un decimal (ej. 4.00 -> 4.0)
-  // - si el segundo decimal >= 5, redondeamos hacia arriba al primer decimal (3.95 -> 4.0)
-  // - si el segundo decimal < 5, truncamos al primer decimal (3.94 -> 3.9)
   if (segundoDigito === 0) {
     return Number(dosDecimales.toFixed(1));
   }
@@ -96,14 +80,12 @@ export async function createPautaEvaluadaService(evaluacionId, alumnoRut, data, 
 
   if (!evaluacion.pauta) return { error: "La evaluación no tiene una pauta definida" };
 
-  // Buscar alumno por RUT (el RUT está en la tabla usuarios, relación one-to-one con alumnos)
   const alumno = await alumnoRepository.findOne({
     where: { user: { rut: alumnoRut } },
     relations: ["user"],
   });
   if (!alumno) return { error: "Alumno no encontrado" };
 
-  // Verificar que el alumno pertenece a una sección del ramo
   const seccionAlumno = await seccionRepository.findOne({
     where: {
       ramo: { id: evaluacion.ramo.id },
@@ -115,7 +97,6 @@ export async function createPautaEvaluadaService(evaluacionId, alumnoRut, data, 
     return { error: "El alumno no pertenece a ninguna sección del ramo de esta evaluación" };
   }
 
-  // check unique: one pauta evaluada per evaluacion+alumno
   const existing = await pautaEvaluadaRepository.findOne({
     where: {
       evaluacion: { id: evaluacionId },
@@ -124,11 +105,9 @@ export async function createPautaEvaluadaService(evaluacionId, alumnoRut, data, 
   });
   if (existing) return { error: "Ya existe una pauta evaluada para este alumno en la evaluación" };
 
-  // compute notaFinal
   const distribucion = evaluacion.pauta.distribucionPuntaje || {};
   const puntajes = data.puntajes_obtenidos || {};
 
-  // basic validation: ensure keys in distribucion exist or allow subset
   const nota = calcNotaFinal(distribucion, puntajes);
 
   const pautaEval = pautaEvaluadaRepository.create({
@@ -142,7 +121,6 @@ export async function createPautaEvaluadaService(evaluacionId, alumnoRut, data, 
   });
 
   const saved = await pautaEvaluadaRepository.save(pautaEval);
-  // actualizar promedio de la evaluación
   await updateEvaluacionPromedio(evaluacionId);
 
   return saved;
@@ -158,7 +136,6 @@ export async function getPautaEvaluadaService(id) {
 }
 
 async function updateEvaluacionPromedio(evaluacionId) {
-  // calcular promedio de notaFinal entre todas las pautas evaluadas de la evaluación
   const qb = pautaEvaluadaRepository.createQueryBuilder('pe')
     .select('AVG(pe.notaFinal)', 'avg')
     .where('pe.evaluacion_id = :evaluacionId', { evaluacionId });
@@ -166,16 +143,10 @@ async function updateEvaluacionPromedio(evaluacionId) {
   const result = await qb.getRawOne();
   const avg = result && result.avg ? Number(result.avg) : 0;
 
-  // actualizar la evaluación
   await evaluacionRepository.update({ id: evaluacionId }, { promedio: avg });
   return avg;
 }
 
-// --- Promedios solicitados --------------------------------------------------
-/**
- * Obtiene el promedio (AVG) de las notas finales para una evaluación.
- * Devuelve null si no hay notas.
- */
 export async function obtenerPromedioPorEvaluacion(evaluacionId) {
   const qb = pautaEvaluadaRepository.createQueryBuilder('pe')
     .select('AVG(pe.notaFinal)', 'avg')
@@ -186,10 +157,6 @@ export async function obtenerPromedioPorEvaluacion(evaluacionId) {
   return avg;
 }
 
-/**
- * Obtiene el promedio (AVG) de las notas finales para un alumno en todas sus evaluaciones.
- * Devuelve null si el alumno no tiene notas.
- */
 export async function obtenerPromedioPorAlumno(alumnoId) {
   const qb = pautaEvaluadaRepository.createQueryBuilder('pe')
     .select('AVG(pe.notaFinal)', 'avg')
@@ -200,13 +167,7 @@ export async function obtenerPromedioPorAlumno(alumnoId) {
   return avg;
 }
 
-/**
- * Obtiene el promedio general del curso (ramo): calcula el promedio por alumno
- * para las evaluaciones del ramo y luego promedia esos promedios.
- * Devuelve null si no hay datos.
- */
 export async function obtenerPromedioGeneralPorRamo(ramoId) {
-  // Usamos consulta SQL directa para agrupar por alumno y luego promediar esos promedios
   const sql = `
     SELECT AVG(student_avg) as course_avg FROM (
       SELECT pe.alumno_id, AVG(pe.notaFinal) as student_avg
@@ -226,12 +187,10 @@ export async function updatePautaEvaluadaService(id, data, user) {
   const pauta = await pautaEvaluadaRepository.findOne({ where: { id }, relations: ['evaluacion'] });
   if (!pauta) return { error: 'Pauta evaluada no encontrada' };
 
-  // permisos: profesor que creó o admin can update
   if (user.role !== 'admin' && pauta.creadaPor !== user.id) {
     return { error: 'No tienes permiso para modificar esta pauta evaluada' };
   }
 
-  // si se actualizan puntajes, recalcular nota
   if (data.puntajes_obtenidos) {
     const evaluacion = await evaluacionRepository.findOne({ where: { id: pauta.evaluacion.id }, relations: ['pauta'] });
     const distribucion = evaluacion.pauta?.distribucionPuntaje || {};
@@ -244,7 +203,6 @@ export async function updatePautaEvaluadaService(id, data, user) {
 
   const saved = await pautaEvaluadaRepository.save(pauta);
 
-  // actualizar promedio
   await updateEvaluacionPromedio(pauta.evaluacion.id);
 
   return saved;
@@ -254,7 +212,6 @@ export async function deletePautaEvaluadaService(id, user) {
   const pauta = await pautaEvaluadaRepository.findOne({ where: { id }, relations: ['evaluacion'] });
   if (!pauta) return { error: 'Pauta evaluada no encontrada' };
 
-  // permisos: solo admin o creador
   if (user.role !== 'admin' && pauta.creadaPor !== user.id) {
     return { error: 'No tienes permiso para eliminar esta pauta evaluada' };
   }
@@ -262,7 +219,6 @@ export async function deletePautaEvaluadaService(id, user) {
   const evaluacionId = pauta.evaluacion.id;
   await pautaEvaluadaRepository.remove(pauta);
 
-  // actualizar promedio
   await updateEvaluacionPromedio(evaluacionId);
 
   return { message: 'Pauta evaluada eliminada' };
