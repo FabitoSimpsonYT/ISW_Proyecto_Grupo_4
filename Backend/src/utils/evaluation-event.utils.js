@@ -27,7 +27,7 @@ export async function syncEvaluacionWithEvent(evaluacion, user, isUpdate = false
       );
 
       if (existingEvent.rows.length > 0) {
-        // Actualizar evento existente
+      
         try {
           await query(
           `UPDATE events 
