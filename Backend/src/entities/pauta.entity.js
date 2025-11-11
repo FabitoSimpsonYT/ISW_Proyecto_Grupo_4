@@ -10,7 +10,11 @@ export const Pauta = new EntitySchema({
             generated: true,
         },
         criterios:{
+            type:"varchar",
+            length: 100,
+=======
             type:"text",
+
         },
         distribucionPuntaje:{
             type:"json",
