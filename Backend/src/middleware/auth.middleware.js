@@ -20,8 +20,6 @@ export async function authMiddleware(req, res, next) {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     console.log(`✅ [auth] Token OK - role=${payload.role}`);
 
-    // Ensure req.user.id is available. Older tokens may only have 'sub' (rut).
-    // If payload.id is missing but sub is present, try to resolve numeric id from DB.
     let resolvedId = payload.id ?? null;
     if (!resolvedId && payload.sub) {
       try {
@@ -37,7 +35,6 @@ export async function authMiddleware(req, res, next) {
       }
     }
 
-    // Attach enriched user info to req.user
     req.user = {
       ...payload,
       id: resolvedId,
