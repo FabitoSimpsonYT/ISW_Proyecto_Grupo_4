@@ -16,7 +16,7 @@ export async function getAllEvaluacionesService(user) {
 }
 
 export async function getEvaluacionByIdService(id, user){
-  const evaluacion = await evaluacionRepository.findOneBy(id);
+  const evaluacion = await evaluacionRepository.findOneBy({ id });
 
   if (!evaluacion) return null;
 
