@@ -1,13 +1,6 @@
 import { query } from '../config/database.js';
 import { formatToCustomDate } from './date.utils.js';
 
-/**
- * Crea o actualiza un evento asociado a una evaluación
- * @param {Object} evaluacion - La evaluación
- * @param {Object} user - El usuario (profesor)
- * @param {boolean} isUpdate - Si es una actualización o creación
- * @returns {Promise<Object>} El evento creado o actualizado
- */
 export async function syncEvaluacionWithEvent(evaluacion, user, isUpdate = false) {
   try {
     const fechaEval = new Date(evaluacion.fechaProgramada);
@@ -61,7 +54,6 @@ export async function syncEvaluacionWithEvent(evaluacion, user, isUpdate = false
       }
     }
 
-    // Crear nuevo evento
     try {
       const result = await query(
       `INSERT INTO events (
