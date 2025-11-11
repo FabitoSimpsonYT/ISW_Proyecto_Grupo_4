@@ -64,19 +64,16 @@ export async function getRamoByCodigoHandler(req, res) {
 
 export async function createRamoHandler(req, res) {
   try {
-    // Si se proporcionó rutProfesor, asegurarse que exista perfil de profesor
     const { rutProfesor } = req.body;
     if (rutProfesor) {
       const userRepository = AppDataSource.getRepository(User);
       const profesorRepository = AppDataSource.getRepository(Profesor);
 
-      // Buscar usuario con role 'profesor'
       const user = await userRepository.findOne({ where: { rut: rutProfesor, role: "profesor" } });
       if (!user) {
         return handleErrorClient(res, 400, "No se encontró un usuario con ese RUT y role 'profesor'");
       }
 
-      // Si falta el perfil en la tabla profesores, crearlo automáticamente
       const existingProfesor = await profesorRepository.findOne({ where: { id: user.id } });
       if (!existingProfesor) {
         const profile = profesorRepository.create({
@@ -169,7 +166,6 @@ export async function inscribirAlumno(req, res) {
             return handleErrorClient(res, 400, "Se requiere el RUT del alumno y el código del ramo");
         }
 
-        // Buscar al alumno por su RUT
         const userRepository = AppDataSource.getRepository(User);
         const alumnoRepository = AppDataSource.getRepository(Alumno);
 
@@ -190,19 +186,13 @@ export async function inscribirAlumno(req, res) {
             return handleErrorClient(res, 404, "No se encontró el perfil de alumno");
         }
 
-        // Verificar que el ramo exista
         const ramo = await getRamoByCodigo(codigoRamo);
 
-        // Verificar permisos según el rol
         if (userRole === "profesor") {
-            // Si es profesor, verificar que el ramo le pertenezca
             if (ramo.profesor.id !== userId) {
                 return handleErrorClient(res, 403, "No tienes permiso para modificar este ramo");
             }
         }
-        // Si es admin, tiene permiso automáticamente
-
-        // Si el ramo no tiene secciones, crear una por defecto
         if (!ramo.secciones || ramo.secciones.length === 0) {
             const seccionRepository = AppDataSource.getRepository(Seccion);
             const nuevaSeccion = seccionRepository.create({
@@ -213,18 +203,15 @@ export async function inscribirAlumno(req, res) {
             ramo.secciones = [nuevaSeccion];
         }
 
-        // Añadir alumno a la primera sección del ramo
         const seccion = ramo.secciones[0];
         if (!seccion.alumnos) {
             seccion.alumnos = [];
         }
 
-        // Verificar si el alumno ya está inscrito
         if (seccion.alumnos.some(a => a.id === alumno.id)) {
             return handleErrorClient(res, 400, "El alumno ya está inscrito en este ramo");
         }
 
-        // Inscribir alumno
         seccion.alumnos.push(alumno);
         await AppDataSource.getRepository(Seccion).save(seccion);
 
@@ -255,16 +242,13 @@ export async function createSeccionHandler(req, res) {
       return handleErrorClient(res, 404, `No se encontró ramo con código: ${codigoRamo}`);
     }
 
-    // Si es profesor, verificar que dicta el ramo
     if (userRole === "profesor" && (!ramo.profesor || String(ramo.profesor.id) !== String(userId))) {
       return handleErrorClient(res, 403, "No tienes permiso para crear secciones en este ramo");
     }
 
     const seccionRepository = AppDataSource.getRepository(Seccion);
-    // Crear la nueva sección
     const nuevaSeccion = seccionRepository.create({ numero, ramo: ramo });
 
-    // Resolver alumnos por RUT si vienen
     if (Array.isArray(alumnosRut) && alumnosRut.length > 0) {
       const userRepo = AppDataSource.getRepository(User);
       const alumnoRepo = AppDataSource.getRepository(Alumno);
@@ -279,7 +263,6 @@ export async function createSeccionHandler(req, res) {
         if (!alumno) {
           return handleErrorClient(res, 404, `Perfil de alumno no encontrado para RUT: ${rut}`);
         }
-        // Evitar duplicados
         if (!nuevaSeccion.alumnos.some(a => a.id === alumno.id)) {
           nuevaSeccion.alumnos.push(alumno);
         }
