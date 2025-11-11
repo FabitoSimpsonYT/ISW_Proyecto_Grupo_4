@@ -5,7 +5,7 @@ import { checkRole } from "../middleware/role.middleware.js";
 
 const router = Router();
 
-// Rutas para retroalimentación
+
 router.post("/pautas/:pautaId/retroalimentacion",
   authMiddleware,
   checkRole(["profesor", "alumno"]),
