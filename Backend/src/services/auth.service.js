@@ -18,7 +18,7 @@ export async function loginUser(email, password) {
     nombres: user.nombres,
     email: user.email,
     role: user.role,
-    id: user.id  // Añadir id también al payload para que esté disponible en req.user
+    id: user.id 
   };
   console.log(`[auth.service] Generated JWT payload: sub=${payload.sub} role=${payload.role} id=${payload.id}`);
   const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "1h" });
