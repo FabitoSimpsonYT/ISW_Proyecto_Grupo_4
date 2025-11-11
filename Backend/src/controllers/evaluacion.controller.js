@@ -40,6 +40,7 @@ export async function getEvaluacionById(req, res) {
 
 /**Crear una nueva evaluaciónes*/
 import { syncEvaluacionWithEvent } from "../utils/evaluation-event.utils.js";
+import { checkEventConflict } from "../services/conflictService.js";
 
 export async function createEvaluacion(req, res) {
   try {
@@ -70,6 +71,18 @@ export async function createEvaluacion(req, res) {
 =======
     const { titulo, fechaProgramada, ponderacion, contenidos, ramo_id } = req.body;
 
+    // Calcular rango horario de la evaluación (fechaProgramada a +2 horas)
+    const fechaEval = new Date(fechaProgramada);
+    const fechaFin = new Date(fechaEval);
+    fechaFin.setHours(fechaFin.getHours() + 2);
+
+    // Verificar conflictos en la base de datos (eventos/evaluaciones ya existentes)
+    const conflictCheck = await checkEventConflict(user.id, fechaEval.toISOString(), fechaFin.toISOString());
+    if (conflictCheck && conflictCheck.hasConflict) {
+      // Retornar 409 Conflict con detalles
+      return handleErrorClient(res, 409, `Conflicto de horario: existe una actividad en el mismo rango horario.`);
+    }
+
     const nuevaEvaluacion = await createEvaluacionService({
       titulo,
       fechaProgramada,
@@ -81,7 +94,7 @@ export async function createEvaluacion(req, res) {
       aplicada: false
     });
 
-    // Crear evento asociado automáticamente
+    // Crear evento asociado automáticamente (esto también insertará un evento bloqueado)
     await syncEvaluacionWithEvent(nuevaEvaluacion, user, false);
 
     handleSuccess(res, 201,"Evaluación creada exitosamente",{ evaluacion: nuevaEvaluacion });
@@ -104,6 +117,22 @@ export async function updateEvaluacion(req, res) {
     }
 
     const { titulo, fechaProgramada, ponderacion, contenidos, pauta, aplicada } = req.body;
+
+    // Si se actualiza la fechaProgramada, validar conflictos
+    if (fechaProgramada) {
+      const fechaEval = new Date(fechaProgramada);
+      const fechaFin = new Date(fechaEval);
+      fechaFin.setHours(fechaFin.getHours() + 2);
+
+      const conflictCheck = await checkEventConflict(user.id, fechaEval.toISOString(), fechaFin.toISOString());
+      if (conflictCheck && conflictCheck.hasConflict) {
+        // Excluir conflictos que correspondan a la propia evaluación (si ya tiene evento asociado)
+        const remaining = conflictCheck.conflictingEvents.filter(c => String(c.evaluation_id) !== String(id));
+        if (remaining.length > 0) {
+          return handleErrorClient(res, 409, `Conflicto de horario: existe una actividad en el mismo rango horario.`);
+        }
+      }
+    }
 
     const evaluacionActualizada = await updateEvaluacionService(id, {
       titulo,

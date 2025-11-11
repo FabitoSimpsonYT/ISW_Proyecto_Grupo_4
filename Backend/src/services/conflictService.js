@@ -30,7 +30,7 @@ export const checkEventConflict = async (professorId, startTime, endTime, exclud
         (e.is_blocked = true OR e.evaluation_id IS NOT NULL)
       )
       AND (
-        (e.start_time, e.end_time) OVERLAPS ($2::timestamp, $3::timestamp)
+        (e.start_time, e.end_time) OVERLAPS ($2::timestamp - interval '10 minutes', $3::timestamp + interval '10 minutes')
       )
     `;
     
