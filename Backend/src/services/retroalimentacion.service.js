@@ -13,7 +13,6 @@ export async function addRetroalimentacionService(pautaId, data, user) {
       return { error: "Pauta evaluada no encontrada" };
     }
 
-    // Verificar permisos
     if (user.role === "profesor" && pautaEvaluada.evaluacion.profesor_id !== user.id) {
       return { error: "No tiene permisos para agregar retroalimentación a esta pauta" };
     }
@@ -21,21 +20,18 @@ export async function addRetroalimentacionService(pautaId, data, user) {
       return { error: "No tiene permisos para responder a esta retroalimentación" };
     }
 
-    // Crear nuevo elemento de retroalimentación
     const nuevoComentario = {
       id: Date.now(),
       autor: user.id,
       rol: user.role,
       contenido: data.contenido,
       timestamp: new Date(),
-      tipo: data.tipo // 'retroalimentacion', 'observacion', 'sugerencia', 'respuesta'
+      tipo: data.tipo
     };
 
-    // Agregar al array de retroalimentaciones
     const retroalimentaciones = pautaEvaluada.retroalimentacion || [];
     retroalimentaciones.push(nuevoComentario);
 
-    // Actualizar campos según el tipo
     if (user.role === "profesor") {
       if (data.tipo === "observacion") {
         pautaEvaluada.observaciones = data.contenido;
@@ -66,7 +62,6 @@ export async function getRetroalimentacionesService(pautaId, user) {
       return { error: "Pauta evaluada no encontrada" };
     }
 
-    // Verificar permisos
     if (user.role === "alumno" && pautaEvaluada.alumno.id !== user.id) {
       return { error: "No tiene permisos para ver esta retroalimentación" };
     }
