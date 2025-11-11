@@ -10,7 +10,7 @@ import { createEvaluacionValidation, updateEvaluacionValidation } from "../valid
 import { AppDataSource } from "../config/configDb.js";
 import { Ramos } from "../entities/ramos.entity.js";
 
-/**Obtener todas las evaluacionesDocente*/
+
 export async function getEvaluaciones(req, res) {
   try {
     const user = req.user;
@@ -25,7 +25,7 @@ export async function getEvaluaciones(req, res) {
   }
 }
 
-/** Obtener una evaluación por ID*/
+
 export async function getEvaluacionById(req, res) {
   try {
     const { id } = req.params;
@@ -46,7 +46,6 @@ export async function getEvaluacionById(req, res) {
   }
 }
 
-/**Crear una nueva evaluaciónes*/
 import { syncEvaluacionWithEvent } from "../utils/evaluation-event.utils.js";
 import { checkEventConflict } from "../services/conflictService.js";
 
@@ -61,7 +60,6 @@ export async function createEvaluacion(req, res) {
       context: { tomorrow }
     });
     if(error) {
-      console.log("Error de validación:", error.message); // DEBUG
       return res.status(400).json({message: error.message});
     }
     
@@ -73,14 +71,12 @@ export async function createEvaluacion(req, res) {
 
     const { titulo, fechaProgramada, horaInicio, horaFin, ponderacion, contenidos, codigoRamo } = value;
 
-    // Validar que codigoRamo está presente
     if (!codigoRamo) {
       return handleErrorClient(res, 400, "El código del ramo es obligatorio");
     }
 
-    console.log("Buscando ramo con código:", codigoRamo); // DEBUG
+    console.log("Buscando ramo con código:", codigoRamo); 
 
-    // Buscar el ramo por código e incluir el profesor asignado
     const ramosRepository = AppDataSource.getRepository(Ramos);
     const ramo = await ramosRepository.findOne({
       where: { codigo: codigoRamo },
@@ -93,25 +89,22 @@ export async function createEvaluacion(req, res) {
 
     console.log("Ramo encontrado:", ramo.id); // DEBUG
 
-    // Verificar que el profesor autenticado dicta este ramo
-    // Normalizamos a string para evitar discrepancias de tipo (number vs string)
+
     const ramoProfesorId = ramo.profesor ? String(ramo.profesor.id) : null;
     const userIdStr = user && user.id ? String(user.id) : null;
-    console.log(`Verificando profesor: ramo.profesor.id=${ramoProfesorId} req.user.id=${userIdStr}`);
 
     if (!ramo.profesor || ramoProfesorId !== userIdStr) {
       return handleErrorClient(res, 403, "El profesor autenticado no dicta este ramo");
     }
 
-    // Calcular rango horario de la evaluación (fechaProgramada a +2 horas)
     const fechaEval = new Date(fechaProgramada);
     const fechaFin = new Date(fechaEval);
     fechaFin.setHours(fechaFin.getHours() + 2);
 
-    // Verificar conflictos en la base de datos (eventos/evaluaciones ya existentes)
+
     const conflictCheck = await checkEventConflict(user.id, fechaEval.toISOString(), fechaFin.toISOString());
     if (conflictCheck && conflictCheck.hasConflict) {
-      // Retornar 409 Conflict con detalles
+
       return handleErrorClient(res, 409, `Conflicto de horario: existe una actividad en el mismo rango horario.`);
     }
 
@@ -127,21 +120,19 @@ export async function createEvaluacion(req, res) {
       aplicada: false
     });
 
-    // TODO: Crear evento asociado automáticamente (requiere tabla 'events' en la BD)
-    // await syncEvaluacionWithEvent(nuevaEvaluacion, user, false);
+
 
     handleSuccess(res, 201,"Evaluación creada exitosamente",{ evaluacion: nuevaEvaluacion });
   } catch (error) {
-    // If service threw a client error, map it to a 4xx response instead of 500
+
     if (error instanceof BadRequestError || error instanceof NotFoundError || error instanceof UnauthorizedError) {
       return handleErrorClient(res, error.statusCode || 400, error.message);
     }
     handleErrorServer(res, 500, "Error al crear evaluación", error.message);
-    // No enviar dos respuestas (handleErrorServer ya lo hace)
   }
 }
 
-/**  Actualizar una evaluación */
+
 export async function updateEvaluacion(req, res) {
   try {
     const user = req.user;
@@ -155,7 +146,6 @@ export async function updateEvaluacion(req, res) {
 
   const { titulo, fechaProgramada, horaInicio, horaFin, ponderacion, contenidos, codigoRamo, pauta, aplicada } = value;
 
-    // Si se actualiza la fechaProgramada, validar conflictos
     if (fechaProgramada) {
       const fechaEval = new Date(fechaProgramada);
       const fechaFin = new Date(fechaEval);
@@ -163,7 +153,6 @@ export async function updateEvaluacion(req, res) {
 
       const conflictCheck = await checkEventConflict(user.id, fechaEval.toISOString(), fechaFin.toISOString());
       if (conflictCheck && conflictCheck.hasConflict) {
-        // Excluir conflictos que correspondan a la propia evaluación (si ya tiene evento asociado)
         const remaining = conflictCheck.conflictingEvents.filter(c => String(c.evaluation_id) !== String(id));
         if (remaining.length > 0) {
           return handleErrorClient(res, 409, `Conflicto de horario: existe una actividad en el mismo rango horario.`);
@@ -189,7 +178,7 @@ export async function updateEvaluacion(req, res) {
   }
 }
 
-/**Eliminar una evaluación */
+
 export async function deleteEvaluacion(req, res) {
   try {
     const user = req.user;
