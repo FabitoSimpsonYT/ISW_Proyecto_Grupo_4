@@ -3,6 +3,7 @@ import { BadRequestError, NotFoundError } from "../Handlers/responseHandlers.js"
 import { Ramos } from "../entities/ramos.entity.js";
 import { Profesor } from "../entities/profesor.entity.js";
 import { User } from "../entities/user.entity.js";
+import { Alumno } from "../entities/alumno.entity.js";
 
 const ramosRepository = AppDataSource.getRepository(Ramos);
 const profesorRepository = AppDataSource.getRepository(Profesor);
@@ -264,15 +265,15 @@ export async function getRamosByUser(userId, role) {
       nombre: ramo.nombre,
       profesor: {
         rut: user.rut,
-        nombre: user.nombre,
-        apellido: user.apellido
+        nombre: user.nombres,
+        apellido: user.apellidoPaterno
       },
       secciones: ramo.secciones.map(seccion => ({
         numero: seccion.numero,
         alumnos: seccion.alumnos.map(alumno => ({
           rut: alumno.user.rut,
-          nombre: alumno.user.nombre,
-          apellido: alumno.user.apellido
+          nombre: alumno.user.nombres,
+          apellido: alumno.user.apellidoPaterno
         }))
       }))
     }));

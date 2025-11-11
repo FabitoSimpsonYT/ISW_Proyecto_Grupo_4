@@ -3,11 +3,13 @@ import { PautaEvaluada } from "../entities/pautaEvaluada.entity.js";
 import { Evaluacion } from "../entities/evaluaciones.entity.js";
 import { Pauta } from "../entities/pauta.entity.js";
 import { Alumno } from "../entities/alumno.entity.js";
+import { Seccion } from "../entities/seccion.entity.js";
 
 const pautaEvaluadaRepository = AppDataSource.getRepository(PautaEvaluada);
 const evaluacionRepository = AppDataSource.getRepository(Evaluacion);
 const pautaRepository = AppDataSource.getRepository(Pauta);
 const alumnoRepository = AppDataSource.getRepository(Alumno);
+const seccionRepository = AppDataSource.getRepository(Seccion);
 
 /**
  * Obtiene todas las evaluaciones y notas de un alumno
@@ -85,23 +87,39 @@ function calcNotaFinal(distribucionPuntaje, puntajesObtenidos) {
   return Number(truncadoUno.toFixed(1));
 }
 
-export async function createPautaEvaluadaService(evaluacionId, data, user) {
+export async function createPautaEvaluadaService(evaluacionId, alumnoRut, data, user) {
   const evaluacion = await evaluacionRepository.findOne({
     where: { id: evaluacionId },
-    relations: ["pauta"],
+    relations: ["pauta", "ramo"],
   });
   if (!evaluacion) return { error: "Evaluación no encontrada" };
 
   if (!evaluacion.pauta) return { error: "La evaluación no tiene una pauta definida" };
 
-  const alumno = await alumnoRepository.findOneBy({ id: data.alumno_id });
+  // Buscar alumno por RUT (el RUT está en la tabla usuarios, relación one-to-one con alumnos)
+  const alumno = await alumnoRepository.findOne({
+    where: { user: { rut: alumnoRut } },
+    relations: ["user"],
+  });
   if (!alumno) return { error: "Alumno no encontrado" };
+
+  // Verificar que el alumno pertenece a una sección del ramo
+  const seccionAlumno = await seccionRepository.findOne({
+    where: {
+      ramo: { id: evaluacion.ramo.id },
+      alumnos: { id: alumno.id },
+    },
+    relations: ["alumnos"],
+  });
+  if (!seccionAlumno) {
+    return { error: "El alumno no pertenece a ninguna sección del ramo de esta evaluación" };
+  }
 
   // check unique: one pauta evaluada per evaluacion+alumno
   const existing = await pautaEvaluadaRepository.findOne({
     where: {
       evaluacion: { id: evaluacionId },
-      alumno: { id: data.alumno_id },
+      alumno: { id: alumno.id },
     },
   });
   if (existing) return { error: "Ya existe una pauta evaluada para este alumno en la evaluación" };
@@ -120,7 +138,7 @@ export async function createPautaEvaluadaService(evaluacionId, data, user) {
     retroalimentacion: [],
     creadaPor: user?.id || null,
     evaluacion: { id: evaluacionId },
-    alumno: { id: data.alumno_id },
+    alumno: { id: alumno.id },
   });
 
   const saved = await pautaEvaluadaRepository.save(pautaEval);

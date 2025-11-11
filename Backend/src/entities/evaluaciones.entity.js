@@ -14,7 +14,19 @@ export const Evaluacion = new EntitySchema({
             length:255,
         },
         fechaProgramada:{
-            type:"date",
+            // date part (YYYY-MM-DD)
+            type: "date",
+            nullable: true,
+        },
+        horaInicio:{
+            // start time (HH:mm)
+            type: "time",
+            nullable: true,
+        },
+        horaFin:{
+            // end time (HH:mm)
+            type: "time",
+            nullable: true,
         },
         ponderacion: {
             type:"float",
@@ -49,10 +61,19 @@ export const Evaluacion = new EntitySchema({
         
     },
     relations:{
+        ramo:{
+            target:"Ramos",
+            type:"many-to-one",
+            joinColumn: {
+                name: "ramo_id",
+                referencedColumnName: "id"
+            },
+            nullable:true,
+        },
         pauta:{
             target:"Pauta",
             type:"one-to-one",
-            joinColumn: true,
+            inverseSide:"evaluacion",
             cascade: true,
             nullable:true,
         },
