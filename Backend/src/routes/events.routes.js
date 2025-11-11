@@ -5,31 +5,25 @@ import { checkRole } from '../middleware/role.middleware.js';
 const router = express.Router();
 import { findScheduleConflict, getConflictErrorMessage } from '../utils/conflictValidator.js';
 
-// Almacenamiento temporal en memoria
 let eventos = [];
 let eventIdCounter = 1;
 
-// Función para ocultar el ID interno
 const ocultarIdInterno = (evento) => {
   const { id, profesor_id, ...resto } = evento;
   return resto;
 };
 
-// GET - Listar eventos según el rol
 router.get('/', authMiddleware, (req, res) => {
   try {
     let eventosFiltered = eventos;
 
-    // Si es profesor o coordinador, solo ve sus propios eventos
     if (req.user.role === 'profesor' || req.user.role === 'coordinador') {
       eventosFiltered = eventos.filter(e => e.profesor_id === req.user.id);
     }
-    // Si es jefe_carrera, ve todos
-    // Si es alumno, ve todos (pero sin IDs internos)
 
     const datosPublicos = eventosFiltered.map(evento => ({
       ...ocultarIdInterno(evento),
-      event_id: evento.id // Exponer un ID público para referencias
+      event_id: evento.id
     }));
 
     console.log(`[OK] GET /api/events - Usuario: ${req.user.email} (${req.user.role}) - Eventos encontrados: ${datosPublicos.length}`);
@@ -50,7 +44,6 @@ router.get('/', authMiddleware, (req, res) => {
   }
 });
 
-// POST - Crear nuevo evento
 router.post('/', 
   authMiddleware,
   checkRole(['profesor', 'coordinador', 'jefe_carrera']),
@@ -64,17 +57,15 @@ router.post('/',
       };
       
       eventos.push(nuevoEvento);
-      // Validar conflictos de horario
       const conflict = findScheduleConflict(
         req.user.id,
         req.body.start_time,
         req.body.end_time,
         eventos,
-        nuevoEvento.id // Excluir el evento que acabamos de crear
+        nuevoEvento.id
       );
       
       if (conflict) {
-        // Remover el evento que acabamos de agregar
         eventos.pop();
         const errorMessage = getConflictErrorMessage(conflict);
         console.warn(`[WARN] POST /api/events - Conflicto de horario para ${req.user.email}: ${errorMessage}`);
@@ -108,7 +99,6 @@ router.post('/',
   }
 );
 
-// GET - Obtener un evento específico
 router.get('/:eventId', authMiddleware, (req, res) => {
   try {
     const evento = eventos.find(e => e.id === parseInt(req.params.eventId));
@@ -121,7 +111,6 @@ router.get('/:eventId', authMiddleware, (req, res) => {
       });
     }
 
-    // Verificar permisos: solo el propietario, coordinador o jefe_carrera pueden ver
     if (req.user.role === 'profesor' && evento.profesor_id !== req.user.id) {
       console.warn(`[WARN] GET /api/events/${req.params.eventId} - ${req.user.email} intentó acceder a evento de otro profesor`);
       return res.status(403).json({
@@ -152,7 +141,6 @@ router.get('/:eventId', authMiddleware, (req, res) => {
   }
 });
 
-// PUT - Actualizar evento
 router.put('/:eventId',
   authMiddleware,
   checkRole(['profesor', 'coordinador', 'jefe_carrera']),
@@ -168,7 +156,6 @@ router.put('/:eventId',
         });
       }
 
-      // Solo el propietario, coordinador o jefe_carrera pueden actualizar
       if (req.user.role === 'profesor' && evento.profesor_id !== req.user.id) {
         console.warn(`[WARN] PUT /api/events/${req.params.eventId} - ${req.user.email} intentó actualizar evento de otro profesor`);
         return res.status(403).json({
@@ -177,7 +164,6 @@ router.put('/:eventId',
         });
       }
       
-      // Validar conflictos de horario si se actualizan start_time o end_time
       if (req.body.start_time || req.body.end_time) {
         const startTime = req.body.start_time || evento.start_time;
         const endTime = req.body.end_time || evento.end_time;
@@ -187,7 +173,7 @@ router.put('/:eventId',
           startTime,
           endTime,
           eventos,
-          evento.id // Excluir el evento actual
+          evento.id
         );
         
         if (conflict) {
@@ -233,7 +219,6 @@ router.put('/:eventId',
   }
 );
 
-// DELETE - Eliminar evento
 router.delete('/:eventId',
   authMiddleware,
   checkRole(['profesor', 'coordinador', 'jefe_carrera']),
@@ -251,7 +236,6 @@ router.delete('/:eventId',
 
       const evento = eventos[index];
 
-      // Solo el propietario, coordinador o jefe_carrera pueden eliminar
       if (req.user.role === 'profesor' && evento.profesor_id !== req.user.id) {
         console.warn(`[WARN] DELETE /api/events/${req.params.eventId} - ${req.user.email} intentó eliminar evento de otro profesor`);
         return res.status(403).json({
