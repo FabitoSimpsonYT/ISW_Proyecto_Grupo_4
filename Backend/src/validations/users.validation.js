@@ -1,6 +1,8 @@
 "use strict";
 import Joi from "joi";
 
+export const telefonoPattern = /^(\+569\d{8}|\+5641\d{7})$/;
+
 export const validarRut = (rut) => {
   const [numero, dv] = rut.split('-');
   
