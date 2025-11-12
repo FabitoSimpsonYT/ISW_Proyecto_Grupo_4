@@ -1,7 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import morgan from "morgan";
-import { AppDataSource, connectDB } from "./config/configDb.js";
+import { AppDataSource, connectDB } from "./config/configDB.js";
 import { routerApi } from "./routes/index.routes.js";
 import { HOST, PORT } from "./config/configEnv.js";
 import initDB from "./config/initDB.js";

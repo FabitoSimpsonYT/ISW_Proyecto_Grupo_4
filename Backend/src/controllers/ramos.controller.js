@@ -7,7 +7,7 @@ import {
   updateRamo,
   deleteRamo
 } from "../services/ramos.service.js";
-import { AppDataSource } from "../config/configDb.js";
+import { AppDataSource } from "../config/configDB.js";
 import { Seccion } from "../entities/seccion.entity.js";
 import { Alumno } from "../entities/alumno.entity.js";
 import { User } from "../entities/user.entity.js";

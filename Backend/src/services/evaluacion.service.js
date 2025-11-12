@@ -1,4 +1,4 @@
-import { AppDataSource } from "../config/configDb.js";
+import { AppDataSource } from "../config/configDB.js";
 import { Evaluacion } from "../entities/evaluaciones.entity.js";
 import { Ramos } from "../entities/ramos.entity.js";
 import { BadRequestError } from "../Handlers/responseHandlers.js";
