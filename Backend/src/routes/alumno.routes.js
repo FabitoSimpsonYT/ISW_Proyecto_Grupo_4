@@ -14,7 +14,6 @@ import { createAlumnoValidation, updateAlumnoValidation } from "../validations/a
 
 const router = Router();
 
-// Solo admin puede crear alumnos
 router.post("/", 
   authMiddleware,
   checkRole(["admin"]), 
@@ -22,21 +21,18 @@ router.post("/",
   createAlumnoHandler
 );
 
-// Admin y profesores ven lista, alumno ve su perfil
 router.get("/", 
   authMiddleware,
   checkRole(["admin", "profesor", "alumno"]), 
   getAlumnoByIdHandler
 );
 
-// Admin y profesores pueden ver perfiles específicos
 router.get("/:id", 
   authMiddleware,
   checkRole(["admin", "profesor"]), 
   getAlumnoByIdHandler
 );
 
-// Admin o alumno editan perfil (alumno solo puede editar el suyo)
 router.put("/", 
   authMiddleware,
   checkRole(["admin", "alumno"]), 
@@ -44,14 +40,12 @@ router.put("/",
   updateAlumnoHandler
 );
 
-// Solo admin puede eliminar perfiles
 router.delete("/:id", 
   authMiddleware,
   checkRole(["admin"]), 
   deleteAlumnoHandler
 );
 
-// Obtener evaluaciones y notas de un alumno
 router.get("/:id/evaluaciones", 
   authMiddleware,
   checkRole(["admin", "alumno"]), 

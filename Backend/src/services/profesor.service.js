@@ -8,7 +8,6 @@ const userRepository = AppDataSource.getRepository(User);
 const profesorRepository = AppDataSource.getRepository(Profesor);
 
 export async function createProfesor(profesorData) {
-  // Verificar RUT duplicado
   const existingRut = await userRepository.findOne({
     where: { rut: profesorData.rut }
   });
@@ -17,7 +16,6 @@ export async function createProfesor(profesorData) {
     throw new BadRequestError("El rut ya está registrado");
   }
 
-  // Verificar email duplicado
   const existingEmail = await userRepository.findOne({
     where: { email: profesorData.email }
   });
@@ -26,7 +24,6 @@ export async function createProfesor(profesorData) {
     throw new BadRequestError("El email ya está registrado");
   }
 
-  // Verificar teléfono duplicado
   const existingTelefono = await userRepository.findOne({
     where: { telefono: profesorData.telefono }
   });
@@ -35,7 +32,6 @@ export async function createProfesor(profesorData) {
     throw new BadRequestError("El número de teléfono ya está registrado");
   }
 
-  // Crear el usuario base
   const hashedPassword = await bcrypt.hash(profesorData.password, 10);
   const userData = {
     ...profesorData,
@@ -45,7 +41,6 @@ export async function createProfesor(profesorData) {
 
   const newUser = await userRepository.save(userData);
 
-  // Crear el perfil de profesor
   const profesorProfile = {
     id: newUser.id,
     especialidad: profesorData.especialidad,
@@ -92,7 +87,6 @@ export async function updateProfesor(id, profesorData) {
     throw new NotFoundError("Profesor no encontrado");
   }
 
-  // Si se intenta actualizar el email, verificar que no exista
   if (profesorData.email && profesorData.email !== profesor.user.email) {
     const existingUser = await userRepository.findOne({
       where: { email: profesorData.email }
@@ -102,17 +96,15 @@ export async function updateProfesor(id, profesorData) {
     }
   }
 
-  // Actualizar datos de usuario
   if (profesorData.password) {
     profesorData.password = await bcrypt.hash(profesorData.password, 10);
   }
   
   await userRepository.update(id, {
     ...profesorData,
-    role: "profesor" // Asegurar que el rol no cambie
+    role: "profesor" 
   });
 
-  // Actualizar datos específicos de profesor
   if (profesorData.especialidad) {
     await profesorRepository.update(id, {
       especialidad: profesorData.especialidad
@@ -138,7 +130,6 @@ export async function deleteProfesor(id) {
     throw new NotFoundError("Profesor no encontrado");
   }
 
-  // Eliminar el profesor y el usuario asociado
   await profesorRepository.delete(id);
   await userRepository.delete(id);
 

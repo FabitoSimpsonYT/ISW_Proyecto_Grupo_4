@@ -142,7 +142,6 @@ export async function inscribirAlumno(req, res) {
             return handleErrorClient(res, 400, "Se requiere el RUT del alumno y el código del ramo");
         }
 
-        // Buscar al alumno por su RUT
         const userRepository = AppDataSource.getRepository(User);
         const alumnoRepository = AppDataSource.getRepository(Alumno);
 
@@ -163,19 +162,14 @@ export async function inscribirAlumno(req, res) {
             return handleErrorClient(res, 404, "No se encontró el perfil de alumno");
         }
 
-        // Verificar que el ramo exista
         const ramo = await getRamoByCodigo(codigoRamo);
 
-        // Verificar permisos según el rol
         if (userRole === "profesor") {
-            // Si es profesor, verificar que el ramo le pertenezca
             if (ramo.profesor.id !== userId) {
                 return handleErrorClient(res, 403, "No tienes permiso para modificar este ramo");
             }
         }
-        // Si es admin, tiene permiso automáticamente
 
-        // Si el ramo no tiene secciones, crear una por defecto
         if (!ramo.secciones || ramo.secciones.length === 0) {
             const seccionRepository = AppDataSource.getRepository(Seccion);
             const nuevaSeccion = seccionRepository.create({
@@ -186,18 +180,15 @@ export async function inscribirAlumno(req, res) {
             ramo.secciones = [nuevaSeccion];
         }
 
-        // Añadir alumno a la primera sección del ramo
         const seccion = ramo.secciones[0];
         if (!seccion.alumnos) {
             seccion.alumnos = [];
         }
 
-        // Verificar si el alumno ya está inscrito
         if (seccion.alumnos.some(a => a.id === alumno.id)) {
             return handleErrorClient(res, 400, "El alumno ya está inscrito en este ramo");
         }
 
-        // Inscribir alumno
         seccion.alumnos.push(alumno);
         await AppDataSource.getRepository(Seccion).save(seccion);
 

@@ -15,6 +15,7 @@ export const Evaluacion = new EntitySchema({
         },
         fechaProgramada:{
             type:"date",
+            nullable: true,
         },
         ponderacion: {
             type:"float",

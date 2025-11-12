@@ -20,8 +20,6 @@ export const PautaEvaluada = new EntitySchema({
     retroalimentacion: {
       type: "json",
       nullable: true,
-      // Use a quoted JSON literal so Postgres receives a valid SQL default
-      // Postgres expects a string literal for JSON defaults, e.g. '[]'::json
       default: () => "'[]'::json",
       comment: "Array de objetos con retroalimentaciones del profesor y respuestas del estudiante"
     },

@@ -8,7 +8,6 @@ const ramosRepository = AppDataSource.getRepository(Ramos);
 const profesorRepository = AppDataSource.getRepository(Profesor);
 
 export async function createRamo(ramoData) {
-  // Verificar que el código no esté duplicado
   const existingRamo = await ramosRepository.findOne({
     where: { codigo: ramoData.codigo }
   });
@@ -17,7 +16,6 @@ export async function createRamo(ramoData) {
     throw new BadRequestError("El código del ramo ya está registrado");
   }
 
-  // Verificar que el profesor exista si se proporciona
   if (ramoData.rutProfesor) {
     const userRepository = AppDataSource.getRepository(User);
     const user = await userRepository.findOne({
@@ -36,7 +34,6 @@ export async function createRamo(ramoData) {
       throw new BadRequestError("No se encontró el perfil del profesor");
     }
 
-    // Crear el ramo
     const newRamo = ramosRepository.create({
       nombre: ramoData.nombre,
       codigo: ramoData.codigo,
@@ -45,7 +42,6 @@ export async function createRamo(ramoData) {
     return await ramosRepository.save(newRamo);
   }
 
-  // Si no se proporciona profesor, crear el ramo sin profesor asignado
   const newRamo = ramosRepository.create({
     nombre: ramoData.nombre,
     codigo: ramoData.codigo,
@@ -88,7 +84,6 @@ export async function getRamoByCodigo(codigo) {
 }
 
 export async function updateRamo(codigo, ramoData) {
-  // Verificar que el ramo exista
   const ramo = await ramosRepository.findOne({
     where: { codigo }
   });
@@ -97,7 +92,6 @@ export async function updateRamo(codigo, ramoData) {
     throw new NotFoundError("Ramo no encontrado");
   }
 
-  // Si se está actualizando el código, verificar que no esté en uso
   if (ramoData.codigo && ramoData.codigo !== codigo) {
     const existingRamo = await ramosRepository.findOne({
       where: { codigo: ramoData.codigo }
@@ -108,7 +102,6 @@ export async function updateRamo(codigo, ramoData) {
     }
   }
 
-  // Si se está actualizando el profesor, verificar que exista
   let profesor = undefined;
   if (ramoData.rutProfesor) {
     const userRepository = AppDataSource.getRepository(User);
@@ -129,19 +122,16 @@ export async function updateRamo(codigo, ramoData) {
     }
   }
 
-  // Actualizar el ramo usando el código como identificador
   await ramosRepository.update({ codigo }, {
     ...ramoData,
     profesor: profesor
   });
 
-  // Retornar el ramo actualizado
   const updatedRamo = await ramosRepository.findOne({
     where: { codigo: ramoData.codigo || codigo },
     relations: ["profesor", "profesor.user", "secciones"]
   });
 
-  // Transformar la respuesta para usar identificadores naturales
   if (updatedRamo.profesor?.user) {
     return {
       codigo: updatedRamo.codigo,
@@ -184,7 +174,6 @@ export async function getRamosByUser(userId, role) {
     const userRepository = AppDataSource.getRepository(User);
     const alumnoRepository = AppDataSource.getRepository(Alumno);
     
-    // Buscar primero el usuario para obtener el RUT
     const user = await userRepository.findOne({
       where: { id: userId }
     });
@@ -207,7 +196,6 @@ export async function getRamosByUser(userId, role) {
       throw new NotFoundError("Alumno no encontrado");
     }
 
-    // Transformar los datos para devolver los ramos con identificadores naturales
     const ramosInscritos = alumno.secciones.map(seccion => {
       const { ramo } = seccion;
       const profesor = ramo.profesor?.user;
@@ -235,7 +223,6 @@ export async function getRamosByUser(userId, role) {
     const userRepository = AppDataSource.getRepository(User);
     const profesorRepository = AppDataSource.getRepository(Profesor);
     
-    // Buscar primero el usuario para obtener el RUT
     const user = await userRepository.findOne({
       where: { id: userId }
     });
@@ -258,7 +245,6 @@ export async function getRamosByUser(userId, role) {
       throw new NotFoundError("Profesor no encontrado");
     }
 
-    // Transformar los datos para usar identificadores naturales
     const ramosDictados = profesor.ramos.map(ramo => ({
       codigo: ramo.codigo,
       nombre: ramo.nombre,

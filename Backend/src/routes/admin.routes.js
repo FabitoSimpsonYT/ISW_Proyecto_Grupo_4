@@ -13,13 +13,10 @@ import { createAdminValidation, updateAdminValidation } from "../validations/adm
 
 const router = Router();
 
-// Aplicar middleware de autenticación a todas las rutas
 router.use(authMiddleware);
 
-// Solo los administradores pueden acceder a estas rutas
 router.use(checkRole(["admin"]));
 
-// CRUD de administradores
 router.post("/", 
   validateRequest(createAdminValidation), 
   createAdminHandler

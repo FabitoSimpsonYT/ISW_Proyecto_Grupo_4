@@ -27,15 +27,15 @@ export const Apelacion = new EntitySchema({
     },
     respuestaDocente: {
       type: String,
-      nullable: true, // solo si el profesor aprueba
+      nullable: true,
     },
     fechaLimiteEdicion: {
       type: "timestamp",
-      nullable: true, // aplica solo si ya hay acuerdo (evaluacion)
+      nullable: true,
     },
     puedeEditar: {
       type: Boolean,
-      default: true, // se bloqueará según regla de 24h
+      default: true,
     },
     createdAt: {
       type: "timestamp",

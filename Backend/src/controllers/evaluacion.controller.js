@@ -8,7 +8,6 @@ import {
 } from "../services/evaluacion.service.js";
 import { createEvaluacionValidation, updateEvaluacionValidation } from "../validations/evaluacion.validation.js";
 
-/**Obtener todas las evaluacionesDocente*/
 export async function getEvaluaciones(req, res) {
   try {
     const user = req.user;
@@ -20,7 +19,6 @@ export async function getEvaluaciones(req, res) {
   }
 }
 
-/** Obtener una evaluación por ID*/
 export async function getEvaluacionById(req, res) {
   try {
     const { id } = req.params;
@@ -38,13 +36,12 @@ export async function getEvaluacionById(req, res) {
   }
 }
 
-/**Crear una nueva evaluaciónes*/
+
 import { syncEvaluacionWithEvent } from "../utils/evaluation-event.utils.js";
 
 export async function createEvaluacion(req, res) {
   try {
     const user = req.user;
-    // Calculamos la fecha de mañana (00:00:00)
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(0, 0, 0, 0);
@@ -70,7 +67,6 @@ export async function createEvaluacion(req, res) {
       aplicada: false
     });
 
-    // Crear evento asociado automáticamente
     await syncEvaluacionWithEvent(nuevaEvaluacion, user, false);
 
     handleSuccess(res, 201,"Evaluación creada exitosamente",{ evaluacion: nuevaEvaluacion });
@@ -80,7 +76,6 @@ export async function createEvaluacion(req, res) {
   }
 }
 
-/**  Actualizar una evaluación */
 export async function updateEvaluacion(req, res) {
   try {
     const user = req.user;
@@ -115,7 +110,6 @@ export async function updateEvaluacion(req, res) {
   }
 }
 
-/**Eliminar una evaluación */
 export async function deleteEvaluacion(req, res) {
   try {
     const user = req.user;

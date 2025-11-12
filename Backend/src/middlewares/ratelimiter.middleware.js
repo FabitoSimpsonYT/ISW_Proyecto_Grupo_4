@@ -1,8 +1,8 @@
 import rateLimit from 'express-rate-limit';
 
 export const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 5, // 5 intentos
+  windowMs: 15 * 60 * 1000,
+  max: 5,
   message: {
     success: false,
     message: 'Demasiados intentos de inicio de sesión, intente nuevamente en 15 minutos'
@@ -12,8 +12,8 @@ export const loginLimiter = rateLimit({
 });
 
 export const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // 100 requests
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   message: {
     success: false,
     message: 'Demasiadas peticiones, intente nuevamente más tarde'

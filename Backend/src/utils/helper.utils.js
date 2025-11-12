@@ -37,7 +37,6 @@ export const generateBookingReference = () => {
 };
 
 export const validateRUT = (rut) => {
-  // Formato: 12345678-9
   const rutRegex = /^[0-9]{7,8}-[0-9Kk]{1}$/;
   if (!rutRegex.test(rut)) return false;
   

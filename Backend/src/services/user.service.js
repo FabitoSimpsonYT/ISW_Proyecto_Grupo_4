@@ -6,7 +6,6 @@ import bcrypt from "bcrypt";
 const userRepository = AppDataSource.getRepository(User);
 
 export async function createUser(data) {
-  // Verificar si ya existe un usuario con el mismo RUT
   const existingRut = await userRepository.findOneBy({ rut: data.rut });
   if (existingRut) {
     const error = new Error("El RUT ya está registrado");
@@ -14,7 +13,6 @@ export async function createUser(data) {
     throw error;
   }
 
-  // Verificar si ya existe un usuario con el mismo email
   const existingEmail = await userRepository.findOneBy({ email: data.email });
   if (existingEmail) {
     const error = new Error("El email ya está registrado");
@@ -22,7 +20,6 @@ export async function createUser(data) {
     throw error;
   }
 
-  // Verificar si ya existe un usuario con el mismo teléfono
   const existingPhone = await userRepository.findOneBy({ telefono: data.telefono });
   if (existingPhone) {
     const error = new Error("El teléfono ya está registrado");
@@ -58,7 +55,6 @@ export async function updateUserById(id, data) {
   const user = await userRepository.findOneBy({ id });
   if (!user) throw new Error("Usuario no encontrado");
   if (data.email && data.email !== user.email) {
-    // Verificar si el email ya está en uso por otro usuario
     const existing = await userRepository.findOneBy({ email: data.email });
     if (existing && String(existing.id) !== String(user.id)) {
       const err = new Error("El email ingresado ya está en uso por otro usuario.");

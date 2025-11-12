@@ -6,7 +6,6 @@ import { User } from "../entities/user.entity.js";
 import { Profesor } from "../entities/profesor.entity.js";
 import { Alumno } from "../entities/alumno.entity.js";
 
-// Inicializa la conexión y crea datos por defecto (usuarios y perfiles)
 export async function initDB() {
   try {
     if (!AppDataSource.isInitialized) {
@@ -34,7 +33,6 @@ export async function createUsers() {
 
     console.log("Creando usuarios y perfiles por defecto...");
 
-    // Crear admin (solo usuario base)
     const adminUser = userRepository.create({
       nombres: "Administrador",
       apellidoPaterno: "Sistema",
@@ -48,7 +46,6 @@ export async function createUsers() {
     await userRepository.save(adminUser);
     console.log(`Usuario admin '${adminUser.email}' creado.`);
 
-    // Crear profesor con su perfil específico
     const profesorUser = userRepository.create({
       nombres: "Juan",
       apellidoPaterno: "Pérez",
@@ -69,7 +66,6 @@ export async function createUsers() {
     await profesorRepository.save(profesorProfile);
     console.log(`Profesor '${profesorUser.email}' creado con especialidad '${profesorProfile.especialidad}'.`);
 
-    // Crear alumno con su perfil específico
     const alumnoUser = userRepository.create({
       nombres: "María",
       apellidoPaterno: "López",

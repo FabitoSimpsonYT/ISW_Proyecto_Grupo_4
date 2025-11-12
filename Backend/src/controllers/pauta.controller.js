@@ -34,7 +34,6 @@ export async function createPauta(req, res) {
       );
     }
 
-    // Permitir crear pauta sin evaluacionId
     const result = await createPautaService(req.body, evaluacionId || null);
 
     if(result.error) return  handleErrorClient(res, 400, result.error);

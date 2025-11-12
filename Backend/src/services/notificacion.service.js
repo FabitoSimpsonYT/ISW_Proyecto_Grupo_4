@@ -7,13 +7,11 @@ const notificacionRepo = AppDataSource.getRepository(Notificacion);
 const userRepo = AppDataSource.getRepository(User);
 const seccionRepo = AppDataSource.getRepository(Seccion);
 
-// Crear una notificación manual
 export const crearNotificacion = async (data) => {
   const notificacion = notificacionRepo.create(data);
   return await notificacionRepo.save(notificacion);
 };
 
-// Enviar notificación automática a todos los alumnos de un ramo/asignatura
 export const notificarAlumnos = async (
   targetId,
   titulo,
@@ -22,22 +20,18 @@ export const notificarAlumnos = async (
   options = { bySeccion: false }
 ) => {
   let alumnos = [];
-  // Si se indica bySeccion, buscar la sección y sus alumnos
   if (options.bySeccion) {
     const seccion = await seccionRepo.findOne({
       where: { id: targetId },
       relations: ["alumnos", "alumnos.user"],
     });
     if (seccion && seccion.alumnos) {
-      // seccion.alumnos es un array de Alumno entities con relación user
       alumnos = seccion.alumnos.map((a) => (a.user ? a.user : null)).filter(Boolean);
     }
   } else {
-    // Fallback: intentar buscar alumnos por ramo en User (si existe esa relación en proyecto)
     try {
       alumnos = await userRepo.find({ where: { role: "alumno", ramo: { id: targetId } } });
     } catch (err) {
-      // Si no se puede filtrar por ramo, dejar alumnos vacío
       alumnos = [];
     }
   }
@@ -53,7 +47,6 @@ export const notificarAlumnos = async (
   }
 };
 
-// Obtener notificaciones de un usuario
 export const obtenerNotificacionesPorUsuario = async (usuarioId) => {
   return await notificacionRepo.find({
     where: { usuario: { id: usuarioId } },
@@ -62,7 +55,7 @@ export const obtenerNotificacionesPorUsuario = async (usuarioId) => {
   });
 };
 
-// Marcar como leída
+
 export const marcarNotificacionComoLeida = async (id) => {
   const notificacion = await notificacionRepo.findOneBy({ id });
   if (!notificacion) return null;
