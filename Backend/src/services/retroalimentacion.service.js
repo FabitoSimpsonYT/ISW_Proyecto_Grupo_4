@@ -26,7 +26,7 @@ export async function addRetroalimentacionService(pautaId, data, user) {
       rol: user.role,
       contenido: data.contenido,
       timestamp: new Date(),
-      tipo: data.tipo
+      tipo: data.tipo 
     };
 
     const retroalimentaciones = pautaEvaluada.retroalimentacion || [];

@@ -1,5 +1,4 @@
 import Joi from "joi";
-import { telefonoPattern } from "./users.validation.js";
 
 export const createAlumnoValidation = Joi.object({
   rut: Joi.string()
@@ -43,12 +42,10 @@ export const createAlumnoValidation = Joi.object({
       "any.required": "La contraseña es obligatoria"
     }),
   telefono: Joi.string()
-    .pattern(telefonoPattern)
     .required()
     .messages({
       "string.empty": "El teléfono es obligatorio",
-      "any.required": "El teléfono es obligatorio",
-      "string.pattern.base": "El teléfono debe tener el formato +56912345678 o +56411234567 (12 caracteres)."
+      "any.required": "El teléfono es obligatorio"
     }),
   generacion: Joi.string()
     .required()
@@ -59,7 +56,7 @@ export const createAlumnoValidation = Joi.object({
       if (year > currentYear) {
         return helpers.message(`La generación no puede ser superior al año actual (${currentYear})`);
       }
-      if (year < 1981) {
+      if (year < 1981) { 
         return helpers.message("La generación no puede ser anterior a 1981");
       }
       return value;
@@ -77,6 +74,6 @@ export const updateAlumnoValidation = Joi.object({
   apellidoMaterno: Joi.string(),
   email: Joi.string().email(),
   password: Joi.string().min(6),
-  telefono: Joi.string().pattern(telefonoPattern),
+  telefono: Joi.string(),
   generacion: Joi.string()
 }).min(1);

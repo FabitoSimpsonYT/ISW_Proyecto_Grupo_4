@@ -5,7 +5,6 @@ import {
   updatePautaService,
   deletePautaService,
 } from "../services/pauta.service.js";
-import { createPautaValidation } from "../validations/pauta.validation.js";
 
 export async function getPautaById(req, res) {
   try {
@@ -35,12 +34,7 @@ export async function createPauta(req, res) {
       );
     }
 
-    const { error, value } = createPautaValidation.validate(req.body);
-    if (error) {
-      return handleErrorClient(res, 400, error.message);
-    }
-
-    const result = await createPautaService(value, evaluacionId || null);
+    const result = await createPautaService(req.body, evaluacionId || null);
 
     if(result.error) return  handleErrorClient(res, 400, result.error);
 

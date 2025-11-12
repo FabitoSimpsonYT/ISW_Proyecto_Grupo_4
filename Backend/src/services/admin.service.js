@@ -26,6 +26,7 @@ export async function createAdmin(adminData) {
     }
   }
 
+
   const hashedPassword = await bcrypt.hash(adminData.password, 10);
   const userData = {
     ...adminData,
@@ -75,7 +76,6 @@ export async function updateAdmin(id, adminData) {
     throw new NotFoundError("Administrador no encontrado");
   }
 
-  // Si se intenta actualizar el email o teléfono, verificar que no existan
   if (adminData.email && adminData.email !== admin.email) {
     const existingEmail = await userRepository.findOne({
       where: { email: adminData.email }

@@ -8,12 +8,12 @@ export const errorHandler = (err, req, res, next) => {
     error.message = 'Ya existe un registro con ese valor';
     error.statusCode = 400;
   }
-  
+
   if (err.code === '23503') {
     error.message = 'Referencia inválida';
     error.statusCode = 400;
   }
-  
+
   if (err.code === '23514') {
     error.message = 'Valor no válido';
     error.statusCode = 400;

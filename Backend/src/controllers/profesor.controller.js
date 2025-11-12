@@ -28,17 +28,14 @@ export async function getProfesorByIdHandler(req, res) {
         const userId = req.user.id;
         let id;
 
-        // Si es admin y proporciona un ID específico, usar ese ID
         if (userRole === "admin" && req.params.id) {
             id = req.params.id;
         } else {
-            // Si es profesor o no se proporciona ID, usar el ID del token
             id = userId;
         }
 
         const profesor = await getProfesorById(id);
-        
-        // Si es profesor, solo puede ver su propio perfil
+
         if (userRole === "profesor" && profesor.user.id !== userId) {
             return res.status(403).json({ message: "No tienes permiso para ver este perfil" });
         }

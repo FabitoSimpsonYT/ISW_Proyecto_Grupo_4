@@ -25,11 +25,9 @@ export async function getAllAlumnosHandler(req, res) {
 
 export async function getAlumnoByIdHandler(req, res) {
     try {
-        
         const id = req.path === '/me' ? req.user.id : req.params.id;
         const alumno = await getAlumnoById(id);
         
-       
         if (req.path === '/me' && alumno.user.id !== req.user.id) {
             return res.status(403).json({ message: "No tienes permiso para ver este perfil" });
         }
@@ -109,7 +107,6 @@ export async function deleteAlumnoHandler(req, res) {
         res.status(500).json({ message: "Error al eliminar alumno." });
     }
 }
-
 
 export async function getEvaluacionesYNotasHandler(req, res) {
     try {

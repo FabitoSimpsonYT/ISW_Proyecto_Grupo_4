@@ -1,28 +1,25 @@
 import { query } from '../config/database.js';
 import { formatToCustomDate } from './date.utils.js';
 
+
 export async function syncEvaluacionWithEvent(evaluacion, user, isUpdate = false) {
   try {
     const fechaEval = new Date(evaluacion.fechaProgramada);
     
-    
     const fechaFin = new Date(fechaEval);
     fechaFin.setHours(fechaFin.getHours() + 2);
-
 
     const startTime = formatToCustomDate(fechaEval);
     const endTime = formatToCustomDate(fechaFin);
 
-  if (isUpdate) {
+    if (isUpdate) {
       const existingEvent = await query(
         'SELECT id FROM events WHERE evaluation_id = $1',
         [evaluacion.id]
       );
 
       if (existingEvent.rows.length > 0) {
-      
-        try {
-          await query(
+        await query(
           `UPDATE events 
            SET title = $1, 
                description = $2,
@@ -38,24 +35,16 @@ export async function syncEvaluacionWithEvent(evaluacion, user, isUpdate = false
             fechaEval,
             fechaFin,
             evaluacion.estado === 'PROGRAMADA' ? 'confirmado' : 'tentativo',
-            evaluacion.ramo?.codigo || null,
-            evaluacion.ramo?.seccion || null,
+            evaluacion.ramo.codigo,
+            evaluacion.ramo.seccion,
             existingEvent.rows[0].id
           ]
-          );
-          return existingEvent.rows[0];
-        } catch (err) {
-          if (err && err.code === '42P01') {
-            console.warn('Tabla events no existe — omitiendo actualización de evento.');
-            return null;
-          }
-          throw err;
-        }
+        );
+        return existingEvent.rows[0];
       }
     }
 
-    try {
-      const result = await query(
+    const result = await query(
       `INSERT INTO events (
         professor_id, 
         title, 
@@ -80,22 +69,16 @@ export async function syncEvaluacionWithEvent(evaluacion, user, isUpdate = false
         fechaEval,
         fechaFin,
         evaluacion.estado === 'PROGRAMADA' ? 'confirmado' : 'tentativo',
-        (evaluacion.ramo?.codigo || null),
-        (evaluacion.ramo?.seccion || null),
+        evaluacion.ramo.codigo,
+        evaluacion.ramo.seccion,
         1,
-        false, 
+        false,
         evaluacion.id,
-        true  
+        true 
       ]
     );
-      return result.rows[0];
-    } catch (err) {
-      if (err && err.code === '42P01') {
-        console.warn('Tabla events no existe — omitiendo creación de evento.');
-        return null;
-      }
-      throw err;
-    }
+
+    return result.rows[0];
   } catch (error) {
     console.error('Error al sincronizar evaluación con evento:', error);
     throw error;

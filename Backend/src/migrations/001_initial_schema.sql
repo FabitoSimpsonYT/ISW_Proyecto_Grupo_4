@@ -12,7 +12,6 @@ CREATE TABLE users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-
 CREATE TABLE events (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     code VARCHAR(8) UNIQUE NOT NULL,
@@ -34,7 +33,6 @@ CREATE TABLE events (
     CONSTRAINT valid_time_range CHECK (end_time > start_time)
 );
 
-
 CREATE TABLE bookings (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
@@ -46,7 +44,6 @@ CREATE TABLE bookings (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(event_id, student_id)
 );
-
 
 CREATE TABLE notifications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

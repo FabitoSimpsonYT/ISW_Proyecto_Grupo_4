@@ -41,7 +41,7 @@ async function runMigrations() {
         
         try {
           await client.query('BEGIN');
-
+          
           await client.query(sql);
           
           await client.query(

@@ -16,7 +16,6 @@ router.put('/:id/read', protect, markAsRead);
 
 export default router;
 
-
 import express from 'express';
 import { 
   getStats, 

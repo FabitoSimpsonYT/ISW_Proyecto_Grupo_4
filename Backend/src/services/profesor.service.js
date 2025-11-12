@@ -102,7 +102,7 @@ export async function updateProfesor(id, profesorData) {
   
   await userRepository.update(id, {
     ...profesorData,
-    role: "profesor"
+    role: "profesor" 
   });
 
   if (profesorData.especialidad) {

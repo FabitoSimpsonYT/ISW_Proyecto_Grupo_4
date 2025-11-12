@@ -70,7 +70,6 @@ export async function updateAdminHandler(req, res) {
             return res.status(400).json({ message: error.details[0].message });
         }
 
-       
         if (req.user.sub.toString() === id.toString()) {
             return res.status(400).json({ message: "No puedes modificar tu propio perfil desde aquí. Usa la ruta de perfil." });
         }
@@ -95,7 +94,6 @@ export async function updateAdminHandler(req, res) {
 export async function deleteAdminHandler(req, res) {
     try {
         const { id } = req.params;
-        
         
         if (req.user.sub.toString() === id.toString()) {
             return res.status(400).json({ message: "No puedes eliminar tu propio perfil" });

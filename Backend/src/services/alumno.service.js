@@ -32,10 +32,7 @@ export async function createAlumno(alumnoData) {
   };
 
   const newAlumno = await alumnoRepository.save(alumnoProfile);
-  if (newAlumno.user) {
-    delete newAlumno.user.password;
-    delete newAlumno.user.id;
-  }
+  delete newAlumno.user.password;
   return newAlumno;
 }
 
@@ -47,10 +44,7 @@ export async function getAllAlumnos() {
   });
 
   return alumnos.map(alumno => {
-    if (alumno.user) {
-      delete alumno.user.password;
-      delete alumno.user.id;
-    }
+    if (alumno.user) delete alumno.user.password;
     return alumno;
   });
 }
@@ -65,10 +59,7 @@ export async function getAlumnoById(id) {
     throw new NotFoundError("Alumno no encontrado");
   }
 
-  if (alumno.user) {
-    delete alumno.user.password;
-    delete alumno.user.id;
-  }
+  if (alumno.user) delete alumno.user.password;
   return alumno;
 }
 
@@ -91,6 +82,7 @@ export async function updateAlumno(id, alumnoData) {
     }
   }
 
+
   if (alumnoData.password) {
     alumnoData.password = await bcrypt.hash(alumnoData.password, 10);
   }
@@ -111,10 +103,7 @@ export async function updateAlumno(id, alumnoData) {
     relations: ["user", "secciones"]
   });
 
-  if (updatedAlumno.user) {
-    delete updatedAlumno.user.password;
-    delete updatedAlumno.user.id;
-  }
+  if (updatedAlumno.user) delete updatedAlumno.user.password;
   return updatedAlumno;
 }
 

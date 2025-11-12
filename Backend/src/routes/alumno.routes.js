@@ -14,7 +14,6 @@ import { createAlumnoValidation, updateAlumnoValidation } from "../validations/a
 
 const router = Router();
 
-
 router.post("/", 
   authMiddleware,
   checkRole(["admin"]), 
@@ -24,10 +23,9 @@ router.post("/",
 
 router.get("/", 
   authMiddleware,
-  checkRole(["admin", "profesor"]), 
-  getAllAlumnosHandler
+  checkRole(["admin", "profesor", "alumno"]), 
+  getAlumnoByIdHandler
 );
-
 
 router.get("/:id", 
   authMiddleware,

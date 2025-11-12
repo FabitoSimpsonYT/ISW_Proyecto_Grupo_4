@@ -2,25 +2,17 @@
 import { AppDataSource } from "../config/configDb.js";
 import { User } from "../entities/user.entity.js";
 import bcrypt from "bcrypt";
-import { createValidation, telefonoPattern } from "../validations/users.validation.js";
 
 const userRepository = AppDataSource.getRepository(User);
 
 export async function createUser(data) {
-  const { error: validationError } = createValidation.validate(data);
-  if (validationError) {
-    const err = new Error(validationError.message);
-    err.code = "VALIDATION_ERROR";
-    throw err;
-  }
-  
   const existingRut = await userRepository.findOneBy({ rut: data.rut });
   if (existingRut) {
     const error = new Error("El RUT ya está registrado");
     error.code = "RUT_IN_USE";
     throw error;
   }
-  
+
   const existingEmail = await userRepository.findOneBy({ email: data.email });
   if (existingEmail) {
     const error = new Error("El email ya está registrado");
@@ -71,26 +63,7 @@ export async function updateUserById(id, data) {
     }
     user.email = data.email;
   }
-  if (data.telefono && data.telefono !== user.telefono) {
-    if (!telefonoPattern.test(data.telefono) || data.telefono.length !== 12) {
-      const err = new Error("El teléfono debe tener el formato +56912345678 o +56411234567 (12 caracteres).");
-      err.code = "PHONE_INVALID";
-      throw err;
-    }
-
-    const existingPhone = await userRepository.findOneBy({ telefono: data.telefono });
-    if (existingPhone && String(existingPhone.id) !== String(user.id)) {
-      const err = new Error("El teléfono ingresado ya está en uso por otro usuario.");
-      err.code = "PHONE_IN_USE";
-      throw err;
-    }
-    user.telefono = data.telefono;
-  }
   if (data.password) user.password = await bcrypt.hash(data.password, 10);
-  if (data.nombres) user.nombres = data.nombres;
-  if (data.apellidoPaterno) user.apellidoPaterno = data.apellidoPaterno;
-  if (data.apellidoMaterno) user.apellidoMaterno = data.apellidoMaterno;
-  if (data.role) user.role = data.role;
   await userRepository.save(user);
   return user;
 }

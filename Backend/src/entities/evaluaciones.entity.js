@@ -14,23 +14,7 @@ export const Evaluacion = new EntitySchema({
             length:255,
         },
         fechaProgramada:{
-            // date part (YYYY-MM-DD)
-            type: "date",
-            nullable: true,
-        },
-        horaInicio:{
-            // start time (HH:mm)
-            type: "time",
-            nullable: true,
-        },
-        horaFin:{
-            // end time (HH:mm)
-            type: "time",
-            nullable: true,
-        },
-        horaProgramada: {
-            type: "varchar",
-            length: 20,
+            type:"date",
             nullable: true,
         },
         ponderacion: {
@@ -66,35 +50,13 @@ export const Evaluacion = new EntitySchema({
         
     },
     relations:{
-        ramo:{
-            target:"Ramos",
-            type:"many-to-one",
-            joinColumn: {
-                name: "ramo_id",
-                referencedColumnName: "id"
-            },
-            nullable:true,
-        },
         pauta:{
             target:"Pauta",
             type:"one-to-one",
-            inverseSide:"evaluacion",
+            joinColumn: true,
             cascade: true,
             nullable:true,
         },
-        seccion: {
-            target: "Seccion",
-            type: "many-to-one",
-            joinColumn: {
-                name: "seccion_id",
-                referencedColumnName: "id",
-            },
-            nullable: true,
-            onDelete: "SET NULL",
-        },
-       
-
-
     },
 });
 

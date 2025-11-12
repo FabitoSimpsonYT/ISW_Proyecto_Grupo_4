@@ -6,7 +6,6 @@ import { User } from "../entities/user.entity.js";
 import { Profesor } from "../entities/profesor.entity.js";
 import { Alumno } from "../entities/alumno.entity.js";
 
-
 export async function initDB() {
   try {
     if (!AppDataSource.isInitialized) {
@@ -47,7 +46,6 @@ export async function createUsers() {
     await userRepository.save(adminUser);
     console.log(`Usuario admin '${adminUser.email}' creado.`);
 
-    // Crear profesor con su perfil específico
     const profesorUser = userRepository.create({
       nombres: "Juan",
       apellidoPaterno: "Pérez",

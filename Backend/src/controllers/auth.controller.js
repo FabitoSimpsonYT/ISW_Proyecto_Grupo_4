@@ -27,25 +27,20 @@ export async function register(req, res) {
   try {
     const data = req.body;
     
-    
     const userRole = req.user.role;
 
-    
     if (userRole !== "admin") {
       return handleErrorClient(res, 403, "Debe ser rango administrador para crear usuarios.");
     }
 
-    
     const { error } = createValidation.validate(req.body);
 
-    
     if (data.role === "admin") {
       const adminExists = await AppDataSource
         .getRepository(User)
         .findOne({ where: { role: "admin" } });
       
       if (!adminExists) {
-        
         return handleSuccess(res, 201, "Primer administrador registrado exitosamente", newUser);
       }
     }
@@ -60,8 +55,6 @@ export async function register(req, res) {
       handleErrorClient(res, 409, "El email ya está registrado");
     } else if (error.code === "PHONE_IN_USE") {
       handleErrorClient(res, 409, "El teléfono ya está registrado");
-    } else if (error.code === "VALIDATION_ERROR") {
-      handleErrorClient(res, 400, error.message);
     } else {
       handleErrorServer(res, 500, "Error interno del servidor", error.message);
     }

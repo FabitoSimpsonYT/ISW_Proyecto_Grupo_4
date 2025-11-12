@@ -3,7 +3,6 @@ import { sendEmail } from '../config/email.js';
 import { formatDate } from '../utils/helper.utils.js';
 import { logger } from '../utils/logger.utils.js';
 
-
 export const createNotification = async (userId, type, title, message, eventId = null, bookingId = null) => {
   try {
     const result = await query(
@@ -20,7 +19,6 @@ export const createNotification = async (userId, type, title, message, eventId =
     throw new Error(`Error creating notification: ${error.message}`);
   }
 };
-
 
 export const sendBookingConfirmationEmail = async (userEmail, userName, event) => {
   const subject = `Confirmación de reserva: ${event.title}`;
@@ -64,6 +62,7 @@ export const sendBookingCancellationEmail = async (userEmail, userName, booking)
     logger.error('Error sending booking cancellation email:', error);
   }
 };
+
 
 export const sendEventChangeEmail = async (userEmail, userName, event, changedFields) => {
   const subject = `Cambios en el evento: ${event.title}`;
@@ -120,7 +119,7 @@ export const sendEventReminders = async () => {
         booking.event_id,
         booking.booking_id
       );
-      
+
       const subject = `Recordatorio: ${booking.title}`;
       const html = `
         <h2>Recordatorio de Evento</h2>
@@ -136,7 +135,6 @@ export const sendEventReminders = async () => {
       
       try {
         await sendEmail(booking.email, subject, html);
-        
         await query(
           'UPDATE bookings SET reminder_sent = true WHERE id = $1',
           [booking.booking_id]

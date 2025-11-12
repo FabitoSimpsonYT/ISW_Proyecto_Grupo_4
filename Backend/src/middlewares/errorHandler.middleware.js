@@ -16,6 +16,7 @@ export const errorHandler = (err, req, res, next) => {
     return sendError(res, 'El registro ya existe', 400);
   }
 
+
   if (err.name === 'UnauthorizedError') {
     return sendError(res, 'No autorizado', 401);
   }

@@ -7,10 +7,10 @@ export const createEvent = async (req, res, next) => {
   try {
     const professorId = req.user.id;
     const { title, description, event_type, start_time, end_time, status, location, course, section, max_bookings } = req.body;
-
+    
     const parsedStartTime = parseCustomDateFormat(start_time);
     const parsedEndTime = parseCustomDateFormat(end_time);
-    
+
     const conflict = await checkEventConflict(professorId, parsedStartTime, parsedEndTime);
     
     if (conflict.hasConflict) {
@@ -24,7 +24,6 @@ export const createEvent = async (req, res, next) => {
         }))
       });
     }
-    
 
     const result = await query(
       `INSERT INTO events (professor_id, title, description, event_type, start_time, end_time, status, location, course, section, max_bookings)
@@ -32,14 +31,13 @@ export const createEvent = async (req, res, next) => {
        RETURNING *`,
       [professorId, title, description, event_type, parsedStartTime, parsedEndTime, status || 'tentativo', location, course, section, max_bookings || 1]
     );
-    
 
     await query(
       `INSERT INTO audit_logs (user_id, action, entity_type, entity_id, new_values)
        VALUES ($1, $2, $3, $4, $5)`,
       [professorId, 'CREATE_EVENT', 'event', result.rows[0].id, JSON.stringify(result.rows[0])]
     );
-    
+
     const eventData = {
       ...result.rows[0],
       start_time: formatToCustomDate(new Date(result.rows[0].start_time)),
@@ -113,7 +111,7 @@ export const getEvents = async (req, res, next) => {
     if (req.user.role === 'alumno') {
       sql += ` AND e.is_available = true AND e.status != 'cancelado' AND e.start_time > NOW()`;
     }
-    
+
     if (req.user.role === 'profesor') {
       sql += ` AND e.professor_id = $${paramCount}`;
       params.push(req.user.id);
@@ -189,7 +187,7 @@ export const updateEvent = async (req, res, next) => {
     
     const { id } = req.params;
     const updates = req.body;
-
+    
     const eventResult = await client.query('SELECT * FROM events WHERE id = $1', [id]);
     
     if (eventResult.rows.length === 0) {
@@ -201,7 +199,7 @@ export const updateEvent = async (req, res, next) => {
     }
     
     const currentEvent = eventResult.rows[0];
-    
+
     if (req.user.role === 'profesor' && currentEvent.professor_id !== req.user.id) {
       await client.query('ROLLBACK');
       return res.status(403).json({
@@ -209,7 +207,7 @@ export const updateEvent = async (req, res, next) => {
         message: 'No tienes permiso para editar este evento'
       });
     }
-    
+
     if (updates.start_time || updates.end_time) {
       const newStartTime = updates.start_time ? parseCustomDateFormat(updates.start_time) : currentEvent.start_time;
       const newEndTime = updates.end_time ? parseCustomDateFormat(updates.end_time) : currentEvent.end_time;
@@ -225,7 +223,7 @@ export const updateEvent = async (req, res, next) => {
         });
       }
     }
-
+    
     const fields = [];
     const values = [];
     let paramCount = 1;
@@ -253,6 +251,7 @@ export const updateEvent = async (req, res, next) => {
       values
     );
     
+  
     await client.query(
       `INSERT INTO audit_logs (user_id, action, entity_type, entity_id, old_values, new_values)
        VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -326,7 +325,7 @@ export const deleteEvent = async (req, res, next) => {
     }
     
     const event = eventResult.rows[0];
-
+    
     if (req.user.role === 'profesor' && event.professor_id !== req.user.id) {
       await client.query('ROLLBACK');
       return res.status(403).json({
@@ -334,7 +333,7 @@ export const deleteEvent = async (req, res, next) => {
         message: 'No tienes permiso para eliminar este evento'
       });
     }
-    
+
     const bookingsResult = await client.query(
       `SELECT b.*, u.email, u.first_name, u.last_name
        FROM bookings b
@@ -353,9 +352,9 @@ export const deleteEvent = async (req, res, next) => {
         booking.id
       );
     }
-    
+
     await client.query('DELETE FROM events WHERE id = $1', [id]);
-    
+
     await client.query(
       `INSERT INTO audit_logs (user_id, action, entity_type, entity_id, old_values)
        VALUES ($1, $2, $3, $4, $5)`,

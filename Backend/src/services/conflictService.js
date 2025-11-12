@@ -1,5 +1,6 @@
 import { query } from '../config/database.js';
 
+
 export const checkEventConflict = async (professorId, startTime, endTime, excludeEventId = null) => {
   try {
     let sql = `
@@ -27,7 +28,7 @@ export const checkEventConflict = async (professorId, startTime, endTime, exclud
         (e.is_blocked = true OR e.evaluation_id IS NOT NULL)
       )
       AND (
-        (e.start_time, e.end_time) OVERLAPS ($2::timestamp - interval '10 minutes', $3::timestamp + interval '10 minutes')
+        (e.start_time, e.end_time) OVERLAPS ($2::timestamp, $3::timestamp)
       )
     `;
     
@@ -86,7 +87,9 @@ programado para el ${formattedDate}
   }
 };
 
-
+/**
+ * Verifica la disponibilidad de un evento para reservas
+ */
 export const checkEventAvailability = async (eventId) => {
   try {
     const result = await query(
@@ -161,7 +164,8 @@ export const checkEventAvailability = async (eventId) => {
         type: 'past'
       };
     }
-
+    
+    // Verificar cupos disponibles
     if (event.current_bookings >= event.max_bookings) {
       return {
         available: false,
@@ -179,6 +183,9 @@ export const checkEventAvailability = async (eventId) => {
   }
 };
 
+/**
+ * Verifica conflictos de horario para un estudiante
+ */
 export const checkStudentBookingConflict = async (studentId, startTime, endTime, excludeBookingId = null) => {
   try {
     let sql = `
@@ -211,6 +218,9 @@ export const checkStudentBookingConflict = async (studentId, startTime, endTime,
   }
 };
 
+/**
+ * Verifica límites de reservas por curso/sección
+ */
 export const checkBookingLimits = async (studentId, courseId, sectionId) => {
   try {
     const result = await query(

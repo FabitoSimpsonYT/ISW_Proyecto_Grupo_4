@@ -19,6 +19,7 @@ const sanitizeItem = (item) => {
   delete cleaned.password;
   delete cleaned.reset_token;
 
+
   if (!cleaned.code && item.id) {
     cleaned.code = generateCodeFromType(item);
   }

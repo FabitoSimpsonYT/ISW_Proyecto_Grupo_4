@@ -14,27 +14,13 @@ export async function loginUser(email, password) {
   }
 
   const payload = { 
-    sub: user.id,
+    sub: user.rut, 
     nombres: user.nombres,
     email: user.email,
-    role: user.role,
-    id: user.id 
+    role: user.role 
   };
-  console.log(`[auth.service] Generated JWT payload: sub=${payload.sub} role=${payload.role} id=${payload.id}`);
   const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "1h" });
 
   delete user.password;
-  const safeUser = {
-    rut: user.rut,
-    nombres: user.nombres,
-    apellidoPaterno: user.apellidoPaterno,
-    apellidoMaterno: user.apellidoMaterno,
-    email: user.email,
-    telefono: user.telefono,
-    role: user.role,
-    created_at: user.created_at,
-    updated_at: user.updated_at,
-  };
-
-  return { user: safeUser, token };
+  return { user, token };
 }

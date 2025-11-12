@@ -7,13 +7,11 @@ const notificacionRepo = AppDataSource.getRepository(Notificacion);
 const userRepo = AppDataSource.getRepository(User);
 const seccionRepo = AppDataSource.getRepository(Seccion);
 
-// Crear una notificación manual
 export const crearNotificacion = async (data) => {
   const notificacion = notificacionRepo.create(data);
   return await notificacionRepo.save(notificacion);
 };
 
-// Enviar notificación automática a todos los alumnos de un ramo/asignatura
 export const notificarAlumnos = async (
   targetId,
   titulo,
@@ -28,7 +26,6 @@ export const notificarAlumnos = async (
       relations: ["alumnos", "alumnos.user"],
     });
     if (seccion && seccion.alumnos) {
-     
       alumnos = seccion.alumnos.map((a) => (a.user ? a.user : null)).filter(Boolean);
     }
   } else {
@@ -50,7 +47,6 @@ export const notificarAlumnos = async (
   }
 };
 
-// Obtener notificaciones de un usuario
 export const obtenerNotificacionesPorUsuario = async (usuarioId) => {
   return await notificacionRepo.find({
     where: { usuario: { id: usuarioId } },
@@ -59,7 +55,7 @@ export const obtenerNotificacionesPorUsuario = async (usuarioId) => {
   });
 };
 
-// Marcar como leída
+
 export const marcarNotificacionComoLeida = async (id) => {
   const notificacion = await notificacionRepo.findOneBy({ id });
   if (!notificacion) return null;

@@ -1,7 +1,6 @@
 import { EntitySchema } from "typeorm";
 import { User } from "./user.entity.js";
 
-
 export const Profesor = new EntitySchema({
   name: "Profesor",
   tableName: "profesores",

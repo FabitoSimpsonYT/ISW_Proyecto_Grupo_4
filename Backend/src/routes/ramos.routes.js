@@ -12,10 +12,9 @@ import {
   getMisRamosHandler
 } from "../controllers/ramos.controller.js";
 import { validateRequest } from "../middleware/validation.middleware.js";
-import { createRamoValidation, updateRamoValidation, createSeccionValidation } from "../validations/ramos.validation.js";
+import { createRamoValidation, updateRamoValidation } from "../validations/ramos.validation.js";
 
 const router = Router();
-
 
 router.use(authMiddleware);
 
@@ -25,14 +24,13 @@ router.post("/",
   createRamoHandler
 );
 
+router.get("/", 
+  getAllRamosHandler
+);
+
 router.get("/misRamos",
   checkRole(["alumno", "profesor"]),
   getMisRamosHandler
-);
-
-
-router.get("/", 
-  getAllRamosHandler
 );
 
 router.get("/:codigo", 
@@ -53,17 +51,6 @@ router.delete("/:codigo",
 router.post("/inscribir", 
   checkRole(["profesor", "admin"]), 
   inscribirAlumno
-);
-
-
-router.post("/secciones",
-  checkRole(["profesor", "admin"]),
-  validateRequest(createSeccionValidation),
-  async (req, res, next) => {
-
-    const { createSeccionHandler } = await import("../controllers/ramos.controller.js");
-    return createSeccionHandler(req, res, next);
-  }
 );
 
 export default router;
