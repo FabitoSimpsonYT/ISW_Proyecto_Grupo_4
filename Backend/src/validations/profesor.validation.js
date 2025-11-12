@@ -1,5 +1,5 @@
 import Joi from "joi";
-import { validarRut } from "./users.validation.js";
+import { validarRut, telefonoPattern } from "./users.validation.js";
 
 export const createProfesorValidation = Joi.object({
   rut: Joi.string()
@@ -56,10 +56,10 @@ export const createProfesorValidation = Joi.object({
       "string.max": "La contraseña debe tener como maximo 20 caracteres."
     }),
   telefono: Joi.string()
-    .pattern(/^\+56(9\d{8}|41\d{7})$/)
+    .pattern(telefonoPattern)
     .required()
     .messages({
-      "string.pattern.base": "El teléfono debe tener el formato +569XXXXXXXX (móvil con 8 números después del +569) o +5641XXXXXXX (fijo con 7 números después del +5641)",
+      "string.pattern.base": "El teléfono debe tener el formato +56912345678 o +56411234567 (12 caracteres)",
       "string.empty": "El teléfono es obligatorio",
       "any.required": "El teléfono es obligatorio"
     }),
@@ -77,6 +77,6 @@ export const updateProfesorValidation = Joi.object({
   apellidoMaterno: Joi.string(),
   email: Joi.string().email(),
   password: Joi.string().min(6),
-  telefono: Joi.string(),
+  telefono: Joi.string().pattern(telefonoPattern),
   especialidad: Joi.string()
 }).min(1);

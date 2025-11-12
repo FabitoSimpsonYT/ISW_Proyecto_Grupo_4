@@ -7,14 +7,15 @@ export async function createPautaEvaluada(req, res) {
     const { error } = createPautaEvaluadaValidation.validate(req.body);
     if (error) return handleErrorClient(res, 400, error.message);
 
-  const { evaluacionId } = req.params;
+    const { evaluacionId } = req.params;
+    const { alumnoRut } = req.body;
     const user = req.user;
 
     if (user.role !== "profesor") {
       return handleErrorClient(res, 403, "Solo el profesor puede registrar una pauta evaluada");
     }
 
-    const result = await createPautaEvaluadaService(evaluacionId, req.body, user);
+    const result = await createPautaEvaluadaService(evaluacionId, alumnoRut, req.body, user);
     if (result.error) return handleErrorClient(res, 400, result.error);
 
     handleSuccess(res, 201, "Pauta evaluada creada exitosamente", { pautaEvaluada: result });

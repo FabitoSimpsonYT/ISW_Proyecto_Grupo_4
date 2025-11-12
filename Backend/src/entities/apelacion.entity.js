@@ -60,7 +60,7 @@ export const Apelacion = new EntitySchema({
       target: User,
       joinColumn: { name: "profesorId" },
       eager: true,
-      nullable: false, // profesor puede ser null en emergencias
+      nullable: false,
     },
   },
 });

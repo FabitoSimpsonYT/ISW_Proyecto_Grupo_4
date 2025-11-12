@@ -19,14 +19,25 @@ export function getPrivateProfile(req, res) {
 export async function updatePrivateProfile(req, res) {
   try {
     const userId = req.user.id;
-    const { email, password } = req.body;
-    if (!email && !password) {
-      return res.status(400).json({ message: "Debes enviar email y/o password para modificar." });
+    const requester = req.user;
+    // If requester is admin, allow multiple fields
+    if (requester.role === 'admin') {
+      const data = req.body;
+      if (Object.keys(data).length === 0) return res.status(400).json({ message: "No hay datos para actualizar." });
+      const updatedUser = await updateUserById(userId, data);
+      handleSuccess(res, 200, "Perfil actualizado exitosamente", { user: updatedUser });
+      return;
     }
-    const updatedUser = await updateUserById(userId, { email, password });
+
+    // Non-admins (regular users) can only update their password and telefono
+    const { password, telefono } = req.body;
+    if (!password && !telefono) {
+      return res.status(400).json({ message: "Solo puedes actualizar contraseña y teléfono." });
+    }
+    const updatedUser = await updateUserById(userId, { password, telefono });
     handleSuccess(res, 200, "Perfil actualizado exitosamente", { user: updatedUser });
   } catch (error) {
-    if (error.code === "EMAIL_IN_USE") {
+    if (error.code === "EMAIL_IN_USE" || error.code === "PHONE_IN_USE" || error.code === "PHONE_INVALID") {
       return res.status(400).json({ message: error.message });
     }
     res.status(500).json({ message: "Error al actualizar perfil", error: error.message });

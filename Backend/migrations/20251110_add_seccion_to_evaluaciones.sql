@@ -1,13 +1,12 @@
--- Migration: Add seccion_id to evaluaciones and FK to secciones (PostgreSQL)
--- Generated: 2025-11-10
 
--- Up
+
+
 BEGIN;
 
 ALTER TABLE public.evaluaciones
     ADD COLUMN IF NOT EXISTS seccion_id integer;
 
--- Add FK constraint, only if secciones table exists
+
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'secciones') THEN
@@ -24,10 +23,3 @@ BEGIN
 END$$;
 
 COMMIT;
-
--- Down
--- To revert this migration:
--- BEGIN;
--- ALTER TABLE public.evaluaciones DROP CONSTRAINT IF EXISTS fk_evaluaciones_seccion;
--- ALTER TABLE public.evaluaciones DROP COLUMN IF EXISTS seccion_id;
--- COMMIT;

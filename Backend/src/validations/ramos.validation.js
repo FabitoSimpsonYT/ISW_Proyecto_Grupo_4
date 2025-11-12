@@ -51,3 +51,28 @@ export const updateRamoValidation = Joi.object({
       "number.positive": "El ID del profesor debe ser positivo"
     })
 }).min(1);
+
+export const createSeccionValidation = Joi.object({
+  codigoRamo: Joi.string()
+    .required()
+    .messages({
+      "string.empty": "El código del ramo es obligatorio",
+      "any.required": "El código del ramo es obligatorio"
+    }),
+  numero: Joi.number()
+    .integer()
+    .min(1)
+    .required()
+    .messages({
+      "number.base": "El número de sección debe ser un número",
+      "number.integer": "El número de sección debe ser un entero",
+      "number.min": "El número de sección debe ser al menos 1",
+      "any.required": "El número de sección es obligatorio"
+    }),
+  alumnosRut: Joi.array()
+    .items(Joi.string().pattern(/^\d{7,8}-[\dkK]$/))
+    .optional()
+    .messages({
+      "string.pattern.base": "Cada RUT debe tener un formato válido (12345678-9)"
+    })
+}).unknown(false);
