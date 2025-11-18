@@ -5,26 +5,26 @@ import {
   getBooking, 
   updateBooking,
   cancelBooking 
-} from '../controllers/bookingController.js';
-import { protect, authorize } from '../middlewares/auth.js';
-import { validate } from '../middlewares/validator.js';
-import { createBookingSchema, updateBookingSchema } from '../validators/bookingValidator.js';
+} from '../controllers/booking.controller.js';
+import { injectEntityIds, auth } from '../middlewares/auth.middleware.js';
+import { validateRequest } from '../middleware/validation.middleware.js';
+import { createBookingSchema, updateBookingSchema } from '../validations/booking.validation.js';
 
 const router = express.Router();
 
 router.route('/')
-  .get(protect, getBookings)
+  .get(injectEntityIds, getBookings)
   .post(
-    protect, 
-    authorize('alumno'), 
-    validate(createBookingSchema), 
+    injectEntityIds, 
+    auth, 
+    validateRequest(createBookingSchema), 
     createBooking
   );
 
 router.route('/:id')
-  .get(protect, getBooking)
-  .put(protect, validate(updateBookingSchema), updateBooking);
+  .get(injectEntityIds, getBooking)
+  .put(injectEntityIds, validateRequest(updateBookingSchema), updateBooking);
 
-router.put('/:id/cancel', protect, cancelBooking);
+router.put('/:id/cancel', injectEntityIds, cancelBooking);
 
 export default router;

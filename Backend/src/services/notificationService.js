@@ -1,7 +1,7 @@
 import { query } from '../config/database.js';
 import { sendEmail } from '../config/email.js';
 import { formatDate } from '../utils/helper.utils.js';
-import { logger } from '../utils/logger.utils.js';
+import logger from '../utils/logger.utils.js';
 
 /**
  * Crear una nueva notificación

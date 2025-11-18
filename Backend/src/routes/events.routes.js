@@ -5,33 +5,33 @@ import {
   getEvent, 
   updateEvent, 
   deleteEvent 
-} from '../controllers/eventController.js';
-import { protect, authorize } from '../middlewares/auth.js';
-import { validate } from '../middlewares/validator.js';
-import { createEventSchema, updateEventSchema } from '../validators/eventValidator.js';
+} from '../controllers/event.controller.js';
+import { injectEntityIds, auth } from '../middlewares/auth.middleware.js';
+import { validateRequest } from '../middleware/validation.middleware.js';
+import { createEventSchema, updateEventSchema } from '../validations/event.validation.js';
 
 const router = express.Router();
 
 router.route('/')
-  .get(protect, getEvents)
+  .get(injectEntityIds, getEvents)
   .post(
-    protect, 
-    authorize('profesor', 'coordinador', 'jefe_carrera'), 
-    validate(createEventSchema), 
+    injectEntityIds, 
+    auth, 
+    validateRequest(createEventSchema), 
     createEvent
   );
 
 router.route('/:id')
-  .get(protect, getEvent)
+  .get(injectEntityIds, getEvent)
   .put(
-    protect, 
-    authorize('profesor', 'coordinador', 'jefe_carrera'), 
-    validate(updateEventSchema), 
+    injectEntityIds, 
+    auth, 
+    validateRequest(updateEventSchema), 
     updateEvent
   )
   .delete(
-    protect, 
-    authorize('profesor', 'coordinador', 'jefe_carrera'), 
+    injectEntityIds, 
+    auth, //quitar lo de roles como profesor, coordinador y jefe de carrera, agregar y modificar middleware
     deleteEvent
   );
 

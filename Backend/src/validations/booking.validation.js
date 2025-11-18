@@ -1,3 +1,5 @@
+import Joi from "joi";
+
 export const createBookingSchema = Joi.object({
   event_id: Joi.number()
     .integer()

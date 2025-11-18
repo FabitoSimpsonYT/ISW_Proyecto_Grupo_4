@@ -4,28 +4,28 @@ import {
   markAsRead, 
   markAllAsRead,
   getUnreadCount 
-} from '../controllers/notificationController.js';
-import { protect } from '../middlewares/auth.js';
+} from '../controllers/notificaction.controller.js';
+import { injectEntityIds } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
 
-router.get('/', protect, getNotifications);
-router.get('/unread-count', protect, getUnreadCount);
-router.put('/mark-all-read', protect, markAllAsRead);
-router.put('/:id/read', protect, markAsRead);
+router.get('/', injectEntityIds, getNotifications);
+router.get('/unread-count', injectEntityIds, getUnreadCount);
+router.put('/mark-all-read', injectEntityIds, markAllAsRead);
+router.put('/:id/read', injectEntityIds, markAsRead);
 
 export default router;
 
 // src/routes/admin.js
-import express from 'express';
-import { 
-  getStats, 
-  getUsers, 
-  updateUser, 
-  deleteUser, 
-  getAuditLogs,
-  reassignEvent 
-} from '../controllers/adminController.js';
-import { protect, authorize } from '../middlewares/auth.js';
+// import express from 'express';
+// import { 
+//   getStats, 
+//   getUsers, 
+//   updateUser, 
+//   deleteUser, 
+//   getAuditLogs,
+//   reassignEvent 
+// } from '../controllers/adminController.js';
+// import { protect, authorize } from '../middlewares/auth.js';
 
-const router = express.Router();
+// const router = express.Router();
