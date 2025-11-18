@@ -1,10 +1,21 @@
 import { useState } from 'react';
+import { getProfile } from '../services/profile.service.js';
+
 
 const Home = () => {
   const [profileData, setProfileData] = useState(null);
 
   const handleGetProfile = async () => {
     console.log('Obtener perfil');
+
+     try {
+      const data = await getProfile();   // 👈 LLAMA AL SERVICIO
+      console.log("Perfil recibido:", data);
+
+      setProfileData(data);              // 👈 LO MUESTRA EN PANTALLA
+    } catch (error) {
+      console.error("Error al obtener el perfil:", error);
+    }
   };
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-600 flex items-center justify-center p-4">

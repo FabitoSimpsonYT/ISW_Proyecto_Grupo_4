@@ -10,6 +10,7 @@ import eventRoutes from './routes/events.routes.js';
 import bookingRoutes from './routes/booking.routes.js';
 import notificationRoutes from './routes/notifications.routes.js';
 import adminRoutes from './routes/admin.routes.js';
+import profileRoutes from './routes/profile.routes.js';
 
 const app = express();
 
@@ -41,6 +42,7 @@ app.use('/api/events', eventRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/profile', profileRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
