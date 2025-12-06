@@ -16,7 +16,6 @@ export async function createAlumno(alumnoData) {
     throw new BadRequestError("El email o rut ya está registrado");
   }
 
-  // Crear el usuario base
   const hashedPassword = await bcrypt.hash(alumnoData.password, 10);
   const userData = {
     ...alumnoData,
@@ -26,7 +25,6 @@ export async function createAlumno(alumnoData) {
 
   const newUser = await userRepository.save(userData);
 
-  // Crear el perfil de alumno
   const alumnoProfile = {
     id: newUser.id,
     generacion: alumnoData.generacion,
@@ -75,7 +73,6 @@ export async function updateAlumno(id, alumnoData) {
     throw new NotFoundError("Alumno no encontrado");
   }
 
-  // Si se intenta actualizar el email, verificar que no exista
   if (alumnoData.email && alumnoData.email !== alumno.user.email) {
     const existingUser = await userRepository.findOne({
       where: { email: alumnoData.email }
@@ -85,17 +82,16 @@ export async function updateAlumno(id, alumnoData) {
     }
   }
 
-  // Actualizar datos de usuario
+
   if (alumnoData.password) {
     alumnoData.password = await bcrypt.hash(alumnoData.password, 10);
   }
 
   await userRepository.update(id, {
     ...alumnoData,
-    role: "alumno" // Asegurar que el rol sea alumno
+    role: "alumno"
   });
 
-  // Actualizar datos específicos de alumno
   if (alumnoData.generacion) {
     await alumnoRepository.update(id, {
       generacion: alumnoData.generacion
@@ -121,7 +117,6 @@ export async function deleteAlumno(id) {
     throw new NotFoundError("Alumno no encontrado");
   }
 
-  // Eliminar el alumno y el usuario asociado
   await alumnoRepository.delete(id);
   await userRepository.delete(id);
 

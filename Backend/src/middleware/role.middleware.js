@@ -5,13 +5,16 @@ export const checkRole = (roles) => {
     const { user } = req;
     
     if (!user) {
-      throw new UnauthorizedError("Usuario no autenticado");
+      console.error("❌ [role] No user in request");
+      return res.status(401).json({ message: "Usuario no autenticado" });
     }
 
     if (!roles.includes(user.role)) {
-      throw new UnauthorizedError("No tienes permisos para acceder a este recurso");
+      console.error(`❌ [role] User role "${user.role}" not allowed. Expected: [${roles}]`);
+      return res.status(403).json({ message: "No tienes permisos para acceder a este recurso" });
     }
 
+    console.log(`✅ [role] Role check passed for ${user.role}`);
     next();
   };
 };

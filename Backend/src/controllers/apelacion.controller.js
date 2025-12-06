@@ -32,7 +32,6 @@ export const createApelacion = async (req, res) => {
       return res.status(400).json({ message: "Profesor no válido o no encontrado" });
     }
 
-    // Crear apelación base
     const apelacion = apelacionRepo.create({
       tipo,
       mensaje,
@@ -42,10 +41,9 @@ export const createApelacion = async (req, res) => {
       profesor,
     });
 
-    // Guardar en BD
+    
     await apelacionRepo.save(apelacion);
 
-    // ⚙️ Calcular campos del formato final
     const ahora = new Date();
     let puedeEditar = apelacion.puedeEditar;
 
@@ -54,7 +52,6 @@ export const createApelacion = async (req, res) => {
       puedeEditar = horasRestantes >= 24;
     }
 
-    // 🎯 Respuesta con formato idéntico a getMisApelaciones
     const apelacionLimpia = {
       tipo: apelacion.tipo,
       mensaje: apelacion.mensaje,

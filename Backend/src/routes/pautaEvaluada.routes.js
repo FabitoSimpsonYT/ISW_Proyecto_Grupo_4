@@ -4,16 +4,12 @@ import { createPautaEvaluada, getPautaEvaluada, updatePautaEvaluada, deletePauta
 
 const router = Router();
 
-// Crear pauta evaluada para una evaluación (profesor)
 router.post("/:evaluacionId", authMiddleware, createPautaEvaluada);
 
-// Obtener pauta evaluada por id
 router.get("/:id", authMiddleware, getPautaEvaluada);
 
-// Actualizar pauta evaluada (profesor que creó o admin)
 router.patch("/:id", authMiddleware, updatePautaEvaluada);
 
-// Eliminar pauta evaluada (profesor que creó o admin)
 router.delete("/:id", authMiddleware, deletePautaEvaluada);
 
 export default router;

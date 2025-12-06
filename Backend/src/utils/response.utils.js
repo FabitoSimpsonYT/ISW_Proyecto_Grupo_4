@@ -1,8 +1,3 @@
-// src/utils/response.utils.js
-
-/**
- * Limpia los datos sensibles de las respuestas
- */
 export const sanitizeResponse = (data) => {
   if (Array.isArray(data)) {
     return data.map(item => sanitizeItem(item));
@@ -10,9 +5,6 @@ export const sanitizeResponse = (data) => {
   return sanitizeItem(data);
 };
 
-/**
- * Limpia un objeto individual
- */
 const sanitizeItem = (item) => {
   if (!item || typeof item !== 'object') {
     return item;
@@ -20,7 +12,6 @@ const sanitizeItem = (item) => {
 
   const cleaned = { ...item };
 
-  // Eliminar IDs internos y datos sensibles
   delete cleaned.id;
   delete cleaned.professor_id;
   delete cleaned.student_id;
@@ -28,7 +19,7 @@ const sanitizeItem = (item) => {
   delete cleaned.password;
   delete cleaned.reset_token;
 
-  // Asegurarse de que el código esté presente
+
   if (!cleaned.code && item.id) {
     cleaned.code = generateCodeFromType(item);
   }
@@ -36,9 +27,6 @@ const sanitizeItem = (item) => {
   return cleaned;
 };
 
-/**
- * Genera un código basado en el tipo de entidad
- */
 const generateCodeFromType = (item) => {
   if (item.event_type) return `EVT${item.id.substring(0, 6)}`;
   if (item.booking_status) return `RES${item.id.substring(0, 6)}`;
@@ -46,9 +34,6 @@ const generateCodeFromType = (item) => {
   return `CODE${item.id.substring(0, 6)}`;
 };
 
-/**
- * Envía una respuesta exitosa
- */
 export const sendSuccess = (res, data = null, message = 'Operación exitosa', statusCode = 200) => {
   const response = {
     success: true,
@@ -59,9 +44,6 @@ export const sendSuccess = (res, data = null, message = 'Operación exitosa', st
   res.status(statusCode).json(response);
 };
 
-/**
- * Envía una respuesta de error
- */
 export const sendError = (res, message = 'Error en la operación', statusCode = 400, errors = null) => {
   const response = {
     success: false,

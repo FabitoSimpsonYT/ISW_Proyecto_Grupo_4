@@ -1,4 +1,3 @@
-// src/controllers/bookingController.js
 import { query, getClient } from '../config/database.js';
 import { checkEventAvailability, checkStudentBookingConflict } from '../services/conflictService.js';
 import { createNotification, sendBookingConfirmationEmail, sendBookingCancellationEmail } from '../services/notificationService.js';
@@ -12,7 +11,6 @@ export const createBooking = async (req, res, next) => {
     const studentId = req.user.id;
     const { event_id, notes } = req.body;
     
-    // Verificar disponibilidad del evento
     const availability = await checkEventAvailability(event_id);
     
     if (!availability.available) {
@@ -25,7 +23,6 @@ export const createBooking = async (req, res, next) => {
     
     const event = availability.event;
     
-    // Verificar si el alumno ya tiene una reserva para este evento
     const existingBooking = await client.query(
       'SELECT id FROM bookings WHERE event_id = $1 AND student_id = $2',
       [event_id, studentId]
@@ -39,7 +36,6 @@ export const createBooking = async (req, res, next) => {
       });
     }
     
-    // Verificar conflictos de horario del estudiante
     const conflict = await checkStudentBookingConflict(
       studentId,
       event.start_time,
@@ -55,7 +51,7 @@ export const createBooking = async (req, res, next) => {
       });
     }
     
-    // Crear reserva
+
     const bookingResult = await client.query(
       `INSERT INTO bookings (event_id, student_id, notes, status)
        VALUES ($1, $2, $3, $4)
@@ -65,7 +61,6 @@ export const createBooking = async (req, res, next) => {
     
     const booking = bookingResult.rows[0];
     
-    // Actualizar contador de reservas del evento
     await client.query(
       `UPDATE events 
        SET current_bookings = current_bookings + 1,
@@ -77,7 +72,6 @@ export const createBooking = async (req, res, next) => {
       [event_id]
     );
     
-    // Obtener información del profesor y estudiante
     const professorResult = await client.query(
       'SELECT email, first_name, last_name FROM users WHERE id = $1',
       [event.professor_id]
@@ -91,7 +85,6 @@ export const createBooking = async (req, res, next) => {
     const professor = professorResult.rows[0];
     const student = studentResult.rows[0];
     
-    // Crear notificaciones
     await createNotification(
       studentId,
       'reserva',
@@ -110,7 +103,6 @@ export const createBooking = async (req, res, next) => {
       booking.id
     );
     
-    // Enviar emails
     await sendBookingConfirmationEmail(
       student.email,
       `${student.first_name} ${student.last_name}`,
@@ -120,7 +112,6 @@ export const createBooking = async (req, res, next) => {
       }
     );
     
-    // Registrar auditoría
     await client.query(
       `INSERT INTO audit_logs (user_id, action, entity_type, entity_id, new_values)
        VALUES ($1, $2, $3, $4, $5)`,
@@ -172,7 +163,6 @@ export const getBookings = async (req, res, next) => {
     const params = [];
     let paramCount = 1;
     
-    // Filtrar según el rol
     if (req.user.role === 'alumno') {
       sql += ` AND b.student_id = $${paramCount}`;
       params.push(req.user.id);
@@ -253,7 +243,6 @@ export const getBooking = async (req, res, next) => {
     
     const booking = result.rows[0];
     
-    // Verificar permisos
     if (req.user.role === 'alumno' && booking.student_id !== req.user.id) {
       return res.status(403).json({
         success: false,
@@ -279,7 +268,6 @@ export const updateBooking = async (req, res, next) => {
     const { id } = req.params;
     const { status, notes } = req.body;
     
-    // Obtener reserva actual
     const bookingResult = await client.query(
       `SELECT b.*, e.professor_id, e.title as event_title, e.start_time, e.end_time
        FROM bookings b
@@ -298,7 +286,6 @@ export const updateBooking = async (req, res, next) => {
     
     const booking = bookingResult.rows[0];
     
-    // Verificar permisos
     const canUpdate = 
       req.user.role === 'coordinador' ||
       req.user.role === 'jefe_carrera' ||
@@ -313,7 +300,6 @@ export const updateBooking = async (req, res, next) => {
       });
     }
     
-    // Actualizar reserva
     const result = await client.query(
       `UPDATE bookings 
        SET status = COALESCE($1, status),
@@ -323,7 +309,6 @@ export const updateBooking = async (req, res, next) => {
       [status, notes, id]
     );
     
-    // Si se cancela, liberar el cupo
     if (status === 'cancelada' && booking.status !== 'cancelada') {
       await client.query(
         `UPDATE events 
@@ -333,7 +318,6 @@ export const updateBooking = async (req, res, next) => {
         [booking.event_id]
       );
       
-      // Obtener info del estudiante
       const studentResult = await client.query(
         'SELECT email, first_name, last_name FROM users WHERE id = $1',
         [booking.student_id]
@@ -341,7 +325,6 @@ export const updateBooking = async (req, res, next) => {
       
       const student = studentResult.rows[0];
       
-      // Notificar
       await createNotification(
         booking.student_id,
         'cancelacion',

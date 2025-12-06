@@ -1,4 +1,3 @@
-// src/controllers/eventController.js
 import { query, getClient } from '../config/database.js';
 import { checkEventConflict } from '../services/conflictService.js';
 import { createNotification, sendEventChangeEmail } from '../services/notificationService.js';
@@ -9,11 +8,9 @@ export const createEvent = async (req, res, next) => {
     const professorId = req.user.id;
     const { title, description, event_type, start_time, end_time, status, location, course, section, max_bookings } = req.body;
     
-    // Convertir fechas al formato de la base de datos
     const parsedStartTime = parseCustomDateFormat(start_time);
     const parsedEndTime = parseCustomDateFormat(end_time);
-    
-    // Verificar conflictos de horario
+
     const conflict = await checkEventConflict(professorId, parsedStartTime, parsedEndTime);
     
     if (conflict.hasConflict) {
@@ -27,23 +24,20 @@ export const createEvent = async (req, res, next) => {
         }))
       });
     }
-    
-    // Crear evento
+
     const result = await query(
       `INSERT INTO events (professor_id, title, description, event_type, start_time, end_time, status, location, course, section, max_bookings)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
       [professorId, title, description, event_type, parsedStartTime, parsedEndTime, status || 'tentativo', location, course, section, max_bookings || 1]
     );
-    
-    // Registrar en auditoría
+
     await query(
       `INSERT INTO audit_logs (user_id, action, entity_type, entity_id, new_values)
        VALUES ($1, $2, $3, $4, $5)`,
       [professorId, 'CREATE_EVENT', 'event', result.rows[0].id, JSON.stringify(result.rows[0])]
     );
-    
-    // Formatear las fechas en la respuesta
+
     const eventData = {
       ...result.rows[0],
       start_time: formatToCustomDate(new Date(result.rows[0].start_time)),
@@ -114,12 +108,10 @@ export const getEvents = async (req, res, next) => {
       sql += ` AND e.is_available = true AND e.status != 'cancelado'`;
     }
     
-    // Si es alumno, solo mostrar eventos disponibles
     if (req.user.role === 'alumno') {
       sql += ` AND e.is_available = true AND e.status != 'cancelado' AND e.start_time > NOW()`;
     }
-    
-    // Si es profesor, solo sus eventos
+
     if (req.user.role === 'profesor') {
       sql += ` AND e.professor_id = $${paramCount}`;
       params.push(req.user.id);
@@ -130,7 +122,6 @@ export const getEvents = async (req, res, next) => {
     
     const result = await query(sql, params);
     
-    // Formatear las fechas en la respuesta
     const formattedEvents = result.rows.map(event => ({
       ...event,
       start_time: formatToCustomDate(new Date(event.start_time)),
@@ -173,7 +164,6 @@ export const getEvent = async (req, res, next) => {
       });
     }
     
-    // Formatear las fechas en la respuesta
     const eventData = {
       ...result.rows[0],
       start_time: formatToCustomDate(new Date(result.rows[0].start_time)),
@@ -198,7 +188,6 @@ export const updateEvent = async (req, res, next) => {
     const { id } = req.params;
     const updates = req.body;
     
-    // Obtener evento actual
     const eventResult = await client.query('SELECT * FROM events WHERE id = $1', [id]);
     
     if (eventResult.rows.length === 0) {
@@ -210,8 +199,7 @@ export const updateEvent = async (req, res, next) => {
     }
     
     const currentEvent = eventResult.rows[0];
-    
-    // Verificar permisos
+
     if (req.user.role === 'profesor' && currentEvent.professor_id !== req.user.id) {
       await client.query('ROLLBACK');
       return res.status(403).json({
@@ -219,8 +207,7 @@ export const updateEvent = async (req, res, next) => {
         message: 'No tienes permiso para editar este evento'
       });
     }
-    
-    // Si se cambian fechas, verificar conflictos
+
     if (updates.start_time || updates.end_time) {
       const newStartTime = updates.start_time ? parseCustomDateFormat(updates.start_time) : currentEvent.start_time;
       const newEndTime = updates.end_time ? parseCustomDateFormat(updates.end_time) : currentEvent.end_time;
@@ -237,7 +224,6 @@ export const updateEvent = async (req, res, next) => {
       }
     }
     
-    // Construir query de actualización
     const fields = [];
     const values = [];
     let paramCount = 1;
@@ -265,14 +251,13 @@ export const updateEvent = async (req, res, next) => {
       values
     );
     
-    // Registrar auditoría
+  
     await client.query(
       `INSERT INTO audit_logs (user_id, action, entity_type, entity_id, old_values, new_values)
        VALUES ($1, $2, $3, $4, $5, $6)`,
       [req.user.id, 'UPDATE_EVENT', 'event', id, JSON.stringify(currentEvent), JSON.stringify(result.rows[0])]
     );
     
-    // Notificar a estudiantes con reservas si hay cambios importantes
     if (updates.start_time || updates.end_time || updates.location || updates.status) {
       const bookingsResult = await client.query(
         `SELECT b.*, u.email, u.first_name, u.last_name
@@ -329,7 +314,6 @@ export const deleteEvent = async (req, res, next) => {
     
     const { id } = req.params;
     
-    // Obtener evento
     const eventResult = await client.query('SELECT * FROM events WHERE id = $1', [id]);
     
     if (eventResult.rows.length === 0) {
@@ -342,7 +326,6 @@ export const deleteEvent = async (req, res, next) => {
     
     const event = eventResult.rows[0];
     
-    // Verificar permisos
     if (req.user.role === 'profesor' && event.professor_id !== req.user.id) {
       await client.query('ROLLBACK');
       return res.status(403).json({
@@ -350,8 +333,7 @@ export const deleteEvent = async (req, res, next) => {
         message: 'No tienes permiso para eliminar este evento'
       });
     }
-    
-    // Cancelar reservas activas y notificar
+
     const bookingsResult = await client.query(
       `SELECT b.*, u.email, u.first_name, u.last_name
        FROM bookings b
@@ -370,11 +352,9 @@ export const deleteEvent = async (req, res, next) => {
         booking.id
       );
     }
-    
-    // Eliminar evento (las reservas se eliminan en cascada)
+
     await client.query('DELETE FROM events WHERE id = $1', [id]);
-    
-    // Registrar auditoría
+
     await client.query(
       `INSERT INTO audit_logs (user_id, action, entity_type, entity_id, old_values)
        VALUES ($1, $2, $3, $4, $5)`,

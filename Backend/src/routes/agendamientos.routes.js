@@ -5,28 +5,23 @@ import { findScheduleConflict, getConflictErrorMessage } from '../utils/conflict
 
 const router = express.Router();
 
-// Almacenamiento temporal en memoria para agendamientos entre profesores
 let agendamientos = [];
 let agendamientoIdCounter = 1;
 
-// Función para ocultar IDs internos
 const ocultarIdInterno = (agendamiento) => {
   const { id, profesor_id, ...resto } = agendamiento;
   return resto;
 };
 
-// GET - Listar agendamientos
 router.get('/', authMiddleware, (req, res) => {
   try {
     let agendamientosFiltered = agendamientos;
 
-    // Si es profesor, solo ve sus agendamientos (como creador o invitado)
     if (req.user.role === 'profesor') {
       agendamientosFiltered = agendamientos.filter(a => 
         a.profesor_id === req.user.id || a.invitados?.includes(req.user.id)
       );
     }
-    // Si es coordinador o jefe_carrera, ve todos
 
     const datosPublicos = agendamientosFiltered.map(agendamiento => ({
       ...ocultarIdInterno(agendamiento),
@@ -51,7 +46,6 @@ router.get('/', authMiddleware, (req, res) => {
   }
 });
 
-// POST - Crear nuevo agendamiento
 router.post('/', 
   authMiddleware,
   checkRole(['profesor', 'coordinador', 'jefe_carrera']),
@@ -59,7 +53,6 @@ router.post('/',
     try {
       const { titulo, descripcion, start_time, end_time, invitados, location } = req.body;
 
-      // Validar campos requeridos
       if (!titulo || !start_time || !end_time) {
         console.warn(`[WARN] POST /api/agendamientos - Datos incompletos`);
         return res.status(400).json({
@@ -67,8 +60,6 @@ router.post('/',
           message: 'Faltan campos requeridos: titulo, start_time, end_time'
         });
       }
-
-      // Validar que start_time sea menor que end_time
       const startDate = new Date(start_time);
       const endDate = new Date(end_time);
       if (startDate >= endDate) {
@@ -79,7 +70,6 @@ router.post('/',
         });
       }
 
-      // Validar conflictos de horario con los eventos del profesor
       const conflict = findScheduleConflict(
         req.user.id,
         start_time,
@@ -97,7 +87,6 @@ router.post('/',
         });
       }
 
-      // Crear el agendamiento
       const nuevoAgendamiento = {
         id: agendamientoIdCounter++,
         titulo,
@@ -137,7 +126,6 @@ router.post('/',
   }
 );
 
-// GET - Obtener un agendamiento específico
 router.get('/:agendamientoId', authMiddleware, (req, res) => {
   try {
     const agendamiento = agendamientos.find(a => a.id === parseInt(req.params.agendamientoId));
@@ -150,7 +138,6 @@ router.get('/:agendamientoId', authMiddleware, (req, res) => {
       });
     }
 
-    // Verificar permisos: solo el propietario o invitados, coordinador o jefe_carrera
     if (req.user.role === 'profesor' && 
         agendamiento.profesor_id !== req.user.id && 
         !agendamiento.invitados?.includes(req.user.id)) {
@@ -183,7 +170,6 @@ router.get('/:agendamientoId', authMiddleware, (req, res) => {
   }
 });
 
-// PUT - Actualizar agendamiento
 router.put('/:agendamientoId',
   authMiddleware,
   checkRole(['profesor', 'coordinador', 'jefe_carrera']),
@@ -199,7 +185,6 @@ router.put('/:agendamientoId',
         });
       }
 
-      // Solo el propietario, coordinador o jefe_carrera pueden actualizar
       if (req.user.role === 'profesor' && agendamiento.profesor_id !== req.user.id) {
         console.warn(`[WARN] PUT /api/agendamientos/${req.params.agendamientoId} - ${req.user.email} intentó actualizar agendamiento de otro profesor`);
         return res.status(403).json({
@@ -208,12 +193,10 @@ router.put('/:agendamientoId',
         });
       }
 
-      // Validar conflictos de horario si se actualizan start_time o end_time
       if (req.body.start_time || req.body.end_time) {
         const startTime = req.body.start_time || agendamiento.start_time;
         const endTime = req.body.end_time || agendamiento.end_time;
 
-        // Validar que start_time sea menor que end_time
         const startDate = new Date(startTime);
         const endDate = new Date(endTime);
         if (startDate >= endDate) {
@@ -275,7 +258,6 @@ router.put('/:agendamientoId',
   }
 );
 
-// DELETE - Eliminar agendamiento
 router.delete('/:agendamientoId',
   authMiddleware,
   checkRole(['profesor', 'coordinador', 'jefe_carrera']),
@@ -293,7 +275,6 @@ router.delete('/:agendamientoId',
 
       const agendamiento = agendamientos[index];
 
-      // Solo el propietario, coordinador o jefe_carrera pueden eliminar
       if (req.user.role === 'profesor' && agendamiento.profesor_id !== req.user.id) {
         console.warn(`[WARN] DELETE /api/agendamientos/${req.params.agendamientoId} - ${req.user.email} intentó eliminar agendamiento de otro profesor`);
         return res.status(403).json({

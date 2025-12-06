@@ -11,7 +11,6 @@ const MIGRATIONS_PATH = path.join(__dirname, '..', 'migrations');
 
 async function runMigrations() {
   try {
-    // Crear tabla de migraciones si no existe
     await pool.query(`
       CREATE TABLE IF NOT EXISTS migrations (
         id SERIAL PRIMARY KEY,
@@ -20,18 +19,15 @@ async function runMigrations() {
       );
     `);
 
-    // Leer archivos de migración
     const files = fs.readdirSync(MIGRATIONS_PATH)
       .filter(file => file.endsWith('.sql'))
       .sort();
 
-    // Obtener migraciones ya ejecutadas
     const { rows: executedMigrations } = await pool.query(
       'SELECT name FROM migrations'
     );
     const executedFiles = new Set(executedMigrations.map(m => m.name));
 
-    // Ejecutar migraciones pendientes
     for (const file of files) {
       if (!executedFiles.has(file)) {
         logger.info(`Ejecutando migración: ${file}`);
@@ -46,10 +42,8 @@ async function runMigrations() {
         try {
           await client.query('BEGIN');
           
-          // Ejecutar la migración
           await client.query(sql);
           
-          // Registrar la migración
           await client.query(
             'INSERT INTO migrations (name) VALUES ($1)',
             [file]

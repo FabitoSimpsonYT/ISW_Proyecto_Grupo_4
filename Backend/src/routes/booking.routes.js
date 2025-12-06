@@ -4,30 +4,25 @@ import { checkRole } from '../middleware/role.middleware.js';
 
 const router = express.Router();
 
-// Almacenamiento temporal en memoria
 let reservas = [];
 let bookingIdCounter = 1;
 
-// Función para ocultar el ID interno
 const ocultarIdInterno = (reserva) => {
   const { id, alumno_id, ...resto } = reserva;
   return resto;
 };
 
-// GET - Listar reservas según el rol
 router.get('/', authMiddleware, (req, res) => {
   try {
     let reservasFiltered = reservas;
 
-    // Si es alumno, solo ve sus propias reservas
     if (req.user.role === 'alumno') {
       reservasFiltered = reservas.filter(r => r.alumno_id === req.user.id);
     }
-    // Si es jefe_carrera, coordinador o profesor, ve todas
 
     const datosPublicos = reservasFiltered.map(reserva => ({
       ...ocultarIdInterno(reserva),
-      booking_id: reserva.id // Exponer un ID público para referencias
+      booking_id: reserva.id
     }));
 
     console.log(`[OK] GET /api/bookings - Usuario: ${req.user.email} (${req.user.role}) - Reservas encontradas: ${datosPublicos.length}`);
@@ -48,7 +43,6 @@ router.get('/', authMiddleware, (req, res) => {
   }
 });
 
-// POST - Crear nueva reserva
 router.post('/',
   authMiddleware,
   checkRole(['alumno']),
@@ -87,7 +81,6 @@ router.post('/',
   }
 );
 
-// GET - Obtener una reserva específica
 router.get('/:bookingId', authMiddleware, (req, res) => {
   try {
     const reserva = reservas.find(r => r.id === parseInt(req.params.bookingId));
@@ -100,7 +93,6 @@ router.get('/:bookingId', authMiddleware, (req, res) => {
       });
     }
 
-    // Verificar permisos: solo el propietario, coordinador o jefe_carrera pueden ver
     if (req.user.role === 'alumno' && reserva.alumno_id !== req.user.id) {
       console.warn(`[WARN] GET /api/bookings/${req.params.bookingId} - ${req.user.email} intentó acceder a reserva de otro alumno`);
       return res.status(403).json({
@@ -131,7 +123,6 @@ router.get('/:bookingId', authMiddleware, (req, res) => {
   }
 });
 
-// PUT - Actualizar reserva
 router.put('/:bookingId', authMiddleware, (req, res) => {
   try {
     const reserva = reservas.find(r => r.id === parseInt(req.params.bookingId));
@@ -144,7 +135,6 @@ router.put('/:bookingId', authMiddleware, (req, res) => {
       });
     }
 
-    // Solo el propietario, coordinador o jefe_carrera pueden actualizar
     if (req.user.role === 'alumno' && reserva.alumno_id !== req.user.id) {
       console.warn(`[WARN] PUT /api/bookings/${req.params.bookingId} - ${req.user.email} intentó actualizar reserva de otro alumno`);
       return res.status(403).json({
@@ -184,7 +174,6 @@ router.put('/:bookingId', authMiddleware, (req, res) => {
   }
 });
 
-// PUT - Cancelar reserva
 router.put('/:bookingId/cancel', authMiddleware, (req, res) => {
   try {
     const reserva = reservas.find(r => r.id === parseInt(req.params.bookingId));
@@ -197,7 +186,6 @@ router.put('/:bookingId/cancel', authMiddleware, (req, res) => {
       });
     }
 
-    // Solo el propietario, coordinador o jefe_carrera pueden cancelar
     if (req.user.role === 'alumno' && reserva.alumno_id !== req.user.id) {
       console.warn(`[WARN] PUT /api/bookings/${req.params.bookingId}/cancel - ${req.user.email} intentó cancelar reserva de otro alumno`);
       return res.status(403).json({

@@ -1,170 +1,279 @@
-import { query } from '../config/database.js';
-import { sendEmail } from '../config/email.js';
-import { formatDate } from '../utils/helper.utils.js';
-import { logger } from '../utils/logger.utils.js';
+// Backend/src/services/NotificacionService.js
+const nodemailer = require('nodemailer');
 
-/**
- * Crear una nueva notificación
- */
-export const createNotification = async (userId, type, title, message, eventId = null, bookingId = null) => {
-  try {
-    const result = await query(
-      `INSERT INTO notifications 
-       (user_id, type, title, message, event_id, booking_id, read, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, false, NOW())
-       RETURNING *`,
-      [userId, type, title, message, eventId, bookingId]
-    );
-    
-    return result.rows[0];
-  } catch (error) {
-    logger.error('Error creating notification:', error);
-    throw new Error(`Error creating notification: ${error.message}`);
-  }
-};
-
-/**
- * Enviar email de confirmación de reserva
- */
-export const sendBookingConfirmationEmail = async (userEmail, userName, event) => {
-  const subject = `Confirmación de reserva: ${event.title}`;
-  const html = `
-    <h2>Confirmación de Reserva</h2>
-    <p>Hola ${userName},</p>
-    <p>Tu reserva ha sido confirmada para el siguiente evento:</p>
-    <ul>
-      <li><strong>Evento:</strong> ${event.title}</li>
-      <li><strong>Fecha:</strong> ${formatDate(event.start_time)}</li>
-      <li><strong>Hora:</strong> ${formatDate(event.start_time, 'HH:mm')} - ${formatDate(event.end_time, 'HH:mm')}</li>
-      <li><strong>Ubicación:</strong> ${event.location}</li>
-      <li><strong>Profesor:</strong> ${event.professor_name}</li>
-    </ul>
-    <p>Por favor, asegúrate de llegar puntualmente.</p>
-  `;
-  
-  try {
-    await sendEmail(userEmail, subject, html);
-  } catch (error) {
-    logger.error('Error sending booking confirmation email:', error);
-    // No lanzamos el error para no interrumpir el flujo principal
-  }
-};
-
-/**
- * Enviar email de cancelación de reserva
- */
-export const sendBookingCancellationEmail = async (userEmail, userName, booking) => {
-  const subject = `Cancelación de reserva: ${booking.event_title}`;
-  const html = `
-    <h2>Cancelación de Reserva</h2>
-    <p>Hola ${userName},</p>
-    <p>Tu reserva para el siguiente evento ha sido cancelada:</p>
-    <ul>
-      <li><strong>Evento:</strong> ${booking.event_title}</li>
-      <li><strong>Fecha:</strong> ${formatDate(booking.start_time)}</li>
-      <li><strong>Hora:</strong> ${formatDate(booking.start_time, 'HH:mm')} - ${formatDate(booking.end_time, 'HH:mm')}</li>
-    </ul>
-  `;
-  
-  try {
-    await sendEmail(userEmail, subject, html);
-  } catch (error) {
-    logger.error('Error sending booking cancellation email:', error);
-  }
-};
-
-/**
- * Enviar email de cambios en el evento
- */
-export const sendEventChangeEmail = async (userEmail, userName, event, changedFields) => {
-  const subject = `Cambios en el evento: ${event.title}`;
-  const html = `
-    <h2>Cambios en el Evento</h2>
-    <p>Hola ${userName},</p>
-    <p>Se han realizado cambios en el evento "${event.title}".</p>
-    <p>Los siguientes campos han sido modificados: ${changedFields}</p>
-    <p>Detalles actualizados del evento:</p>
-    <ul>
-      <li><strong>Fecha:</strong> ${formatDate(event.start_time)}</li>
-      <li><strong>Hora:</strong> ${formatDate(event.start_time, 'HH:mm')} - ${formatDate(event.end_time, 'HH:mm')}</li>
-      <li><strong>Ubicación:</strong> ${event.location}</li>
-      <li><strong>Estado:</strong> ${event.status}</li>
-    </ul>
-  `;
-  
-  try {
-    await sendEmail(userEmail, subject, html);
-  } catch (error) {
-    logger.error('Error sending event change email:', error);
-  }
-};
-
-/**
- * Enviar recordatorios de eventos
- */
-export const sendEventReminders = async () => {
-  try {
-    // Obtener eventos próximos (24 horas)
-    const result = await query(
-      `SELECT 
-        e.id as event_id,
-        e.title,
-        e.start_time,
-        e.end_time,
-        e.location,
-        b.id as booking_id,
-        u.id as user_id,
-        u.email,
-        u.first_name,
-        u.last_name
-       FROM events e
-       JOIN bookings b ON e.id = b.event_id
-       JOIN users u ON b.student_id = u.id
-       WHERE e.start_time BETWEEN NOW() AND NOW() + INTERVAL '24 hours'
-       AND e.status = 'confirmado'
-       AND b.status = 'confirmada'
-       AND b.reminder_sent = false`
-    );
-    
-    for (const booking of result.rows) {
-      // Crear notificación
-      await createNotification(
-        booking.user_id,
-        'recordatorio',
-        'Recordatorio de evento',
-        `Recordatorio: Tienes "${booking.title}" mañana a las ${formatDate(booking.start_time, 'HH:mm')}`,
-        booking.event_id,
-        booking.booking_id
-      );
-      
-      // Enviar email
-      const subject = `Recordatorio: ${booking.title}`;
-      const html = `
-        <h2>Recordatorio de Evento</h2>
-        <p>Hola ${booking.first_name},</p>
-        <p>Te recordamos que tienes un evento programado para mañana:</p>
-        <ul>
-          <li><strong>Evento:</strong> ${booking.title}</li>
-          <li><strong>Fecha:</strong> ${formatDate(booking.start_time)}</li>
-          <li><strong>Hora:</strong> ${formatDate(booking.start_time, 'HH:mm')} - ${formatDate(booking.end_time, 'HH:mm')}</li>
-          <li><strong>Ubicación:</strong> ${booking.location}</li>
-        </ul>
-      `;
-      
-      try {
-        await sendEmail(booking.email, subject, html);
-        
-        // Marcar recordatorio como enviado
-        await query(
-          'UPDATE bookings SET reminder_sent = true WHERE id = $1',
-          [booking.booking_id]
-        );
-      } catch (error) {
-        logger.error(`Error sending reminder for booking ${booking.booking_id}:`, error);
+class NotificacionService {
+  constructor() {
+    // Configurar transporter de nodemailer
+    this.transporter = nodemailer.createTransporter({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: process.env.SMTP_PORT || 587,
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
       }
-    }
-  } catch (error) {
-    logger.error('Error in send event reminders:', error);
-    throw new Error(`Error sending event reminders: ${error.message}`);
+    });
   }
-};
+
+  // Enviar email a un destinatario
+  async enviarEmail({ destinatario, asunto, contenido, html }) {
+    try {
+      const mailOptions = {
+        from: `"Sistema de Gestión ISW" <${process.env.SMTP_USER}>`,
+        to: destinatario,
+        subject: asunto,
+        text: contenido,
+        html: html || this.generarHtmlBasico(contenido)
+      };
+
+      const info = await this.transporter.sendMail(mailOptions);
+      console.log('Email enviado:', info.messageId);
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      console.error('Error al enviar email:', error);
+      throw new Error('No se pudo enviar el email');
+    }
+  }
+
+  // Enviar notificación de nuevo evento a alumnos
+  async notificarNuevoEvento(evento, alumnosEmails) {
+    const asunto = `Nuevo evento disponible: ${evento.nombre}`;
+    const contenido = `
+Se ha creado un nuevo evento para inscripción:
+
+Nombre: ${evento.nombre}
+Descripción: ${evento.descripcion}
+Fecha: ${evento.fechaInicio.toLocaleString('es-CL')}
+Modalidad: ${evento.modalidad}
+${evento.modalidad === 'online' ? `Link: ${evento.linkOnline}` : `Sala: ${evento.sala}`}
+Cupos disponibles: ${evento.cupoDisponible}
+
+Por favor, ingresa al sistema para inscribirte.
+    `.trim();
+
+    const html = this.generarHtmlEvento(evento);
+
+    const promesas = alumnosEmails.map(email => 
+      this.enviarEmail({ destinatario: email, asunto, contenido, html })
+        .catch(err => console.error(`Error enviando a ${email}:`, err))
+    );
+
+    await Promise.all(promesas);
+    return { enviados: alumnosEmails.length };
+  }
+
+  // Notificar confirmación de inscripción
+  async notificarInscripcion(inscripcion, evento, alumnoEmail) {
+    const asunto = `Confirmación de inscripción: ${evento.nombre}`;
+    const contenido = `
+Tu inscripción ha sido confirmada:
+
+Evento: ${evento.nombre}
+Horario asignado: ${inscripcion.horarioAsignado.inicio.toLocaleString('es-CL')} - ${inscripcion.horarioAsignado.fin.toLocaleString('es-CL')}
+Modalidad: ${evento.modalidad}
+${evento.modalidad === 'online' ? `Link: ${evento.linkOnline}` : `Sala: ${evento.sala}`}
+
+Recuerda llegar a tiempo a tu evaluación.
+    `.trim();
+
+    const html = this.generarHtmlInscripcion(inscripcion, evento);
+
+    return await this.enviarEmail({ destinatario: alumnoEmail, asunto, contenido, html });
+  }
+
+  // Notificar cancelación de inscripción
+  async notificarCancelacion(inscripcion, evento, alumnoEmail) {
+    const asunto = `Cancelación de inscripción: ${evento.nombre}`;
+    const contenido = `
+Tu inscripción ha sido cancelada:
+
+Evento: ${evento.nombre}
+Horario que tenías: ${inscripcion.horarioAsignado.inicio.toLocaleString('es-CL')} - ${inscripcion.horarioAsignado.fin.toLocaleString('es-CL')}
+
+Puedes volver a inscribirte si hay cupos disponibles.
+    `.trim();
+
+    return await this.enviarEmail({ destinatario: alumnoEmail, asunto, contenido });
+  }
+
+  // Enviar recordatorio antes del evento
+  async enviarRecordatorio(inscripcion, evento, alumnoEmail, horasAntes = 24) {
+    const asunto = `Recordatorio: ${evento.nombre} - Mañana`;
+    const contenido = `
+Recordatorio de tu evento programado:
+
+Evento: ${evento.nombre}
+Horario: ${inscripcion.horarioAsignado.inicio.toLocaleString('es-CL')} - ${inscripcion.horarioAsignado.fin.toLocaleString('es-CL')}
+Modalidad: ${evento.modalidad}
+${evento.modalidad === 'online' ? `Link: ${evento.linkOnline}` : `Sala: ${evento.sala}`}
+
+Recuerda prepararte para tu evaluación.
+    `.trim();
+
+    const html = this.generarHtmlRecordatorio(inscripcion, evento, horasAntes);
+
+    return await this.enviarEmail({ destinatario: alumnoEmail, asunto, contenido, html });
+  }
+
+  // Generar HTML básico
+  generarHtmlBasico(contenido) {
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: #4CAF50; color: white; padding: 20px; text-align: center; }
+    .content { padding: 20px; background: #f9f9f9; }
+    .footer { padding: 10px; text-align: center; font-size: 12px; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h2>Sistema de Gestión ISW</h2>
+    </div>
+    <div class="content">
+      <pre style="white-space: pre-wrap;">${contenido}</pre>
+    </div>
+    <div class="footer">
+      <p>Este es un mensaje automático, por favor no responder.</p>
+    </div>
+  </div>
+</body>
+</html>
+    `;
+  }
+
+  // Generar HTML para evento
+  generarHtmlEvento(evento) {
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: #2196F3; color: white; padding: 20px; text-align: center; }
+    .content { padding: 20px; background: #fff; border: 1px solid #ddd; }
+    .evento-info { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px; }
+    .label { font-weight: bold; color: #555; }
+    .footer { padding: 10px; text-align: center; font-size: 12px; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h2>🎓 Nuevo Evento Disponible</h2>
+    </div>
+    <div class="content">
+      <div class="evento-info">
+        <p><span class="label">Nombre:</span> ${evento.nombre}</p>
+        <p><span class="label">Descripción:</span> ${evento.descripcion}</p>
+        <p><span class="label">Fecha:</span> ${evento.fechaInicio.toLocaleString('es-CL')}</p>
+        <p><span class="label">Modalidad:</span> ${evento.modalidad === 'online' ? '💻 Online' : '🏫 Presencial'}</p>
+        ${evento.modalidad === 'online' ? 
+          `<p><span class="label">Link:</span> <a href="${evento.linkOnline}">${evento.linkOnline}</a></p>` :
+          `<p><span class="label">Sala:</span> ${evento.sala}</p>`
+        }
+        <p><span class="label">Cupos disponibles:</span> ${evento.cupoDisponible}</p>
+      </div>
+      <p>Por favor, ingresa al sistema para inscribirte lo antes posible.</p>
+    </div>
+    <div class="footer">
+      <p>Sistema de Gestión ISW - Universidad</p>
+    </div>
+  </div>
+</body>
+</html>
+    `;
+  }
+
+  // Generar HTML para inscripción
+  generarHtmlInscripcion(inscripcion, evento) {
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: #4CAF50; color: white; padding: 20px; text-align: center; }
+    .content { padding: 20px; background: #fff; border: 1px solid #ddd; }
+    .confirmacion { background: #e8f5e9; padding: 15px; margin: 10px 0; border-left: 4px solid #4CAF50; }
+    .label { font-weight: bold; color: #555; }
+    .footer { padding: 10px; text-align: center; font-size: 12px; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h2>✅ Inscripción Confirmada</h2>
+    </div>
+    <div class="content">
+      <div class="confirmacion">
+        <h3>${evento.nombre}</h3>
+        <p><span class="label">Tu horario:</span> ${inscripcion.horarioAsignado.inicio.toLocaleString('es-CL')} - ${inscripcion.horarioAsignado.fin.toLocaleString('es-CL')}</p>
+        <p><span class="label">Modalidad:</span> ${evento.modalidad === 'online' ? '💻 Online' : '🏫 Presencial'}</p>
+        ${evento.modalidad === 'online' ? 
+          `<p><span class="label">Link:</span> <a href="${evento.linkOnline}">${evento.linkOnline}</a></p>` :
+          `<p><span class="label">Sala:</span> ${evento.sala}</p>`
+        }
+      </div>
+      <p><strong>Importante:</strong> Recuerda llegar a tiempo a tu evaluación.</p>
+    </div>
+    <div class="footer">
+      <p>Sistema de Gestión ISW - Universidad</p>
+    </div>
+  </div>
+</body>
+</html>
+    `;
+  }
+
+  // Generar HTML para recordatorio
+  generarHtmlRecordatorio(inscripcion, evento, horasAntes) {
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: #FF9800; color: white; padding: 20px; text-align: center; }
+    .content { padding: 20px; background: #fff; border: 1px solid #ddd; }
+    .recordatorio { background: #fff3e0; padding: 15px; margin: 10px 0; border-left: 4px solid #FF9800; }
+    .label { font-weight: bold; color: #555; }
+    .footer { padding: 10px; text-align: center; font-size: 12px; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h2>⏰ Recordatorio de Evento</h2>
+    </div>
+    <div class="content">
+      <div class="recordatorio">
+        <p>Tu evento es en ${horasAntes} horas</p>
+        <h3>${evento.nombre}</h3>
+        <p><span class="label">Horario:</span> ${inscripcion.horarioAsignado.inicio.toLocaleString('es-CL')} - ${inscripcion.horarioAsignado.fin.toLocaleString('es-CL')}</p>
+        <p><span class="label">Modalidad:</span> ${evento.modalidad === 'online' ? '💻 Online' : '🏫 Presencial'}</p>
+        ${evento.modalidad === 'online' ? 
+          `<p><span class="label">Link:</span> <a href="${evento.linkOnline}">${evento.linkOnline}</a></p>` :
+          `<p><span class="label">Sala:</span> ${evento.sala}</p>`
+        }
+      </div>
+      <p><strong>Prepárate:</strong> Asegúrate de tener todo listo para tu evaluación.</p>
+    </div>
+    <div class="footer">
+      <p>Sistema de Gestión ISW - Universidad</p>
+    </div>
+  </div>
+</body>
+</html>
+    `;
+  }
+}
+
+module.exports = NotificacionService;
