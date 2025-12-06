@@ -46,7 +46,13 @@ export const Apelacion = new EntitySchema({
       default: () => "CURRENT_TIMESTAMP",
       onUpdate: () => "CURRENT_TIMESTAMP",
     },
+
+     archivo: {
+      type: String,
+      nullable: true, 
+    },
   },
+  
   relations: {
     alumno: {
       type: "many-to-one",
