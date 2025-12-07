@@ -4,25 +4,21 @@ export const errorHandler = (err, req, res, next) => {
   let error = { ...err };
   error.message = err.message;
   
-  // Error de PostgreSQL - violación de constraint única
   if (err.code === '23505') {
     error.message = 'Ya existe un registro con ese valor';
     error.statusCode = 400;
   }
-  
-  // Error de PostgreSQL - violación de foreign key
+
   if (err.code === '23503') {
     error.message = 'Referencia inválida';
     error.statusCode = 400;
   }
-  
-  // Error de PostgreSQL - violación de check constraint
+
   if (err.code === '23514') {
     error.message = 'Valor no válido';
     error.statusCode = 400;
   }
   
-  // Error de JWT
   if (err.name === 'JsonWebTokenError') {
     error.message = 'Token inválido';
     error.statusCode = 401;

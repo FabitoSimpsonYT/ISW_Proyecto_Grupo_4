@@ -16,23 +16,18 @@ import { createRamoValidation, updateRamoValidation } from "../validations/ramos
 
 const router = Router();
 
-// Aplicar middleware de autenticación a todas las rutas
 router.use(authMiddleware);
 
-// Rutas CRUD básicas
-// Solo admin puede crear, actualizar y eliminar ramos
 router.post("/", 
   checkRole(["admin"]),
   validateRequest(createRamoValidation), 
   createRamoHandler
 );
 
-// Rutas de lectura accesibles para todos los usuarios autenticados
 router.get("/", 
   getAllRamosHandler
 );
 
-// Ruta para obtener los ramos del usuario (inscritos para alumnos, dictados para profesores)
 router.get("/misRamos",
   checkRole(["alumno", "profesor"]),
   getMisRamosHandler
@@ -53,7 +48,6 @@ router.delete("/:codigo",
   deleteRamoHandler
 );
 
-// Ruta para que el profesor o admin inscriban alumnos en los ramos
 router.post("/inscribir", 
   checkRole(["profesor", "admin"]), 
   inscribirAlumno

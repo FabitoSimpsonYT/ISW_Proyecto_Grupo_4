@@ -4,16 +4,11 @@ import { isAlumno, isProfesor, isAdmin, } from "../middleware/authorization.midd
 import { validateRequest } from "../middleware/validation.middleware.js";
 import { createApelacion, getApelacionPorId, getMisApelaciones, deleteApelacion, getAllApelaciones, getApelacionesDelProfesor, updateEstadoApelacion} from "../controllers/apelacion.controller.js";
 import { createApelacionValidation, updateEstadoValidation, } from "../validations/apelacion.validation.js";
-import { uploadArchivoApelacion, handleFileUploadErrors } from "../middleware/subirArchivo.middleware.js";
-import { subirArchivo, descargarArchivo } from "../controllers/apelacion.controller.js";
-
 
 const router = Router();
 
 
-router.post("/",  authMiddleware, uploadArchivoApelacion, handleFileUploadErrors,isAlumno, validateRequest(createApelacionValidation), createApelacion);
-router.post("/:id/archivo", authMiddleware, isAlumno, uploadArchivoApelacion, handleFileUploadErrors, subirArchivo );
-router.get("/descargar/:id", authMiddleware, isAlumno, descargarArchivo);
+router.post("/", authMiddleware, isAlumno, validateRequest(createApelacionValidation), createApelacion);
 router.get("/mis-apelaciones", authMiddleware, isAlumno, getMisApelaciones);
 router.get("/todo", authMiddleware, isAdmin, getAllApelaciones);
 router.get("/apelacionesProfesor", authMiddleware, isProfesor, getApelacionesDelProfesor);

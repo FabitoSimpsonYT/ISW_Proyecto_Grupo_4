@@ -3,7 +3,6 @@ import { handleErrorClient } from "../Handlers/responseHandlers.js";
 
 export async function loadUserMiddleware(req, res, next) {
     try {
-        // El RUT viene en el campo sub del token JWT
         const userRut = req.user.sub;
         const user = await findUserByRut(userRut);
         
@@ -11,7 +10,6 @@ export async function loadUserMiddleware(req, res, next) {
             return handleErrorClient(res, 401, "Usuario no encontrado");
         }
 
-        // Añadimos el usuario completo a req.fullUser
         req.fullUser = user;
         next();
     } catch (error) {

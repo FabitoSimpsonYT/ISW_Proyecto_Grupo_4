@@ -21,7 +21,7 @@ export async function createPautaService(data, evaluacionId) {
     return savedPauta;
 }
 export async function getPautaByIdService(id, user){
-    const pauta = await pautaRepository.findOneBy({
+    const pauta = await pautaRepository.findOne({
         where: {id},
         relations:["evaluacion"],
     });

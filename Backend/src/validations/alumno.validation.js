@@ -56,7 +56,7 @@ export const createAlumnoValidation = Joi.object({
       if (year > currentYear) {
         return helpers.message(`La generación no puede ser superior al año actual (${currentYear})`);
       }
-      if (year < 1981) { // Año de fundación de la UBB
+      if (year < 1981) { 
         return helpers.message("La generación no puede ser anterior a 1981");
       }
       return value;

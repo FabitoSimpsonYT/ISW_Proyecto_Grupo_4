@@ -1,9 +1,9 @@
 import Joi from "joi";
 
 export const createPautaEvaluadaValidation = Joi.object({
-  alumno_id: Joi.number().required().messages({
-    "number.base": "el id del alumno debe ser un número",
-    "any.required": "el id del alumno es obligatorio",
+  alumnoRut: Joi.string().pattern(/^\d{7,8}-[\dKk]$/).required().messages({
+    "string.pattern.base": "el RUT debe tener formato: 12345678-9 o 12345678-K",
+    "any.required": "el RUT del alumno es obligatorio",
   }),
   puntajes_obtenidos: Joi.object().required().messages({
     "object.base": "los puntajes_obtenidos deben ser un objeto",

@@ -6,7 +6,6 @@ import bcrypt from "bcrypt";
 const userRepository = AppDataSource.getRepository(User);
 
 export async function createAdmin(adminData) {
-  // Verificar si ya existe un usuario con el mismo email o rut
   const existingUser = await userRepository.findOne({
     where: [
       { email: adminData.email },
@@ -27,7 +26,7 @@ export async function createAdmin(adminData) {
     }
   }
 
-  // Crear el usuario admin
+
   const hashedPassword = await bcrypt.hash(adminData.password, 10);
   const userData = {
     ...adminData,
@@ -77,7 +76,6 @@ export async function updateAdmin(id, adminData) {
     throw new NotFoundError("Administrador no encontrado");
   }
 
-  // Si se intenta actualizar el email o teléfono, verificar que no existan
   if (adminData.email && adminData.email !== admin.email) {
     const existingEmail = await userRepository.findOne({
       where: { email: adminData.email }
@@ -96,14 +94,13 @@ export async function updateAdmin(id, adminData) {
     }
   }
 
-  // Si se actualiza la contraseña, hashearla
   if (adminData.password) {
     adminData.password = await bcrypt.hash(adminData.password, 10);
   }
 
   await userRepository.update(id, {
     ...adminData,
-    role: "admin" // Asegurar que el rol no cambie
+    role: "admin"
   });
 
   const updatedAdmin = await userRepository.findOne({
@@ -124,7 +121,6 @@ export async function deleteAdmin(id) {
     throw new NotFoundError("Administrador no encontrado");
   }
 
-  // Verificar que no sea el último administrador
   const adminCount = await userRepository.count({
     where: { role: "admin" }
   });
