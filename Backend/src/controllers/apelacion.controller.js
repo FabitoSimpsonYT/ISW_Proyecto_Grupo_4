@@ -1,6 +1,9 @@
 import { AppDataSource } from "../config/configDb.js";
 import { Apelacion } from "../entities/apelacion.entity.js";
 import { User } from "../entities/user.entity.js";
+import path from "path";
+import { fileURLToPath } from "url";
+
 
 
 export const createApelacion = async (req, res) => {
@@ -9,6 +12,7 @@ export const createApelacion = async (req, res) => {
     const userRepo = AppDataSource.getRepository(User);
 
     const { tipo, mensaje, profesorCorreo } = req.body;
+    const archivo = req.file ? req.file.filename : null;
     const alumnoId = req.user?.id || req.user?.sub;
 
     if (!alumnoId) {
@@ -37,11 +41,10 @@ export const createApelacion = async (req, res) => {
       mensaje,
       estado: "pendiente",
       puedeEditar: true,
+      archivo,
       alumno,
       profesor,
     });
-
-    
     await apelacionRepo.save(apelacion);
 
     const ahora = new Date();
@@ -75,6 +78,60 @@ export const createApelacion = async (req, res) => {
     res.status(500).json({ message: "Error interno al crear apelación" });
   }
 };
+
+
+
+export const subirArchivo = async (req, res) => {
+  try {
+    const idApelacion = req.params.id;
+
+    if (!req.file) {
+      return res.status(400).json({ mensaje: "No se envió archivo" });
+    }
+
+    const rutaArchivo = req.file.filename; 
+
+    const repo = AppDataSource.getRepository(Apelacion);
+
+    const apelacion = await repo.findOneBy({ id: idApelacion });
+    if (!apelacion) return res.status(404).json({ mensaje: "Apelación no encontrada" });
+
+    apelacion.archivo = rutaArchivo;
+    await repo.save(apelacion);
+
+    res.json({
+      mensaje: "Archivo subido correctamente",
+      archivo: rutaArchivo,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ mensaje: "Error al subir archivo" });
+  }
+};
+
+
+
+export const descargarArchivo = async (req, res) => {
+  try {
+    const idApelacion = req.params.id;
+    const repo = AppDataSource.getRepository(Apelacion);
+
+    const apelacion = await repo.findOneBy({ id: idApelacion });
+
+    if (!apelacion || !apelacion.archivo) {
+      return res.status(404).json({ mensaje: "Archivo no encontrado" });
+    }
+
+    const ruta = path.join(process.cwd(), "uploads", apelacion.archivo);
+
+    return res.download(ruta);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ mensaje: "Error al descargar archivo" });
+  }
+};
+
+
 
 
 

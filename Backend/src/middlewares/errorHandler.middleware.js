@@ -1,4 +1,4 @@
-import { logger } from '../utils/logger.utils.js';
+import  logger  from '../utils/logger.utils.js';
 import { sendError } from '../utils/response.utils.js';
 
 export const notFound = (req, res, next) => {

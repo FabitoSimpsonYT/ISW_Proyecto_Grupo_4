@@ -279,4 +279,4 @@ class EventoController {
   };
 }
 
-module.exports = EventoController;
+export default Evento;
