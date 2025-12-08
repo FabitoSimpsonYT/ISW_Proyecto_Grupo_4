@@ -1,39 +1,53 @@
 import { useAuth } from "../context/AuthContext.jsx";
+import { useNavigate } from "react-router-dom";
 
-const Navbar = ({ onCrearPauta, onVerPerfil }) => {
+const Navbar = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   return (
-    <nav className="w-full bg-gray-900 text-white py-4 shadow-md">
-      <div className="max-w-6xl mx-auto flex items-center justify-between px-6">
-        {/* Izquierda: Navegación */}
-        <div className="flex gap-4">
-          {user?.role === "profesor" ? (
-            <button
-              onClick={onCrearPauta}
-              className="px-4 py-2 bg-green-600 text-sm rounded-lg hover:bg-green-700 transition"
-            >
-              Crear Pauta
-            </button>
-          ) : user?.role === "alumno" ? (
-            <a
-              href="/ver-pautas"
-              className="px-4 py-2 bg-blue-600 text-sm rounded-lg hover:bg-blue-700 transition"
-            >
-              Ver Pautas
-            </a>
-          ) : null}
-        </div>
+    <nav className="fixed left-0 top-0 h-full w-64 bg-[#0E2C66] text-white shadow-xl flex flex-col p-6">
+      
+      {/* TÍTULO */}
+      <h1 className="text-lg font-semibold mb-10 text-center">
+        Plataforma Derecho
+      </h1>
 
-        {/* Centro: Nombre institucional */}
-        <h1 className="text-lg font-semibold tracking-wide">
-          Facultad de Derecho – Plataforma Evaluaciones
-        </h1>
+      {/* BOTONES */}
+      <div className="flex flex-col gap-4 flex-1">
 
-        {/* Derecha: Ver Perfil */}
+        {/* APELACIONES */}
         <button
-          onClick={onVerPerfil}
-          className="px-4 py-2 bg-indigo-600 text-sm rounded-lg hover:bg-indigo-700 transition"
+          onClick={() => navigate("/apelaciones/mis")}
+          className="px-4 py-2 border border-white rounded-lg hover:bg-white hover:text-[#0E2C66] transition font-medium"
+        >
+          Apelaciones
+        </button>
+
+        {/* PROFESOR */}
+        {user?.role === "profesor" && (
+          <button
+            onClick={() => navigate("/crear-pauta")}
+            className="px-4 py-2 border border-white rounded-lg hover:bg-white hover:text-[#0E2C66] transition font-medium"
+          >
+            Crear Pauta
+          </button>
+        )}
+
+        {/* ALUMNO */}
+        {user?.role === "alumno" && (
+          <button
+            onClick={() => navigate("/ver-pautas")}
+            className="px-4 py-2 border border-white rounded-lg hover:bg-white hover:text-[#0E2C66] transition font-medium"
+          >
+            Ver Pautas
+          </button>
+        )}
+
+        {/* VER PERFIL */}
+        <button
+          onClick={() => navigate("/mi-perfil")}
+          className="px-4 py-2 border border-white rounded-lg hover:bg-white hover:text-[#0E2C66] transition font-medium"
         >
           Ver Perfil
         </button>

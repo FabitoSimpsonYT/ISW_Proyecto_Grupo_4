@@ -2,9 +2,11 @@ import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import Login from '@pages/Login';
 import Home from '@pages/Home';
+import ApelacionesPage from '@pages/ApelacionesPage';
+import Apelaciones from '@pages/apelaciones';
+import MisApelaciones from '@pages/MisApelaciones';
 import Error404 from '@pages/Error404';
 import Root from '@pages/Root';
-import ProtectedRoute from '@components/ProtectedRoute';
 import '@styles/styles.css';
 
 const router = createBrowserRouter([
@@ -13,18 +15,18 @@ const router = createBrowserRouter([
     element: <Root />,
     errorElement: <Error404 />,
     children: [
-      {
-        path: '/',
-        element: <Login />
-      },
-      {
-        path: '/auth',
-        element: <Login />
-      },
-      {
-        path: '/home',
-        element: <Home />
-      }
+      // LOGIN
+      { path: '/', element: <Login /> },
+      { path: '/auth', element: <Login /> },
+
+      // HOME
+      { path: '/home', element: <Home /> },
+
+      // APELACIONES (esta es la página principal de apelaciones)
+      { path: '/apelaciones', element: <Apelaciones /> },
+
+      // MIS APELACIONES (esta se muestra dentro de ApelacionesPage)
+      { path: '/apelaciones/mis', element: <MisApelaciones /> }
     ]
   }
 ]);

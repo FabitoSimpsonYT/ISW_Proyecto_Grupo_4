@@ -5,17 +5,22 @@ import { jwtDecode } from 'jwt-decode';
 export async function login(dataUser) {
     try {
         const { email, password } = dataUser;
+
         const response = await axios.post('/auth/login', {
             email,
             password
         });
-        
+
         const { token, user } = response.data.data;
-        
+
+        // 🟢 AGREGADO: para ver qué trae exactamente el backend
+        console.log("🔍 Usuario recibido desde el backend:", user);
+
         cookies.set('jwt-auth', token, { path: '/' });
         sessionStorage.setItem('usuario', JSON.stringify(user));
-        
+
         return response.data;
+
     } catch (error) {
         return error.response?.data || { message: 'Error al conectar con el servidor' };
     }
