@@ -5,6 +5,7 @@ import Home from '@pages/Home';
 import ApelacionesPage from '@pages/ApelacionesPage';
 import Apelaciones from '@pages/apelaciones';
 import MisApelaciones from '@pages/MisApelaciones';
+import MiAgenda from '@pages/MiAgenda';
 import Error404 from '@pages/Error404';
 import Root from '@pages/Root';
 import '@styles/styles.css';
@@ -26,7 +27,10 @@ const router = createBrowserRouter([
       { path: '/apelaciones', element: <Apelaciones /> },
 
       // MIS APELACIONES (esta se muestra dentro de ApelacionesPage)
-      { path: '/apelaciones/mis', element: <MisApelaciones /> }
+      { path: '/apelaciones/mis', element: <MisApelaciones /> },
+
+      // MI AGENDA
+      { path: '/mi-agenda', element: <MiAgenda /> }
     ]
   }
 ]);
