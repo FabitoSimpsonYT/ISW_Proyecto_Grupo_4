@@ -77,6 +77,8 @@ export async function getProfesorById(id) {
   return profesor;
 }
 
+
+
 export async function updateProfesor(id, profesorData) {
   const profesor = await profesorRepository.findOne({
     where: { id },

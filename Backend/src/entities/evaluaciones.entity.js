@@ -17,6 +17,16 @@ export const Evaluacion = new EntitySchema({
             type:"date",
             nullable: true,
         },
+        horaInicio: {
+            type: "varchar",
+            length: 5,
+            nullable: true,
+        },
+        horaFin: {
+            type: "varchar",
+            length: 5,
+            nullable: true,
+        },
         ponderacion: {
             type:"float",
         },
@@ -33,8 +43,17 @@ export const Evaluacion = new EntitySchema({
             type: "boolean",
             default:false,
         },
+        aplicada: {
+            type: "boolean",
+            default: false,
+        },
         promedio: {
             type: "float",
+            default: 0,
+        },
+        puntajeTotal: {
+            type: "int",
+            nullable: false,
             default: 0,
         },
         created_at: {
@@ -50,6 +69,15 @@ export const Evaluacion = new EntitySchema({
         
     },
     relations:{
+        ramo: {
+            target: "Ramos",
+            type: "many-to-one",
+            joinColumn: {
+                name: "ramo_id",
+                referencedColumnName: "id",
+            },
+            nullable: true,
+        },
         pauta:{
             target:"Pauta",
             type:"one-to-one",

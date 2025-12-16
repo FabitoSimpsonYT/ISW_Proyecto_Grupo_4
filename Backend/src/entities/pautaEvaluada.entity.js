@@ -51,7 +51,17 @@ export const PautaEvaluada = new EntitySchema({
         name: "evaluacion_id",
         referencedColumnName: "id",
       },
-      nullable: false,
+      nullable: true,
+      onDelete: "CASCADE",
+    },
+    pauta: {
+      target: "Pauta",
+      type: "many-to-one",
+      joinColumn: {
+        name: "pauta_id",
+        referencedColumnName: "id",
+      },
+      nullable: true,
       onDelete: "CASCADE",
     },
     alumno: {
@@ -66,3 +76,6 @@ export const PautaEvaluada = new EntitySchema({
     },
   },
 });
+
+
+

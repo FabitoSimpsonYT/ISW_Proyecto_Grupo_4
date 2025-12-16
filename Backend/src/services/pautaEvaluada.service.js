@@ -33,7 +33,7 @@ export async function obtenerEvaluacionesYNotasAlumno(alumnoId) {
   }));
 }
 
-function calcNotaFinal(distribucionPuntaje, puntajesObtenidos) {s
+function calcNotaFinal(distribucionPuntaje, puntajesObtenidos) {
   const claves = Object.keys(distribucionPuntaje);
   let sumaMax = 0;
   let sumaObtenida = 0;
@@ -75,28 +75,46 @@ function calcNotaFinal(distribucionPuntaje, puntajesObtenidos) {s
   return Number(truncadoUno.toFixed(1));
 }
 
-export async function createPautaEvaluadaService(evaluacionId, data, user) {
-  const evaluacion = await evaluacionRepository.findOne({
-    where: { id: evaluacionId },
-    relations: ["pauta"],
-  });
-  if (!evaluacion) return { error: "Evaluación no encontrada" };
+export async function createPautaEvaluadaService(evaluacionId, pautaId, alumnoRut, data, user) {
+  // Obtener pauta desde pautaId en params
+  let pauta = null;
+  if (pautaId) {
+    pauta = await pautaRepository.findOneBy({ id: parseInt(pautaId) });
+    if (!pauta) return { error: "Pauta no encontrada" };
+  } else {
+    // Si no hay pautaId, intentar obtener pauta de la evaluación (compatibilidad hacia atrás)
+    const evaluacion = await evaluacionRepository
+      .createQueryBuilder("e")
+      .leftJoinAndSelect("e.pauta", "pauta")
+      .where("e.id = :evaluacionId", { evaluacionId })
+      .getOne();
+      
+    if (!evaluacion) return { error: "Evaluación no encontrada" };
+    if (!evaluacion.pauta) return { error: "La evaluación no tiene una pauta definida" };
+    
+    pauta = evaluacion.pauta;
+  }
 
-  if (!evaluacion.pauta) return { error: "La evaluación no tiene una pauta definida" };
-
-  const alumno = await alumnoRepository.findOneBy({ id: data.alumno_id });
+  // Obtener alumno a través de la relación con User (que tiene el rut)
+  const alumno = await alumnoRepository
+    .createQueryBuilder("a")
+    .leftJoinAndSelect("a.user", "u")
+    .where("u.rut = :rut", { rut: alumnoRut })
+    .getOne();
+    
   if (!alumno) return { error: "Alumno no encontrado" };
 
-
-  const existing = await pautaEvaluadaRepository.findOne({
-    where: {
-      evaluacion: { id: evaluacionId },
-      alumno: { id: data.alumno_id },
-    },
-  });
+  const existing = await pautaEvaluadaRepository
+    .createQueryBuilder("pe")
+    .leftJoinAndSelect("pe.alumno", "a")
+    .leftJoinAndSelect("a.user", "u")
+    .where("pe.evaluacion_id = :evaluacionId", { evaluacionId })
+    .andWhere("u.rut = :rut", { rut: alumnoRut })
+    .getOne();
+    
   if (existing) return { error: "Ya existe una pauta evaluada para este alumno en la evaluación" };
 
-  const distribucion = evaluacion.pauta.distribucionPuntaje || {};
+  const distribucion = pauta.distribucionPuntaje || {};
   const puntajes = data.puntajes_obtenidos || {};
 
   const nota = calcNotaFinal(distribucion, puntajes);
@@ -108,7 +126,8 @@ export async function createPautaEvaluadaService(evaluacionId, data, user) {
     retroalimentacion: [],
     creadaPor: user?.id || null,
     evaluacion: { id: evaluacionId },
-    alumno: { id: data.alumno_id },
+    pauta: { id: pauta.id },
+    alumno: { id: alumno.id },
   });
 
   const saved = await pautaEvaluadaRepository.save(pautaEval);
@@ -117,11 +136,17 @@ export async function createPautaEvaluadaService(evaluacionId, data, user) {
   return saved;
 }
 
-export async function getPautaEvaluadaService(id) {
-  const pauta = await pautaEvaluadaRepository.findOne({
-    where: { id },
-    relations: ["evaluacion", "alumno"],
-  });
+export async function getPautaEvaluadaService(evaluacionId, alumnoRut) {
+  const pauta = await pautaEvaluadaRepository
+    .createQueryBuilder("pe")
+    .leftJoinAndSelect("pe.alumno", "a")
+    .leftJoinAndSelect("a.user", "u")
+    .leftJoinAndSelect("pe.evaluacion", "e")
+    .leftJoinAndSelect("pe.pauta", "p")
+    .where("pe.evaluacion_id = :evaluacionId", { evaluacionId })
+    .andWhere("u.rut = :rut", { rut: alumnoRut })
+    .getOne();
+
   if (!pauta) return { error: "Pauta evaluada no encontrada" };
   return pauta;
 }
@@ -179,44 +204,65 @@ export async function obtenerPromedioGeneralPorRamo(ramoId) {
   return courseAvg;
 }
 
-export async function updatePautaEvaluadaService(id, data, user) {
-  const pauta = await pautaEvaluadaRepository.findOne({ where: { id }, relations: ['evaluacion'] });
-  if (!pauta) return { error: 'Pauta evaluada no encontrada' };
+export async function updatePautaEvaluadaService(evaluacionId, alumnoRut, data, user) {
+  // Buscar la pautaEvaluada por evaluacionId y alumnoRut
+  const pauta = await pautaEvaluadaRepository
+    .createQueryBuilder("pe")
+    .leftJoinAndSelect("pe.alumno", "a")
+    .leftJoinAndSelect("a.user", "u")
+    .leftJoinAndSelect("pe.pauta", "p")
+    .where("pe.evaluacion_id = :evaluacionId", { evaluacionId })
+    .andWhere("u.rut = :rut", { rut: alumnoRut })
+    .getOne();
 
-  if (user.role !== 'admin' && pauta.creadaPor !== user.id) {
-    return { error: 'No tienes permiso para modificar esta pauta evaluada' };
+  if (!pauta) return { error: "Pauta evaluada no encontrada" };
+
+  if (user.role !== "admin" && pauta.creadaPor !== user.id) {
+    return { error: "No tienes permiso para modificar esta pauta evaluada" };
   }
 
+  // Actualizar puntajes si se proporcionan
   if (data.puntajes_obtenidos) {
-    const evaluacion = await evaluacionRepository.findOne({ where: { id: pauta.evaluacion.id }, relations: ['pauta'] });
-    const distribucion = evaluacion.pauta?.distribucionPuntaje || {};
-    const nota = calcNotaFinal(distribucion, data.puntajes_obtenidos);
     pauta.puntajesObtenidos = data.puntajes_obtenidos;
-    pauta.notaFinal = nota;
   }
 
-  if (data.observaciones !== undefined) pauta.observaciones = data.observaciones;
+  // Actualizar observaciones si se proporcionan
+  if (data.observaciones !== undefined) {
+    pauta.observaciones = data.observaciones;
+  }
+
+  // Recalcular la nota automáticamente basándose en los puntajes actuales
+  const distribucion = pauta.pauta?.distribucionPuntaje || {};
+  const puntajesActuales = pauta.puntajesObtenidos || {};
+  const notaCalculada = calcNotaFinal(distribucion, puntajesActuales);
+  pauta.notaFinal = notaCalculada;
 
   const saved = await pautaEvaluadaRepository.save(pauta);
 
-  await updateEvaluacionPromedio(pauta.evaluacion.id);
+  await updateEvaluacionPromedio(evaluacionId);
 
   return saved;
 }
 
-export async function deletePautaEvaluadaService(id, user) {
-  const pauta = await pautaEvaluadaRepository.findOne({ where: { id }, relations: ['evaluacion'] });
-  if (!pauta) return { error: 'Pauta evaluada no encontrada' };
+export async function deletePautaEvaluadaService(evaluacionId, alumnoRut, user) {
+  // Buscar la pautaEvaluada por evaluacionId y alumnoRut
+  const pauta = await pautaEvaluadaRepository
+    .createQueryBuilder("pe")
+    .leftJoinAndSelect("pe.alumno", "a")
+    .leftJoinAndSelect("a.user", "u")
+    .where("pe.evaluacion_id = :evaluacionId", { evaluacionId })
+    .andWhere("u.rut = :rut", { rut: alumnoRut })
+    .getOne();
 
+  if (!pauta) return { error: "Pauta evaluada no encontrada" };
 
-  if (user.role !== 'admin' && pauta.creadaPor !== user.id) {
-    return { error: 'No tienes permiso para eliminar esta pauta evaluada' };
+  if (user.role !== "admin" && pauta.creadaPor !== user.id) {
+    return { error: "No tienes permiso para eliminar esta pauta evaluada" };
   }
 
-  const evaluacionId = pauta.evaluacion.id;
   await pautaEvaluadaRepository.remove(pauta);
 
   await updateEvaluacionPromedio(evaluacionId);
 
-  return { message: 'Pauta evaluada eliminada' };
+  return { message: "Pauta evaluada eliminada exitosamente" };
 }
