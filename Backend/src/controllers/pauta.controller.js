@@ -2,6 +2,7 @@ import { handleSuccess, handleErrorClient, handleErrorServer} from "../Handlers/
 import {
   createPautaService,
   getPautaByIdService,
+  getAllPautasService,
   updatePautaService,
   deletePautaService,
 } from "../services/pauta.service.js";
@@ -86,5 +87,15 @@ export async function deletePauta(req, res) {
     handleSuccess(res, 200, "Pauta eliminada exitosamente");
   } catch (error) {
     handleErrorServer(res, 500, "Error al eliminar pauta", error.message);
+  }
+}
+
+export async function getAllPautas(req, res) {
+  try {
+    const user = req.user;
+    const pautas = await getAllPautasService(user);
+    handleSuccess(res, 200, "Pautas obtenidas exitosamente", { pautas });
+  } catch (error) {
+    handleErrorServer(res, 500, "Error al obtener pautas", error.message);
   }
 }
