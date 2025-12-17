@@ -5,6 +5,16 @@ const Navbar = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  const handleApelaciones = () => {
+    if (user?.role === "alumno") {
+      navigate("/apelaciones/mis");  // Página del alumno
+    } else if (user?.role === "profesor") {
+      navigate("/apelaciones-profesor"); // Página del profesor
+    } else {
+      console.warn("Usuario sin rol válido para apelaciones");
+    }
+  };
+
   return (
     <nav className="fixed left-0 top-0 h-full w-64 bg-[#0E2C66] text-white shadow-xl flex flex-col p-6">
       
@@ -18,7 +28,7 @@ const Navbar = () => {
 
         {/* APELACIONES */}
         <button
-          onClick={() => navigate("/apelaciones/mis")}
+          onClick={handleApelaciones}
           className="px-4 py-2 border border-white rounded-lg hover:bg-white hover:text-[#0E2C66] transition font-medium"
         >
           Apelaciones

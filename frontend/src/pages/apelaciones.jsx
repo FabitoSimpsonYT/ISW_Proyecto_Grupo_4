@@ -12,25 +12,28 @@ export default function Apelaciones() {
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    const formData = {
-      profesorCorreo,
-      tipo,
-      mensaje,
-      archivo, // opcional, si luego tu backend lo soporta
-    };
+  const formData = new FormData();
+  formData.append("profesorCorreo", profesorCorreo);
+  formData.append("tipo", tipo);
+  formData.append("mensaje", mensaje);
 
-    const data = await crearApelacion(formData);
-    setRespuesta(data);
-  };
+  if (archivo) {
+    formData.append("archivo", archivo);
+  }
+
+  const data = await crearApelacion(formData);
+  setRespuesta(data);
+};
+
 
   return (
     <div className="flex flex-col w-full ml-64 p-8 min-h-screen bg-[#E6F3FF]">
 
-      {/* ENCABEZADO */}
-      <div className="bg-[#173b61] text-white p-6 rounded-lg shadow mb-6">
-        <h2 className="text-2xl font-bold">Perfil del alumno</h2>
+      {/* Título */}
+      <div className="bg-[#113C63] text-white px-6 py-4 rounded">
+        <h2 className="text-3xl font-bold">Perfil de Alumno</h2>
       </div>
 
       {/* Línea superior */}
@@ -132,12 +135,11 @@ export default function Apelaciones() {
   </div>
 </form>
 
-      {/* RESPUESTA */}
-      {respuesta && (
-        <pre className="mt-6 bg-gray-100 p-4 rounded-lg max-w-2xl">
-          {JSON.stringify(respuesta, null, 2)}
-        </pre>
-      )}
+      {respuesta?.message && (
+  <div className="mt-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded max-w-2xl">
+    {respuesta.message}
+  </div>
+)}
 
       {/* VOLVER */}
       <div className="flex justify-center mt-8">
