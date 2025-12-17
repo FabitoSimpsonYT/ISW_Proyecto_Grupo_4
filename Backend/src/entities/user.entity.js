@@ -42,7 +42,7 @@ export const User = new EntitySchema({
     },
     role: {
       type: "enum",
-      enum: ["admin", "profesor", "alumno"],
+      enum: ["admin", "jefecarrera", "profesor", "alumno"],
       nullable: false,
     },
     telefono: {

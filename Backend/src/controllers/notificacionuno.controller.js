@@ -1,7 +1,7 @@
 import {
     obtenerNotificacionesPorUsuario,
     marcarNotificacionComoLeida,
-} from "../services/notificacion.service.js"
+} from "../services/notificacionuno.service.js"
 import { handleErrorClient, handleErrorServer, handleSuccess } from "../Handlers/responseHandlers.js";
 
 export const getNotificaciones = async (req, res) =>{

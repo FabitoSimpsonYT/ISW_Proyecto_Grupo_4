@@ -22,17 +22,17 @@ router.post("/",
 );
 
 router.get("/", 
-  checkRole(["admin", "profesor"]), 
+  checkRole(["admin", "profesor", "jefecarrera"]), 
   getProfesorByIdHandler
 );
 
 router.get("/:id", 
-  checkRole(["admin"]), 
+  checkRole(["admin", "jefe_carrera"]), 
   getProfesorByIdHandler
 );
 
 router.put("/", 
-  checkRole(["admin", "profesor"]), 
+  checkRole(["admin", "profesor", "jefecarrera"]), 
   validateRequest(updateProfesorValidation), 
   updateProfesorHandler
 );

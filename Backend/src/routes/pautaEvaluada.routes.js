@@ -4,12 +4,12 @@ import { createPautaEvaluada, getPautaEvaluada, updatePautaEvaluada, deletePauta
 
 const router = Router();
 
-router.post("/:evaluacionId", authMiddleware, createPautaEvaluada);
+router.post("/:evaluacionId/:pautaId", authMiddleware, createPautaEvaluada);
 
-router.get("/:id", authMiddleware, getPautaEvaluada);
+router.get("/:evaluacionId/:alumnoRut", authMiddleware, getPautaEvaluada);
 
-router.patch("/:id", authMiddleware, updatePautaEvaluada);
+router.patch("/:evaluacionId/:alumnoRut", authMiddleware, updatePautaEvaluada);
 
-router.delete("/:id", authMiddleware, deletePautaEvaluada);
+router.delete("/:evaluacionId/:alumnoRut", authMiddleware, deletePautaEvaluada);
 
 export default router;

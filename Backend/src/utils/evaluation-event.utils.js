@@ -80,6 +80,13 @@ export async function syncEvaluacionWithEvent(evaluacion, user, isUpdate = false
 
     return result.rows[0];
   } catch (error) {
+    // Detecta cuando la tabla `events` no existe en la BD (Postgres error code 42P01)
+    // y no hace fallar la creación/actualización de la evaluación.
+    if (error && (error.code === '42P01' || (error.message && error.message.includes('no existe la relación "events"')))) {
+      console.warn('Advertencia: no existe la tabla `events` en la BD. La evaluación fue creada pero no se sincronizó con events. Ejecuta las migraciones para crear la tabla `events`.');
+      return null; // no lanzar error para no romper la creación de evaluación
+    }
+
     console.error('Error al sincronizar evaluación con evento:', error);
     throw error;
   }

@@ -16,11 +16,10 @@ export async function getAllEvaluacionesService(user) {
 }
 
 export async function getEvaluacionByIdService(id, user){
-  const evaluacion = await evaluacionRepository.findOneBy({ id });
 
-  if (!evaluacion) return null;
-
-  if (user.role ==="estudiante") {
+  if (user.role === "estudiante") {
+    const evaluacion = await evaluacionRepository.findOneBy({ id });
+    if (!evaluacion) return null;
     return {
       titulo: evaluacion.titulo,
       fechaProgramada: evaluacion.fechaProgramada,
@@ -29,13 +28,14 @@ export async function getEvaluacionByIdService(id, user){
     };
   }
 
-  return evaluacion;
+
+  const evaluacionConRelaciones = await evaluacionRepository.findOne({ where: { id }, relations: ["ramo"] });
+  return evaluacionConRelaciones;
 }
 
 
 export async function createEvaluacionService(data) {
-  const { titulo, fechaProgramada, horaInicio, horaFin, ponderacion, contenidos, ramo_id, codigoRamo } = data;
-  // Resolve ramo_id from codigoRamo if not provided
+  const { titulo, fechaProgramada, horaInicio, horaFin, ponderacion, contenidos, ramo_id, codigoRamo, puntajeTotal } = data;
   let resolvedRamoId = ramo_id;
   if (!resolvedRamoId && codigoRamo) {
     const ramosRepository = AppDataSource.getRepository(Ramos);
@@ -49,18 +49,17 @@ export async function createEvaluacionService(data) {
     throw new BadRequestError('Se requiere ramo_id o codigoRamo para crear la evaluación');
   }
   
-  // Parse horaInicio and horaFin to extract hours and minutes (format: "HH:mm")
+
   const [newHoraInicioHH, newHoraInicioMM] = horaInicio.split(':').map(Number);
   const [newHoraFinHH, newHoraFinMM] = horaFin.split(':').map(Number);
-  const newHoraInicioTotal = newHoraInicioHH * 60 + newHoraInicioMM; // Convert to minutes
-  const newHoraFinTotal = newHoraFinHH * 60 + newHoraFinMM; // Convert to minutes
+  const newHoraInicioTotal = newHoraInicioHH * 60 + newHoraInicioMM; 
+  const newHoraFinTotal = newHoraFinHH * 60 + newHoraFinMM; 
 
-  // Format fechaProgramada as string (YYYY-MM-DD) for comparison
+  
   let fechaStr;
   if (fechaProgramada instanceof Date) {
     fechaStr = fechaProgramada.toISOString().split('T')[0];
   } else if (typeof fechaProgramada === 'string') {
-    // Si es string, asegurarse que es YYYY-MM-DD
     fechaStr = fechaProgramada.includes('T') ? fechaProgramada.split('T')[0] : fechaProgramada;
   } else {
     fechaStr = String(fechaProgramada);
@@ -68,9 +67,8 @@ export async function createEvaluacionService(data) {
 
   
 
-  // Consultar en la base de datos las evaluaciones que tienen la misma fechaProgramada
-  // Normalizamos la fecha a 'YYYY-MM-DD' y la usamos en la consulta para evitar comparaciones en memoria
-  const fechaQuery = fechaStr; // 'YYYY-MM-DD'
+
+  const fechaQuery = fechaStr;
   const evaluacionesMismaFecha = await evaluacionRepository.find({ where: { fechaProgramada: fechaQuery } });
   
   // Si hay evaluaciones en la misma fecha, verificar solapamiento de horas
@@ -84,8 +82,6 @@ export async function createEvaluacionService(data) {
 
        
 
-        // Verificar si hay solapamiento: 
-        // Dos rangos se solapan si: inicio1 < fin2 AND fin1 > inicio2
         const haysolapamiento = newHoraInicioTotal < evalHoraFinTotal && newHoraFinTotal > evalHoraInicioTotal;
 
         if (haysolapamiento) {
@@ -108,6 +104,7 @@ export async function createEvaluacionService(data) {
     horaFin,
     ponderacion,
     contenidos,
+    puntajeTotal: puntajeTotal || 0,
     ramo: { id: resolvedRamoId }
   });
   const saved = await evaluacionRepository.save(nueva);

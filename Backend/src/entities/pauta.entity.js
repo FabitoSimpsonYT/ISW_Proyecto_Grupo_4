@@ -16,6 +16,10 @@ export const Pauta = new EntitySchema({
             type:"json",
             nullable: false,
         },
+        publicada: {
+            type: "boolean",
+            default: false,
+        },
     },
     relations:{
         evaluacion:{
