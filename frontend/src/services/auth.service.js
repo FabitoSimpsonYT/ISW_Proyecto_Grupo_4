@@ -41,9 +41,13 @@ export async function register(data) {
 
 export async function logout() {
     try {
+        await axios.post('/auth/logout');
         sessionStorage.removeItem('usuario');
         cookies.remove('jwt-auth');
     } catch (error) {
         console.error('Error al cerrar sesión:', error);
+        // Aún así removemos los tokens locales aunque falle la petición al servidor
+        sessionStorage.removeItem('usuario');
+        cookies.remove('jwt-auth');
     }
 }

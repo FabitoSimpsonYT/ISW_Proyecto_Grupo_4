@@ -11,6 +11,7 @@ export default function AgendaProfesor() {
   const [inscripciones, setInscripciones] = useState([]);
   const [loading, setLoading] = useState(false);
   const [mostrarModalInscripciones, setMostrarModalInscripciones] = useState(false);
+  const [erroresValidacion, setErroresValidacion] = useState({});
 
   // Formulario para crear/editar evento
   const [formData, setFormData] = useState({
@@ -52,34 +53,89 @@ export default function AgendaProfesor() {
     }
   };
 
-  const crearEvento = async (e) => {
-    e.preventDefault();
-    
-    // Validaciones
-    if (!formData.nombre || !formData.fechaInicio || !formData.fechaFin) {
-      Swal.fire({ icon: 'warning', text: 'Completa todos los campos obligatorios' });
-      return;
+  const validarFormulario = () => {
+    const errores = {};
+
+    // Validar nombre
+    if (!formData.nombre || formData.nombre.trim() === '') {
+      errores.nombre = '⚠️ El nombre del evento es obligatorio';
+    } else if (formData.nombre.length < 5) {
+      errores.nombre = '⚠️ El nombre debe tener mínimo 5 caracteres';
+    } else if (formData.nombre.length > 100) {
+      errores.nombre = '⚠️ El nombre no puede exceder 100 caracteres';
     }
 
+    // Validar fechas
+    if (!formData.fechaInicio) {
+      errores.fechaInicio = '⚠️ La fecha de inicio es obligatoria';
+    }
+    if (!formData.fechaFin) {
+      errores.fechaFin = '⚠️ La fecha de fin es obligatoria';
+    }
+    if (formData.fechaInicio && formData.fechaFin) {
+      if (new Date(formData.fechaFin) < new Date(formData.fechaInicio)) {
+        errores.fechaFin = '⚠️ La fecha de fin no puede ser anterior a la de inicio';
+      }
+    }
+
+    // Validar modalidad
     if (formData.modalidad === 'online' && !formData.linkOnline) {
-      Swal.fire({ icon: 'warning', text: 'Los eventos online requieren un link' });
-      return;
+      errores.linkOnline = '⚠️ Los eventos online requieren un link de reunión';
+    } else if (formData.linkOnline && formData.linkOnline.length > 0) {
+      if (!formData.linkOnline.includes('http')) {
+        errores.linkOnline = '⚠️ El link debe comenzar con http o https';
+      }
     }
 
     if (formData.modalidad === 'presencial' && !formData.sala) {
-      Swal.fire({ icon: 'warning', text: 'Los eventos presenciales requieren una sala' });
+      errores.sala = '⚠️ Los eventos presenciales requieren una sala';
+    }
+
+    // Validar cupo
+    if (!formData.cupoMaximo) {
+      errores.cupoMaximo = '⚠️ El cupo máximo es obligatorio';
+    } else if (parseInt(formData.cupoMaximo) < 1) {
+      errores.cupoMaximo = '⚠️ El cupo debe ser mínimo 1';
+    } else if (parseInt(formData.cupoMaximo) > 500) {
+      errores.cupoMaximo = '⚠️ El cupo no puede exceder 500';
+    }
+
+    // Validar duración
+    if (formData.duracionPorAlumno && parseInt(formData.duracionPorAlumno) < 5) {
+      errores.duracionPorAlumno = '⚠️ La duración mínima es 5 minutos';
+    }
+
+    setErroresValidacion(errores);
+    return Object.keys(errores).length === 0;
+  };
+
+  const crearEvento = async (e) => {
+    e.preventDefault();
+    
+    // Validar antes de enviar
+    if (!validarFormulario()) {
       return;
     }
 
     setLoading(true);
     try {
-      await evaluacionService.crear({
+      console.log('📤 Enviando evento:', {
+        ...formData,
+        cupoMaximo: parseInt(formData.cupoMaximo) || 1,
+        duracionPorAlumno: parseInt(formData.duracionPorAlumno) || null,
+        tamanioGrupo: parseInt(formData.tamanioGrupo),
+        alumnosEmails: []
+      });
+
+      const response = await evaluacionService.crear({
         ...formData,
         cupoMaximo: parseInt(formData.cupoMaximo) || 1,
         duracionPorAlumno: parseInt(formData.duracionPorAlumno) || null,
         tamanioGrupo: parseInt(formData.tamanioGrupo),
         alumnosEmails: [] // Aquí deberías cargar los emails de tus alumnos del ramo
       });
+
+      console.log('✅ Respuesta del servidor:', response);
 
       await Swal.fire({ 
         icon: 'success', 
@@ -93,10 +149,11 @@ export default function AgendaProfesor() {
       setVista('calendario');
       cargarMisEventos();
     } catch (error) {
+      console.error('❌ Error al crear evento:', error.response?.data || error.message);
       Swal.fire({ 
         icon: 'error', 
         title: 'Error', 
-        text: error.response?.data?.error || 'Error al crear evento' 
+        text: error.response?.data?.message || error.response?.data?.error || error.message || 'Error al crear evento' 
       });
     } finally {
       setLoading(false);
@@ -352,10 +409,17 @@ export default function AgendaProfesor() {
                 <input
                   type="text"
                   value={formData.nombre}
-                  onChange={(e) => setFormData({...formData, nombre: e.target.value})}
-                  className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => {
+                    setFormData({...formData, nombre: e.target.value});
+                    if (erroresValidacion.nombre) {
+                      setErroresValidacion({...erroresValidacion, nombre: ''});
+                    }
+                  }}
+                  className={`w-full px-4 py-2 border rounded focus:ring-2 ${erroresValidacion.nombre ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'}`}
+                  placeholder="Ej: Certamen 1"
                   required
                 />
+                {erroresValidacion.nombre && <p className="text-red-600 text-sm mt-1 font-medium">{erroresValidacion.nombre}</p>}
               </div>
 
               <div className="col-span-2">
@@ -399,10 +463,16 @@ export default function AgendaProfesor() {
                 <input
                   type="datetime-local"
                   value={formData.fechaInicio}
-                  onChange={(e) => setFormData({...formData, fechaInicio: e.target.value})}
-                  className="w-full px-4 py-2 border rounded"
+                  onChange={(e) => {
+                    setFormData({...formData, fechaInicio: e.target.value});
+                    if (erroresValidacion.fechaInicio) {
+                      setErroresValidacion({...erroresValidacion, fechaInicio: ''});
+                    }
+                  }}
+                  className={`w-full px-4 py-2 border rounded ${erroresValidacion.fechaInicio ? 'border-red-500' : 'border-gray-300'}`}
                   required
                 />
+                {erroresValidacion.fechaInicio && <p className="text-red-600 text-sm mt-1 font-medium">{erroresValidacion.fechaInicio}</p>}
               </div>
 
               <div>
@@ -410,10 +480,16 @@ export default function AgendaProfesor() {
                 <input
                   type="datetime-local"
                   value={formData.fechaFin}
-                  onChange={(e) => setFormData({...formData, fechaFin: e.target.value})}
-                  className="w-full px-4 py-2 border rounded"
+                  onChange={(e) => {
+                    setFormData({...formData, fechaFin: e.target.value});
+                    if (erroresValidacion.fechaFin) {
+                      setErroresValidacion({...erroresValidacion, fechaFin: ''});
+                    }
+                  }}
+                  className={`w-full px-4 py-2 border rounded ${erroresValidacion.fechaFin ? 'border-red-500' : 'border-gray-300'}`}
                   required
                 />
+                {erroresValidacion.fechaFin && <p className="text-red-600 text-sm mt-1 font-medium">{erroresValidacion.fechaFin}</p>}
               </div>
 
               <div>
@@ -434,11 +510,17 @@ export default function AgendaProfesor() {
                   <input
                     type="text"
                     value={formData.sala}
-                    onChange={(e) => setFormData({...formData, sala: e.target.value})}
+                    onChange={(e) => {
+                      setFormData({...formData, sala: e.target.value});
+                      if (erroresValidacion.sala) {
+                        setErroresValidacion({...erroresValidacion, sala: ''});
+                      }
+                    }}
                     placeholder="Ej: Sala 301"
-                    className="w-full px-4 py-2 border rounded"
+                    className={`w-full px-4 py-2 border rounded ${erroresValidacion.sala ? 'border-red-500' : 'border-gray-300'}`}
                     required
                   />
+                  {erroresValidacion.sala && <p className="text-red-600 text-sm mt-1 font-medium">{erroresValidacion.sala}</p>}
                 </div>
               )}
 
@@ -448,11 +530,17 @@ export default function AgendaProfesor() {
                   <input
                     type="url"
                     value={formData.linkOnline}
-                    onChange={(e) => setFormData({...formData, linkOnline: e.target.value})}
+                    onChange={(e) => {
+                      setFormData({...formData, linkOnline: e.target.value});
+                      if (erroresValidacion.linkOnline) {
+                        setErroresValidacion({...erroresValidacion, linkOnline: ''});
+                      }
+                    }}
                     placeholder="https://meet.google.com/..."
-                    className="w-full px-4 py-2 border rounded"
+                    className={`w-full px-4 py-2 border rounded ${erroresValidacion.linkOnline ? 'border-red-500' : 'border-gray-300'}`}
                     required
                   />
+                  {erroresValidacion.linkOnline && <p className="text-red-600 text-sm mt-1 font-medium">{erroresValidacion.linkOnline}</p>}
                 </div>
               )}
 
@@ -485,12 +573,18 @@ export default function AgendaProfesor() {
                 <input
                   type="number"
                   value={formData.duracionPorAlumno}
-                  onChange={(e) => setFormData({...formData, duracionPorAlumno: e.target.value})}
+                  onChange={(e) => {
+                    setFormData({...formData, duracionPorAlumno: e.target.value});
+                    if (erroresValidacion.duracionPorAlumno) {
+                      setErroresValidacion({...erroresValidacion, duracionPorAlumno: ''});
+                    }
+                  }}
                   min="5"
                   placeholder="Ej: 20"
-                  className="w-full px-4 py-2 border rounded"
+                  className={`w-full px-4 py-2 border rounded ${erroresValidacion.duracionPorAlumno ? 'border-red-500' : 'border-gray-300'}`}
                 />
                 <p className="text-xs text-gray-500 mt-1">✨ Se generarán slots automáticos</p>
+                {erroresValidacion.duracionPorAlumno && <p className="text-red-600 text-sm mt-1 font-medium">{erroresValidacion.duracionPorAlumno}</p>}
               </div>
 
               <div>
@@ -498,12 +592,19 @@ export default function AgendaProfesor() {
                 <input
                   type="number"
                   value={formData.cupoMaximo}
-                  onChange={(e) => setFormData({...formData, cupoMaximo: e.target.value})}
+                  onChange={(e) => {
+                    setFormData({...formData, cupoMaximo: e.target.value});
+                    if (erroresValidacion.cupoMaximo) {
+                      setErroresValidacion({...erroresValidacion, cupoMaximo: ''});
+                    }
+                  }}
                   min="1"
+                  max="500"
                   placeholder="Ej: 40"
-                  className="w-full px-4 py-2 border rounded"
+                  className={`w-full px-4 py-2 border rounded ${erroresValidacion.cupoMaximo ? 'border-red-500' : 'border-gray-300'}`}
                   required
                 />
+                {erroresValidacion.cupoMaximo && <p className="text-red-600 text-sm mt-1 font-medium">{erroresValidacion.cupoMaximo}</p>}
               </div>
 
               <div>
@@ -591,19 +692,6 @@ export default function AgendaProfesor() {
                             🕐 Horario: {new Date(insc.horarioAsignado.inicio).toLocaleString('es-CL')} - 
                             {new Date(insc.horarioAsignado.fin).toLocaleTimeString('es-CL', {hour: '2-digit', minute: '2-digit'})}
                           </p>
-                          
-                          {insc.miembrosGrupo?.length > 0 && (
-                            <div className="mt-2 p-2 bg-blue-50 rounded">
-                              <p className="text-sm font-medium text-blue-800">
-                                👥 Grupo de {insc.cantidadMiembros} personas:
-                              </p>
-                              <ul className="text-sm text-blue-700 ml-4 list-disc">
-                                {insc.miembrosGrupo.map((miembro, i) => (
-                                  <li key={i}>{miembro.alumnoEmail}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
                         </div>
                         <span className={`px-3 py-1 rounded-full text-sm ${
                           insc.estado === 'confirmado' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'

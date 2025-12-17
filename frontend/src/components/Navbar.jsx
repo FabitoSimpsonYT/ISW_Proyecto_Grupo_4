@@ -1,11 +1,19 @@
 import { useAuth } from "../context/AuthContext.jsx";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { logout } from "../services/auth.service.js";
 
 const Navbar = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(true);
+
+  const handleLogout = async () => {
+    await logout();
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/');
+  };
 
   return (
     <>
@@ -32,7 +40,7 @@ const Navbar = () => {
         </h1>
 
         {/* BOTONES */}
-        <div className="flex flex-col gap-4 flex-1">
+        <div className="flex flex-col gap-4 flex-1 overflow-y-auto">
 
           {/* MI AGENDA */}
           <button
@@ -78,6 +86,14 @@ const Navbar = () => {
             Ver Perfil
           </button>
         </div>
+
+        {/* CERRAR SESIÓN - AL FINAL */}
+        <button
+          onClick={handleLogout}
+          className="w-full px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition font-medium border border-red-700"
+        >
+          🚪 Cerrar Sesión
+        </button>
       </nav>
 
       {/* OVERLAY PARA CERRAR AL HACER CLICK */}

@@ -69,7 +69,14 @@ export const evaluacionService = {
             return { data: { eventos: [] } };
         }
     },
-    crear: createEvaluacion,
+    crear: async (data) => {
+        try {
+            const response = await axios.post("/evaluaciones/eventos/crear", data);
+            return response.data;
+        } catch (error) {
+            throw error;
+        }
+    },
     actualizar: updateEvaluacion,
     eliminar: deleteEvaluacion,
 };
