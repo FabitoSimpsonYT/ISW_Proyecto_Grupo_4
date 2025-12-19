@@ -4,6 +4,7 @@ import { Ramos } from "../entities/ramos.entity.js";
 import { Profesor } from "../entities/profesor.entity.js";
 import { User } from "../entities/user.entity.js";
 import { Alumno } from "../entities/alumno.entity.js";
+import { Seccion } from "../entities/seccion.entity.js";
 
 const ramosRepository = AppDataSource.getRepository(Ramos);
 const profesorRepository = AppDataSource.getRepository(Profesor);
@@ -53,9 +54,12 @@ export async function createRamo(ramoData) {
 }
 
 export async function getAllRamos() {
-  return await ramosRepository.find({
-    relations: ["profesor", "profesor.user", "secciones"]
-  });
+  return await ramosRepository
+    .createQueryBuilder('ramo')
+    .leftJoinAndSelect('ramo.profesor', 'profesor')
+    .leftJoinAndSelect('profesor.user', 'user')
+    .leftJoinAndSelect('ramo.secciones', 'secciones')
+    .getMany();
 }
 
 export async function getRamoById(id) {
@@ -123,10 +127,12 @@ export async function updateRamo(codigo, ramoData) {
     }
   }
 
-  await ramosRepository.update({ codigo }, {
-    ...ramoData,
-    profesor: profesor
-  });
+  const updateData = {};
+  if (ramoData.nombre) updateData.nombre = ramoData.nombre;
+  if (ramoData.codigo) updateData.codigo = ramoData.codigo;
+  if (profesor) updateData.profesor = profesor;
+
+  await ramosRepository.update({ codigo }, updateData);
 
   const updatedRamo = await ramosRepository.findOne({
     where: { codigo: ramoData.codigo || codigo },
@@ -269,3 +275,184 @@ export async function getRamosByUser(userId, role) {
 
   throw new BadRequestError("Rol no válido para esta operación");
 }
+
+export async function inscribirAlumnoEnRamo(rutAlumno, seccionId, codigoRamo, userId, userRole) {
+  const userRepository = AppDataSource.getRepository(User);
+  const alumnoRepository = AppDataSource.getRepository(Alumno);
+  const seccionRepository = AppDataSource.getRepository(Seccion);
+
+  // Primero: Validar que el ramo existe
+  const ramo = await getRamoByCodigo(codigoRamo);
+
+  // Segundo: Obtener y validar la sección
+  const seccion = await seccionRepository.findOne({
+    where: { id: seccionId, ramo: { id: ramo.id } },
+    relations: ["ramo", "alumnos"]
+  });
+
+  if (!seccion) {
+    throw new NotFoundError("Sección no encontrada para el ramo especificado");
+  }
+
+  // Validar permisos: si es profesor, debe ser el profesor del ramo
+  if (userRole === "profesor") {
+    if (ramo.profesor.id !== userId) {
+      throw new BadRequestError("No tienes permiso para modificar esta sección");
+    }
+  }
+
+  // Tercero: Validar que el alumno existe
+  const userAlumno = await userRepository.findOne({
+    where: { rut: rutAlumno, role: "alumno" }
+  });
+
+  if (!userAlumno) {
+    throw new BadRequestError("No se encontró un alumno con el RUT especificado");
+  }
+
+  const alumno = await alumnoRepository.findOne({
+    where: { id: userAlumno.id },
+    relations: ["user"]
+  });
+
+  if (!alumno) {
+    throw new BadRequestError("No se encontró el perfil de alumno");
+  }
+
+  // Verificar si el alumno ya está inscrito en otra sección del mismo ramo
+  const otrasSeccionesDelRamo = await seccionRepository.find({
+    where: { ramo: { id: ramo.id } },
+    relations: ["alumnos"]
+  });
+
+  for (const seccionOtra of otrasSeccionesDelRamo) {
+    if (seccionOtra.id !== seccionId && seccionOtra.alumnos.some(a => a.id === alumno.id)) {
+      // Desinscribir del otra sección
+      seccionOtra.alumnos = seccionOtra.alumnos.filter(a => a.id !== alumno.id);
+      await seccionRepository.save(seccionOtra);
+    }
+  }
+
+  // Validar que el alumno no esté ya inscrito en la sección actual
+  if (seccion.alumnos && seccion.alumnos.some(a => a.id === alumno.id)) {
+    return {
+      ramo: ramo.nombre,
+      seccion: seccion.numero,
+      alumno: alumno.user.nombres + " " + alumno.user.apellidoPaterno + " " + alumno.user.apellidoMaterno,
+      mensaje: "El alumno ya estaba inscrito en esta sección"
+    };
+  }
+
+  // Inscribir alumno en la nueva sección
+  if (!seccion.alumnos) {
+    seccion.alumnos = [];
+  }
+  seccion.alumnos.push(alumno);
+  await seccionRepository.save(seccion);
+
+  return {
+    ramo: ramo.nombre,
+    seccion: seccion.numero,
+    alumno: alumno.user.nombres + " " + alumno.user.apellidoPaterno + " " + alumno.user.apellidoMaterno
+  };
+}
+
+export async function createSeccion(seccionData) {
+  const seccionRepository = AppDataSource.getRepository(Seccion);
+  const userRepository = AppDataSource.getRepository(User);
+  const alumnoRepository = AppDataSource.getRepository(Alumno);
+
+  // Validar que el ramo existe
+  const ramo = await getRamoByCodigo(seccionData.codigoRamo);
+
+  // Validar que no existe una sección con ese número en el ramo
+  const existingSeccion = await seccionRepository.findOne({
+    where: { numero: seccionData.numero, ramo: { codigo: seccionData.codigoRamo } },
+    relations: ["ramo"]
+  });
+
+  if (existingSeccion) {
+    throw new BadRequestError(`Ya existe una sección ${seccionData.numero} para el ramo ${seccionData.codigoRamo}`);
+  }
+
+  // Crear la sección
+  const newSeccion = seccionRepository.create({
+    numero: seccionData.numero,
+    ramo: ramo,
+    alumnos: []
+  });
+
+  // Si se proporcionan RUTs de alumnos, inscribirse
+  if (seccionData.alumnosRut && seccionData.alumnosRut.length > 0) {
+    const alumnos = [];
+
+    for (const rut of seccionData.alumnosRut) {
+      const user = await userRepository.findOne({
+        where: { rut, role: "alumno" }
+      });
+
+      if (!user) {
+        throw new BadRequestError(`No se encontró un alumno con el RUT: ${rut}`);
+      }
+
+      const alumno = await alumnoRepository.findOne({
+        where: { id: user.id }
+      });
+
+      if (!alumno) {
+        throw new BadRequestError(`No se encontró el perfil de alumno para el RUT: ${rut}`);
+      }
+
+      alumnos.push(alumno);
+    }
+
+    newSeccion.alumnos = alumnos;
+  }
+
+  return await seccionRepository.save(newSeccion);
+}
+
+export async function getSeccionesByRamo(codigoRamo) {
+  const seccionRepository = AppDataSource.getRepository(Seccion);
+  
+  const secciones = await seccionRepository.find({
+    where: { ramo: { codigo: codigoRamo } },
+    relations: ["ramo", "alumnos", "alumnos.user"]
+  });
+
+  if (!secciones || secciones.length === 0) {
+    throw new NotFoundError(`No se encontraron secciones para el ramo ${codigoRamo}`);
+  }
+
+  return secciones.map(seccion => ({
+    id: seccion.id,
+    numero: seccion.numero,
+    ramo: {
+      codigo: seccion.ramo.codigo,
+      nombre: seccion.ramo.nombre
+    },
+    alumnos: seccion.alumnos.map(alumno => ({
+      id: alumno.id,
+      rut: alumno.user.rut,
+      nombres: alumno.user.nombres,
+      apellidoPaterno: alumno.user.apellidoPaterno
+    }))
+  }));
+}
+
+export async function deleteSeccion(seccionId, codigoRamo) {
+  const seccionRepository = AppDataSource.getRepository(Seccion);
+
+  const seccion = await seccionRepository.findOne({
+    where: { id: seccionId, ramo: { codigo: codigoRamo } },
+    relations: ["ramo"]
+  });
+
+  if (!seccion) {
+    throw new NotFoundError(`No se encontró la sección con ID ${seccionId} para el ramo ${codigoRamo}`);
+  }
+
+  await seccionRepository.remove(seccion);
+  return { message: "Sección eliminada exitosamente" };
+}
+

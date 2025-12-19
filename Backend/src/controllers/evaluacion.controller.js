@@ -130,3 +130,106 @@ export async function deleteEvaluacion(req, res) {
     handleErrorServer(res,500, "Error al eliminar evaluación", error.message);
   }
 }
+
+export async function getMisEventos(req, res) {
+  try {
+    const user = req.user;
+    const { fechaInicio, fechaFin } = req.query;
+
+    if (user.role !== "profesor") {
+      return handleErrorClient(res, 403, "Solo profesores pueden acceder a esta funcionalidad");
+    }
+
+    // Simulamos obtener eventos para el rango de fechas
+    const eventos = await getAllEvaluacionesService(user);
+    
+    const eventosFiltrados = (eventos || []).filter(evento => {
+      if (!evento.fechaProgramada) return false;
+      const fecha = new Date(evento.fechaProgramada);
+      const inicio = fechaInicio ? new Date(fechaInicio) : null;
+      const fin = fechaFin ? new Date(fechaFin) : null;
+      
+      if (inicio && fecha < inicio) return false;
+      if (fin && fecha > fin) return false;
+      return true;
+    }).map(ev => ({
+      id: ev.id,
+      nombre: ev.titulo,
+      descripcion: ev.contenidos,
+      fechaInicio: ev.fechaProgramada,
+      fechaFin: ev.fechaProgramada,
+      estado: ev.aplicada ? 'confirmado' : 'pendiente',
+      ramoId: ev.ramo_id,
+      cupoMaximo: 40,
+      duracionPorAlumno: null
+    }));
+
+    handleSuccess(res, 200, "Eventos obtenidos exitosamente", { eventos: eventosFiltrados });
+  } catch (error) {
+    handleErrorServer(res, 500, "Error al obtener eventos", error.message);
+  }
+}
+
+export async function crearEventoFlexible(req, res) {
+  try {
+    const user = req.user;
+
+    if (user.role !== "profesor") {
+      return handleErrorClient(res, 403, "Solo el profesor puede crear eventos");
+    }
+
+    const {
+      nombre,
+      descripcion,
+      fechaInicio,
+      fechaFin,
+      tipoEvento,
+      modalidad,
+      linkOnline,
+      sala,
+      ramoId,
+      seccionId,
+      duracionPorAlumno,
+      cupoMaximo,
+      tipoInscripcion,
+      tamanioGrupo,
+      alumnosEmails
+    } = req.body;
+
+    // Validaciones básicas
+    if (!nombre || !fechaInicio || !fechaFin) {
+      return handleErrorClient(res, 400, "Nombre, fecha inicio y fecha fin son obligatorios");
+    }
+
+    // Convertir a formato que el servicio espera
+    const nuevaEvaluacion = await createEvaluacionService({
+      titulo: nombre,
+      fechaProgramada: fechaInicio,
+      ponderacion: 0,
+      contenidos: descripcion || '',
+      ramo_id: ramoId || null,
+      creadaPor: user.id,
+      aplicada: false
+    });
+
+    handleSuccess(res, 201, "Evento creado exitosamente", { 
+      evaluacion: nuevaEvaluacion,
+      evento: {
+        id: nuevaEvaluacion.id,
+        nombre: nuevaEvaluacion.titulo,
+        descripcion: nuevaEvaluacion.contenidos,
+        fechaInicio: nuevaEvaluacion.fechaProgramada,
+        fechaFin: nuevaEvaluacion.fechaProgramada,
+        estado: 'pendiente',
+        modalidad,
+        sala,
+        linkOnline,
+        cupoMaximo,
+        duracionPorAlumno
+      }
+    });
+  } catch (error) {
+    console.error("Error al crear evento flexible:", error);
+    handleErrorServer(res, 500, "Error al crear evento", error.message);
+  }
+}

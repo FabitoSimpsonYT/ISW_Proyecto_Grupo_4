@@ -1,6 +1,8 @@
 import { AppDataSource } from "../config/configDb.js";
 import { Pauta } from "../entities/pauta.entity.js";
 import { Evaluacion } from "../entities/evaluaciones.entity.js";
+import { notificarAlumnos } from "./notificacionuno.service.js";
+import { Ramos } from "../entities/ramos.entity.js";
 
 const pautaRepository = AppDataSource.getRepository(Pauta);
 const evaluacionRepository = AppDataSource.getRepository(Evaluacion);
@@ -17,7 +19,9 @@ export async function createPautaService(data, evaluacionId) {
     } else {
         pauta = pautaRepository.create({...data});
     }
+    console.log("Estado de la pauta antes de guardar:", pauta.publicada);
     const savedPauta = await pautaRepository.save(pauta);
+    console.log("Estado de la pauta después de guardar:", savedPauta.publicada);
     return savedPauta;
 }
 export async function getPautaByIdService(id, user){
@@ -35,18 +39,56 @@ export async function getPautaByIdService(id, user){
 
 export async function updatePautaService(id, data, user) {
   const pauta = await pautaRepository.findOne({
-    where: {id},
+    where: { id },
     relations: ["evaluacion"],
   });
 
   if (!pauta) return { error: "Pauta no encontrada" };
   if (user.role !== "profesor") return { error: "No autorizado" };
-  if (pauta.evaluacion.estado !== "pendiente") {
-    return { error: "No puede modificar esta pauta en una evaluación aplicada" };
+
+  pauta.publicada = true;
+  const updatedPauta = await pautaRepository.save(pauta);
+  console.log("Estado de la pauta después de guardar:", updatedPauta.publicada);
+
+  
+  try {
+    const evaluacion = await evaluacionRepository.findOne({ where: { id: pauta.evaluacion.id }, relations: ["ramo"] });
+    const ramoId = evaluacion?.ramo?.id;
+
+    if (ramoId) {
+      const ramoRepo = AppDataSource.getRepository(Ramos);
+      const ramo = await ramoRepo.findOne({
+        where: { id: ramoId },
+        relations: ["secciones", "secciones.alumnos", "secciones.alumnos.user"],
+      });
+
+      const emails = [];
+      if (ramo && ramo.secciones && ramo.secciones.length > 0) {
+        ramo.secciones.forEach((seccion) => {
+          if (seccion.alumnos && seccion.alumnos.length > 0) {
+            seccion.alumnos.forEach((alumno) => {
+              if (alumno.user && alumno.user.email) emails.push(alumno.user.email);
+            });
+          }
+        });
+      }
+
+
+      const uniqueEmails = [...new Set(emails)];
+
+      const created = await notificarAlumnos(
+        uniqueEmails,
+        "Nueva pauta publicada",
+        `Se ha publicado la pauta para ${evaluacion.titulo}`,
+        evaluacion.id
+      );
+
+      console.log(`Notificaciones creadas: ${created.count || 0} alumnos notificados para ramo ${ramoId}`);
+    }
+  } catch (err) {
+    console.warn("Advertencia: no se pudieron notificar alumnos tras publicar la pauta:", err.message || err);
   }
 
-  Object.assign(pauta, data);
-  const updatedPauta = await pautaRepository.save(pauta);
   return updatedPauta;
 }
 
@@ -64,4 +106,12 @@ export async function deletePautaService(id, user) {
 
   await pautaRepository.remove(pauta);
   return { success: true };
+}
+export async function getAllPautasService(user) {
+  // Obtener todas las pautas; si es alumno, devolver solo las publicadas
+  const pautas = await pautaRepository.find({ relations: ["evaluacion"] });
+  if (user && user.role === "alumno") {
+    return pautas.filter(p => p.publicada === true);
+  }
+  return pautas;
 }

@@ -6,6 +6,9 @@ import ApelacionesPage from '@pages/ApelacionesPage';
 import VerApelacionCompleta from '@pages/VerApelacionCompleta';
 import Apelaciones from '@pages/apelaciones';
 import MisApelaciones from '@pages/MisApelaciones';
+import MiAgenda from '@pages/MiAgenda';
+import GestionRamosPage from '@pages/GestionRamosPage';
+import GestionUsuariosPage from '@pages/GestionUsuariosPage';
 import Error404 from '@pages/Error404';
 import Root from '@pages/Root';
 import '@styles/styles.css';
@@ -32,8 +35,16 @@ const router = createBrowserRouter([
 
       { path: "/apelaciones-profesor", element: <ApelacionesProfesor /> },
 
-      { path: "/profesor/apelacion/:id", element: <VerApelacionCompleta /> }
+      { path: "/profesor/apelacion/:id", element: <VerApelacionCompleta /> },
 
+      // MI AGENDA
+      { path: '/mi-agenda', element: <MiAgenda /> },
+
+      // GESTIÓN DE RAMOS (solo admin y jefe de carrera)
+      { path: '/ramos', element: <GestionRamosPage /> },
+
+      // GESTIÓN DE USUARIOS (solo admin)
+      { path: '/usuarios', element: <GestionUsuariosPage /> }
     ]
   }
 ]);

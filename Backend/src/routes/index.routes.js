@@ -12,7 +12,8 @@ import notificacionRoutes from "./notificacion.routes.js";
 import eventsRoutes from "./events.routes.js";
 import bookingRoutes from "./booking.routes.js";
 import agendamientosRoutes from "./agendamientos.routes.js";
-import apelacionesRoutes from "./apelaciones.routes.js";
+import apelacionesRoutes from "./apelacion.routes.js";
+import inscripcionesRoutes from "./inscripciones.routes.js";
 
 export function routerApi(app) {
   const router = Router();
@@ -32,4 +33,5 @@ export function routerApi(app) {
   router.use("/bookings", bookingRoutes);
   router.use("/agendamientos", agendamientosRoutes);
   router.use("/apelaciones", apelacionesRoutes);
+  router.use("/inscripciones", inscripcionesRoutes);
 }

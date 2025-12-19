@@ -24,7 +24,7 @@ router.post("/",
 router.get("/", 
   authMiddleware,
   checkRole(["admin", "profesor", "alumno"]), 
-  getAlumnoByIdHandler
+  getAllAlumnosHandler
 );
 
 router.get("/:id", 

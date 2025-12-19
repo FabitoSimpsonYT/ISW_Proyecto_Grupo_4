@@ -9,19 +9,42 @@ import {
   updateRamoHandler,
   deleteRamoHandler,
   inscribirAlumno,
-  getMisRamosHandler
+  getMisRamosHandler,
+  createSeccionHandler,
+  getSeccionesByRamoHandler,
+  deleteSeccionHandler
 } from "../controllers/ramos.controller.js";
 import { validateRequest } from "../middleware/validation.middleware.js";
-import { createRamoValidation, updateRamoValidation } from "../validations/ramos.validation.js";
+import { createRamoValidation, updateRamoValidation, createSeccionValidation } from "../validations/ramos.validation.js";
 
 const router = Router();
 
 router.use(authMiddleware);
 
 router.post("/", 
-  checkRole(["admin"]),
+  checkRole(["admin", "jefecarrera"]),
   validateRequest(createRamoValidation), 
   createRamoHandler
+);
+
+router.post("/inscribir/:codigoRamo/:seccionId", 
+  checkRole(["profesor", "jefecarrera", "admin"]), 
+  inscribirAlumno
+);
+
+router.post("/secciones", 
+  checkRole(["profesor", "admin", "jefecarrera"]),
+  validateRequest(createSeccionValidation),
+  createSeccionHandler
+);
+
+router.get("/secciones/:codigo",
+  getSeccionesByRamoHandler
+);
+
+router.delete("/secciones/:codigoRamo/:seccionId",
+  checkRole(["profesor", "admin", "jefecarrera"]),
+  deleteSeccionHandler
 );
 
 router.get("/", 
@@ -29,7 +52,7 @@ router.get("/",
 );
 
 router.get("/misRamos",
-  checkRole(["alumno", "profesor"]),
+  checkRole(["alumno", "profesor", "jefecarrera"]),
   getMisRamosHandler
 );
 
@@ -37,20 +60,17 @@ router.get("/:codigo",
   getRamoByCodigoHandler
 );
 
-router.put("/:codigo", 
-  checkRole(["admin"]),
+router.patch("/:codigo", 
+  checkRole(["admin", "jefecarrera"]),
   validateRequest(updateRamoValidation), 
   updateRamoHandler
 );
 
 router.delete("/:codigo", 
-  checkRole(["admin"]), 
+  checkRole(["admin", "jefecarrera"]), 
   deleteRamoHandler
 );
 
-router.post("/inscribir", 
-  checkRole(["profesor", "admin"]), 
-  inscribirAlumno
-);
+
 
 export default router;

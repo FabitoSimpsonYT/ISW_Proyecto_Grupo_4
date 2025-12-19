@@ -4,7 +4,10 @@ import {
     getAllAdmins,
     getAdminById,
     updateAdmin,
-    deleteAdmin
+    deleteAdmin,
+    promoverProfesorAJefeCarrera,
+    degradarJefeCarreraAProfesor,
+    getJefeCarreraActual
 } from "../services/admin.service.js";
 import { createAdminValidation, updateAdminValidation } from "../validations/admin.validation.js";
 
@@ -111,4 +114,66 @@ export async function deleteAdminHandler(req, res) {
         console.error("Error al eliminar administrador: ", error);
         res.status(500).json({ message: "Error al eliminar administrador." });
     }
+}
+
+export async function promoverProfesorAJefeCarreraHandler(req, res) {
+    try {
+        const { rutProfesor } = req.body;
+        
+        if (!rutProfesor) {
+            return res.status(400).json({ message: "El RUT del profesor es requerido" });
+        }
+        
+        const profesorPromovido = await promoverProfesorAJefeCarrera(rutProfesor);
+
+        res.status(200).json({
+            message: "Profesor promovido a jefe de carrera exitosamente",
+            data: profesorPromovido
+        })
+
+    } catch (error) {
+        if (error instanceof NotFoundError) {
+            return res.status(404).json({ message: error.message })
+        }
+        if (error instanceof BadRequestError) {
+            return res.status(400).json({ message: error.message })
+        }
+        console.error("Error al promover profesor: ", error);
+        res.status(500).json({ message: "Error al promover profesor." })
+    }
+}
+
+export async function degradarJefeCarreraAProfesorHandler (req, res) {
+    try {
+        const degradarJefeCarrera = await degradarJefeCarreraAProfesor();
+        res.status(200).json({
+            message: "Jefe de carrera degradado a profesor",
+            data: degradarJefeCarrera
+        });
+    } catch (error) {
+        if (error instanceof NotFoundError) {
+            return res.status(404).json({ message: error.message });
+        }
+        if (error instanceof BadRequestError) {
+            return res.status(400).json({ message: error.message });
+        }
+        console.error("Error al degradar jefe de carrera: ", error);
+        res.status(500).json({ message: "Error al degradar jefe de carrera." });
+    }
+}
+
+export async function getJefeCarreraActualHandler(req, res) {
+  try {
+    const jefeCarrera = await getJefeCarreraActual();
+    res.status(200).json({
+      message: "Jefe de carrera actual encontrado",
+      data: jefeCarrera
+    });
+  } catch (error) {
+    if (error instanceof NotFoundError) {
+      return res.status(404).json({ message: error.message });
+    }
+    console.error("Error al obtener jefe de carrera: ", error);
+    res.status(500).json({ message: "Error al obtener jefe de carrera." });
+  }
 }

@@ -1,15 +1,34 @@
 import "dotenv/config";
-import { connectDB } from "./config/configDb.js";
-import { initDB } from "./config/initDb.js";
+import express from "express";
+import morgan from "morgan";
+import cors from "cors";
+import dotenv from "dotenv";
+import { AppDataSource, connectDB } from "./config/configDb.js";
+import { routerApi } from "./routes/index.routes.js";
 import { HOST, PORT } from "./config/configEnv.js";
-import app from "./app.js";
+import initDB from "./config/initDB.js";
 
+dotenv.config();
+const app = express();
+app.use(express.json());
+app.use(morgan("dev"));
+
+// Configurar CORS: permitir el origen del frontend y credenciales (cookies)
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+const corsOptions = process.env.NODE_ENV === "development"
+  ? { origin: true, credentials: true }
+  : { origin: FRONTEND_URL, credentials: true };
+app.use(cors(corsOptions));
+app.get("/", (req, res) => {
+  res.send("¡Bienvenido a mi API REST con TypeORM!");
+});
 
 connectDB()
   .then(() => {
     initDB()
       .then(() => {
-        
+        routerApi(app);
+
         app.listen(PORT, () => {
           console.log(`Servidor iniciado en http://${HOST}:${PORT}`);
         });

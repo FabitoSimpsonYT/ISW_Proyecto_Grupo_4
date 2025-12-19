@@ -5,12 +5,13 @@ import {
   getRamoById,
   getRamoByCodigo,
   updateRamo,
-  deleteRamo
+  deleteRamo,
+  getRamosByUser,
+  inscribirAlumnoEnRamo,
+  createSeccion,
+  getSeccionesByRamo,
+  deleteSeccion
 } from "../services/ramos.service.js";
-import { AppDataSource } from "../config/configDb.js";
-import { Seccion } from "../entities/seccion.entity.js";
-import { Alumno } from "../entities/alumno.entity.js";
-import { User } from "../entities/user.entity.js";
 
 export async function getAllRamosHandler(req, res) {
   try {
@@ -127,6 +128,12 @@ export async function deleteRamoHandler(req, res) {
     if (error instanceof NotFoundError) {
       return res.status(404).json({ message: error.message });
     }
+    // Verificar si es error de llave foránea (violación de integridad)
+    if (error.code === '23503' || error.driverError?.code === '23503') {
+      return res.status(409).json({ 
+        message: "No se puede eliminar el ramo porque tiene evaluaciones asociadas. Elimina las evaluaciones primero." 
+      });
+    }
     console.error("Error al eliminar ramo: ", error);
     res.status(500).json({ message: "Error al eliminar ramo." });
   }
@@ -136,68 +143,75 @@ export async function inscribirAlumno(req, res) {
     try {
         const userId = req.user.id;
         const userRole = req.user.role;
-        const { rutAlumno, codigoRamo } = req.body;
+        const { codigoRamo, seccionId } = req.params;
+        const { rutAlumno } = req.body;
 
-        if (!rutAlumno || !codigoRamo) {
-            return handleErrorClient(res, 400, "Se requiere el RUT del alumno y el código del ramo");
+        if (!rutAlumno) {
+            return handleErrorClient(res, 400, "Se requiere el RUT del alumno");
         }
 
-        const userRepository = AppDataSource.getRepository(User);
-        const alumnoRepository = AppDataSource.getRepository(Alumno);
-
-        const userAlumno = await userRepository.findOne({
-            where: { rut: rutAlumno, role: "alumno" }
-        });
-
-        if (!userAlumno) {
-            return handleErrorClient(res, 404, "No se encontró un alumno con el RUT especificado");
-        }
-
-        const alumno = await alumnoRepository.findOne({
-            where: { id: userAlumno.id },
-            relations: ["user"]
-        });
-
-        if (!alumno) {
-            return handleErrorClient(res, 404, "No se encontró el perfil de alumno");
-        }
-
-        const ramo = await getRamoByCodigo(codigoRamo);
-
-        if (userRole === "profesor") {
-            if (ramo.profesor.id !== userId) {
-                return handleErrorClient(res, 403, "No tienes permiso para modificar este ramo");
-            }
-        }
-
-        if (!ramo.secciones || ramo.secciones.length === 0) {
-            const seccionRepository = AppDataSource.getRepository(Seccion);
-            const nuevaSeccion = seccionRepository.create({
-                numero: 1,
-                ramo: ramo
-            });
-            await seccionRepository.save(nuevaSeccion);
-            ramo.secciones = [nuevaSeccion];
-        }
-
-        const seccion = ramo.secciones[0];
-        if (!seccion.alumnos) {
-            seccion.alumnos = [];
-        }
-
-        if (seccion.alumnos.some(a => a.id === alumno.id)) {
-            return handleErrorClient(res, 400, "El alumno ya está inscrito en este ramo");
-        }
-
-        seccion.alumnos.push(alumno);
-        await AppDataSource.getRepository(Seccion).save(seccion);
-
-        handleSuccess(res, 200, "Alumno inscrito exitosamente", {
-            ramo: ramo.nombre,
-            alumno: alumno.user.nombres + " " + alumno.user.apellidoPaterno
-        });
+        const result = await inscribirAlumnoEnRamo(rutAlumno, parseInt(seccionId), codigoRamo, userId, userRole);
+        handleSuccess(res, 200, "Alumno inscrito exitosamente", result);
 
     } catch (error) {
+        if (error instanceof BadRequestError) {
+            return handleErrorClient(res, 400, error.message);
+        }
+        if (error instanceof NotFoundError) {
+            return handleErrorClient(res, 404, error.message);
+        }
         handleErrorServer(res, 500, "Error al inscribir alumno", error.message);
+    }
+}
+
+export async function createSeccionHandler(req, res) {
+    try {
+        const newSeccion = await createSeccion(req.body);
+        res.status(201).json({
+            message: "Sección creada exitosamente",
+            data: newSeccion
+        });
+    } catch (error) {
+        if (error instanceof BadRequestError) {
+            return handleErrorClient(res, 400, error.message);
+        }
+        if (error instanceof NotFoundError) {
+            return handleErrorClient(res, 404, error.message);
+        }
+        console.error("Error al crear sección: ", error);
+        handleErrorServer(res, 500, "Error al crear sección", error.message);
+    }
+}
+
+export async function getSeccionesByRamoHandler(req, res) {
+    try {
+        const { codigo } = req.params;
+        const secciones = await getSeccionesByRamo(codigo);
+        res.status(200).json({
+            message: "Secciones encontradas",
+            data: secciones
+        });
+    } catch (error) {
+        if (error instanceof NotFoundError) {
+            return handleErrorClient(res, 404, error.message);
+        }
+        console.error("Error al obtener secciones: ", error);
+        handleErrorServer(res, 500, "Error al obtener secciones", error.message);
+    }
+}
+
+export async function deleteSeccionHandler(req, res) {
+    try {
+        const { codigoRamo, seccionId } = req.params;
+        await deleteSeccion(parseInt(seccionId), codigoRamo);
+        res.status(200).json({
+            message: "Sección eliminada exitosamente"
+        });
+    } catch (error) {
+        if (error instanceof NotFoundError) {
+            return handleErrorClient(res, 404, error.message);
+        }
+        console.error("Error al eliminar sección: ", error);
+        handleErrorServer(res, 500, "Error al eliminar sección", error.message);
     }
 }

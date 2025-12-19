@@ -49,6 +49,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/apelaciones', apelacionRoutes);
+app.use('/api/evaluaciones', evaluacionesRoutes);
 
 // Middlewares finales
 app.use(notFound);

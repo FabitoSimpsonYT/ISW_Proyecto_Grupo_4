@@ -4,7 +4,10 @@ import {
   getAllAdminsHandler,
   getAdminByIdHandler,
   updateAdminHandler,
-  deleteAdminHandler
+  deleteAdminHandler,
+  promoverProfesorAJefeCarreraHandler,
+  degradarJefeCarreraAProfesorHandler,
+  getJefeCarreraActualHandler
 } from "../controllers/admin.controller.js";
 import { checkRole } from "../middleware/role.middleware.js";
 import { validateRequest } from "../middleware/validation.middleware.js";
@@ -37,6 +40,18 @@ router.put("/:id",
 
 router.delete("/:id", 
   deleteAdminHandler
+);
+
+router.post("/promover", 
+  promoverProfesorAJefeCarreraHandler
+);
+
+router.post("/degradar", 
+  degradarJefeCarreraAProfesorHandler
+);
+
+router.get("/jefe-carrera", 
+  getJefeCarreraActualHandler
 );
 
 export default router;

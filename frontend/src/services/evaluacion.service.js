@@ -58,3 +58,36 @@ export async function deleteEvaluacion(id) {
     }
     
 }
+
+// Objeto de servicio para compatibilidad con AgendaProfesor
+export const evaluacionService = {
+    obtenerMisEventos: async (params) => {
+        try {
+            const response = await axios.get("/evaluaciones/mis-eventos", { params });
+            return { data: response.data };
+        } catch (error) {
+            return { data: { eventos: [] } };
+        }
+    },
+    crear: async (data) => {
+        try {
+            const response = await axios.post("/evaluaciones/eventos/crear", data);
+            return response.data;
+        } catch (error) {
+            throw error;
+        }
+    },
+    actualizar: updateEvaluacion,
+    eliminar: deleteEvaluacion,
+};
+
+export const inscripcionService = {
+    obtenerPorEvento: async (eventoId) => {
+        try {
+            const response = await axios.get(`/inscripciones/evento/${eventoId}`);
+            return { data: response.data };
+        } catch (error) {
+            return { data: { inscripciones: [] } };
+        }
+    },
+};
