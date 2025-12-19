@@ -5,6 +5,7 @@ import {
     getAdminById,
     updateAdmin,
     deleteAdmin,
+    promoverProfesorAJefeCarrera,
     degradarJefeCarreraAProfesor,
     getJefeCarreraActual
 } from "../services/admin.service.js";
@@ -117,8 +118,13 @@ export async function deleteAdminHandler(req, res) {
 
 export async function promoverProfesorAJefeCarreraHandler(req, res) {
     try {
-        const { rut } = req.params;
-        const profesorPromovido = await promoverProfesorAJefeCarreraHandler (rut);
+        const { rutProfesor } = req.body;
+        
+        if (!rutProfesor) {
+            return res.status(400).json({ message: "El RUT del profesor es requerido" });
+        }
+        
+        const profesorPromovido = await promoverProfesorAJefeCarrera(rutProfesor);
 
         res.status(200).json({
             message: "Profesor promovido a jefe de carrera exitosamente",

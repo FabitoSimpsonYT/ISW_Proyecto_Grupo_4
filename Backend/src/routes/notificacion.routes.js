@@ -1,5 +1,5 @@
 import express from "express";
-import { getNotificaciones, markNotificacionLeida } from "../controllers/notificacion.controller.js";
+import { getNotificaciones, markNotificacionLeida } from "../controllers/notificacionuno.controller.js";
 import {authMiddleware} from "../middleware/auth.middleware.js"
 
 const router = express.Router();

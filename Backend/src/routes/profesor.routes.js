@@ -23,7 +23,7 @@ router.post("/",
 
 router.get("/", 
   checkRole(["admin", "profesor", "jefecarrera"]), 
-  getProfesorByIdHandler
+  getAllProfesoresHandler
 );
 
 router.get("/:id", 

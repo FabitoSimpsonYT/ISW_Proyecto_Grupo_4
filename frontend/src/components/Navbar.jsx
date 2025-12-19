@@ -68,6 +68,26 @@ const Navbar = () => {
             </button>
           )}
 
+          {/* GESTIONAR RAMOS - SOLO ADMIN Y JEFE DE CARRERA */}
+          {(user?.role === "admin" || user?.role === "jefecarrera") && (
+            <button
+              onClick={() => navigate("/ramos")}
+              className="px-4 py-2 border border-white rounded-lg hover:bg-white hover:text-[#0E2C66] transition font-medium"
+            >
+              📚 Gestionar Ramos
+            </button>
+          )}
+
+          {/* GESTIÓN DE USUARIOS - SOLO ADMIN */}
+          {user?.role === "admin" && (
+            <button
+              onClick={() => navigate("/usuarios")}
+              className="px-4 py-2 border border-white rounded-lg hover:bg-white hover:text-[#0E2C66] transition font-medium"
+            >
+              👥 Gestionar Usuarios
+            </button>
+          )}
+
           {/* ALUMNO */}
           {user?.role === "alumno" && (
             <button

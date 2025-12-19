@@ -19,7 +19,7 @@ export async function loginUser(email, password) {
     email: user.email,
     role: user.role 
   };
-  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "1h" });
+  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "9h" });
 
   delete user.password;
   return { user, token };

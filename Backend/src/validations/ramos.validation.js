@@ -41,6 +41,13 @@ export const updateRamoValidation = Joi.object({
     .messages({
       "string.pattern.base": "El código debe tener el formato ABC1234 (3 letras mayúsculas seguidas de 4 números)"
     }),
+  rutProfesor: Joi.string()
+    .pattern(/^\d{7,8}-[\dkK]$/)
+    .allow(null)
+    .messages({
+      "string.pattern.base": "El RUT debe tener uno de estos formatos: 12345678-9, 12345678-K, 1234567-8 o 1234567-K",
+      "string.empty": "El RUT no puede estar vacío"
+    }),
   profesorId: Joi.number()
     .integer()
     .positive()

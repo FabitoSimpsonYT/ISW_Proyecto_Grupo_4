@@ -54,9 +54,12 @@ export async function createRamo(ramoData) {
 }
 
 export async function getAllRamos() {
-  return await ramosRepository.find({
-    relations: ["profesor", "profesor.user", "secciones"]
-  });
+  return await ramosRepository
+    .createQueryBuilder('ramo')
+    .leftJoinAndSelect('ramo.profesor', 'profesor')
+    .leftJoinAndSelect('profesor.user', 'user')
+    .leftJoinAndSelect('ramo.secciones', 'secciones')
+    .getMany();
 }
 
 export async function getRamoById(id) {

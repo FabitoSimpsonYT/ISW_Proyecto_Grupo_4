@@ -133,3 +133,60 @@ export async function deleteAdmin(id) {
 
   return { message: "Administrador eliminado correctamente" };
 }
+
+export async function promoverProfesorAJefeCarrera(rutProfesor) {
+  const profesor = await userRepository.findOne({
+    where: { rut: rutProfesor, role: "profesor" }
+  });
+
+  if(!profesor){
+    throw new NotFoundError("Profesor no encontrado")
+  }
+
+  const existeJefeCarrera = await userRepository.findOne({
+    where: { role: "jefecarrera" }
+  });
+
+  if (existeJefeCarrera && existeJefeCarrera.id !== profesor.id) {
+    throw new BadRequestError("Ya existe un jefe de carrera. Debes degradar el actual primero.");
+  }
+
+  profesor.role = "jefecarrera";
+  await userRepository.save(profesor);
+
+  const result = { ...profesor };
+  delete result.password;
+  return result;
+
+}
+
+export async function degradarJefeCarreraAProfesor() {
+  const jefeCarrera = await userRepository.findOne({
+    where: { role: "jefecarrera" }
+  });
+
+  if (!jefeCarrera) {
+    throw new NotFoundError("Jefe de carrera no encontrado");
+  }
+
+  jefeCarrera.role = "profesor";
+  await userRepository.save(jefeCarrera);
+
+  const result = { ...jefeCarrera };
+  delete result.password;
+  return result;
+}
+
+export async function getJefeCarreraActual(){
+  const jefeCarrera = await userRepository.findOne({
+    where: { role: "jefecarrera" }
+  });
+
+  if (!jefeCarrera) {
+    throw new NotFoundError("No hay un jefe de carrera asignado");
+  }
+
+  const result = { ...jefeCarrera };
+  delete result.password;
+  return result;
+}
