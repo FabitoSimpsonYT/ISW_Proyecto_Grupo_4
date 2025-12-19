@@ -3,6 +3,7 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import Login from '@pages/Login';
 import Home from '@pages/Home';
 import ApelacionesPage from '@pages/ApelacionesPage';
+import VerApelacionCompleta from '@pages/VerApelacionCompleta';
 import Apelaciones from '@pages/apelaciones';
 import MisApelaciones from '@pages/MisApelaciones';
 import MiAgenda from '@pages/MiAgenda';
@@ -11,6 +12,7 @@ import GestionUsuariosPage from '@pages/GestionUsuariosPage';
 import Error404 from '@pages/Error404';
 import Root from '@pages/Root';
 import '@styles/styles.css';
+import ApelacionesProfesor from './pages/ApelacionesProfesor';
 
 const router = createBrowserRouter([
   {
@@ -30,6 +32,10 @@ const router = createBrowserRouter([
 
       // MIS APELACIONES (esta se muestra dentro de ApelacionesPage)
       { path: '/apelaciones/mis', element: <MisApelaciones /> },
+
+      { path: "/apelaciones-profesor", element: <ApelacionesProfesor /> },
+
+      { path: "/profesor/apelacion/:id", element: <VerApelacionCompleta /> },
 
       // MI AGENDA
       { path: '/mi-agenda', element: <MiAgenda /> },

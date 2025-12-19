@@ -20,6 +20,10 @@ export const Apelacion = new EntitySchema({
       type: String,
       nullable: false,
     },
+    archivo: {                    
+      type: String,
+      nullable: true,
+    },
     estado: {
       type: String,
       enum: ["pendiente", "aceptada", "rechazada"],

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 export default function MisApelaciones() {
   const [apelaciones, setApelaciones] = useState(null);
+  const [expandedRows, setExpandedRows] = useState({});
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -14,6 +15,13 @@ export default function MisApelaciones() {
     load();
   }, []);
 
+  const toggleExpand = (index) => {
+    setExpandedRows((prev) => ({
+      ...prev,
+      [index]: !prev[index],
+    }));
+  };
+
   if (apelaciones === null)
     return <p className="text-white">Cargando apelaciones...</p>;
 
@@ -21,62 +29,97 @@ export default function MisApelaciones() {
     return <p className="text-[#0E2C66] ml-64 p-6">No tienes apelaciones.</p>;
 
   return (
-    <div className="flex flex-col w-full ml-64 p-8 min-h-screen bg-[#E6F3FF]">
+    <div className="p-6 bg-[#e9f7fb] min-h-screen ml-[250px]">
 
-      {/* ENCABEZADO */}
-      <div className="bg-[#173b61] text-white p-6 rounded-lg shadow mb-6">
-        <h2 className="text-2xl font-bold">Texto de prueba: Perfil de Alumno</h2>
+      {/* Título */}
+      <div className="bg-[#113C63] text-white px-6 py-4 rounded">
+        <h2 className="text-3xl font-bold">Perfil de Alumno</h2>
       </div>
 
-      {/* Línea superior */}
-      <div className="w-full h-3 bg-[#9cb0e5] mb-2"></div>
 
-      {/* Contenedor blanco del título */}
-      <div className="bg-white rounded-lg shadow border border-[#AFCBFF] px-4 py-2 mb-2">
-        <h3 className="font-semibold text-lg text-[#0E2C66]">
-          Bandeja de entrada:
-        </h3>
-      </div>
+      {/* Línea separadora */}
+      <div className="mt-6 bg-white h-4 rounded"></div>
 
-      {/* Línea inferior */}
-      <div className="w-full h-3 bg-[#9cb0e5] mb-6"></div>
+      <h3 className="mt-6 text-xl font-semibold ml-2">Mis apelaciones:</h3>
+      <div className="mt-2 bg-[#d5e8f6] h-3 rounded"></div>
 
       {/* TABLA */}
-      <div className="bg-white rounded-lg shadow border border-[#AFCBFF] p-4 w-full">
-        <table className="w-full border-collapse">
+      <div className="mt-6 bg-white shadow-md rounded-lg overflow-hidden mr-8">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-[#e2ebff] text-gray-700">
+              <th className="px-4 py-2 border">Tipo</th>
+              <th className="px-4 py-2 border">Mensaje</th>
+              <th className="px-4 py-2 border">Estado</th>
+              <th className="px-4 py-2 border">Respuesta</th>
+              <th className="px-4 py-2 border">Profesor</th>
+              <th className="px-4 py-2 border">Cit./Límite</th>
+            </tr>
+          </thead>
+
           <tbody>
-            {apelaciones.map((a, i) => (
-              <tr key={i} className="border-b border-[#AFCBFF]">
+            {apelaciones.map((a, index) => {
+              const expanded = expandedRows[index];
+              return (
+                <tr
+                  key={a.id}
+                  className={`cursor-pointer transition ${
+                    index % 2 === 0 ? "bg-[#f4f8ff]" : "bg-white"
+                  } hover:bg-[#dbe7ff]`}
+                >
+                  <td className="px-4 py-2 border font-semibold">{a.tipo}</td>
 
-                <td className="p-3 border border-[#d0ddff] bg-[#E8F0FF] font-semibold">
-                  {a.tipo}
-                </td>
+                  {/* MENSAJE (Expandible) */}
+                  <td
+                    className="px-4 py-2 border max-w-[250px]"
+                    onClick={() => toggleExpand(index)}
+                  >
+                    {expanded ? (
+                      <p>{a.mensaje}</p>
+                    ) : (
+                      <p className="truncate">{a.mensaje}</p>
+                    )}
+                  </td>
 
-                <td className="p-3 border border-[#AFCBFF] bg-[#ffffff]">
-                  {a.mensaje}
-                </td>
+                  <td className="px-4 py-2 border capitalize">{a.estado}</td>
 
-                <td className="p-3 border border-[#AFCBFF] bg-[#E8F0FF]">
-                  {a.estado}
-                </td>
+                  {/* RESPUESTA DOCENTE (Expandible) */}
+                  <td
+                    className="px-4 py-2 border max-w-[250px] italic"
+                    onClick={() => toggleExpand(index)}
+                  >
+                    {a.respuestaDocente?.trim() !== "" ? (
+                      expanded ? (
+                        <p>{a.respuestaDocente}</p>
+                      ) : (
+                        <p className="truncate">{a.respuestaDocente}</p>
+                      )
+                    ) : (
+                      "—"
+                    )}
+                  </td>
 
-                <td className="p-3 border border-[#AFCBFF] bg-[#ffffff] italic">
-                  {a.respuestaDocente?.trim() !== "" ? a.respuestaDocente : "—"}
-                </td>
+                  {/* CORREO DEL PROFESOR */}
+                  <td className="px-4 py-2 border">
+                    {a.profesor?.email || "—"}
+                  </td>
 
-                <td className="p-3 border border-[#AFCBFF] bg-[#E8F0FF]">
-                  {(a.fechaCitacion || a.fechaLimiteEdicion)
-                    ? new Date(a.fechaCitacion || a.fechaLimiteEdicion).toLocaleDateString()
-                    : "—"}
-                </td>
-
-              </tr>
-            ))}
+                  {/* FECHAS */}
+                  <td className="px-4 py-2 border">
+                    {a.fechaCitacion || a.fechaLimiteEdicion ? (
+                    new Date(a.fechaCitacion || a.fechaLimiteEdicion).toLocaleString("es-CL", {
+                    dateStyle: "short",
+                    timeStyle: "short",
+                    })) : ("—")}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
-      {/* BOTÓN */}
+      {/* BOTÓN DE CREACIÓN */}
       <div className="flex justify-center mt-6">
         <button
           onClick={() => navigate("/apelaciones")}
@@ -85,7 +128,6 @@ export default function MisApelaciones() {
           Crear Apelación
         </button>
       </div>
-
     </div>
   );
 }

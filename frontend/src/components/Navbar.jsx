@@ -15,6 +15,16 @@ const Navbar = () => {
     navigate('/');
   };
 
+  const handleApelaciones = () => {
+    if (user?.role === "alumno") {
+      navigate("/apelaciones/mis");  // Página del alumno
+    } else if (user?.role === "profesor") {
+      navigate("/apelaciones-profesor"); // Página del profesor
+    } else {
+      console.warn("Usuario sin rol válido para apelaciones");
+    }
+  };
+
   return (
     <>
       {/* BOTÓN PARA MOSTRAR/OCULTAR */}
@@ -39,8 +49,6 @@ const Navbar = () => {
           Plataforma Derecho
         </h1>
 
-        {/* BOTONES */}
-        <div className="flex flex-col gap-4 flex-1 overflow-y-auto">
 
           {/* MI AGENDA */}
           <button
@@ -105,7 +113,7 @@ const Navbar = () => {
           >
             Ver Perfil
           </button>
-        </div>
+
 
         {/* CERRAR SESIÓN - AL FINAL */}
         <button

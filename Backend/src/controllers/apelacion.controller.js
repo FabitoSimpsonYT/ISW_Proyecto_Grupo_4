@@ -1,18 +1,21 @@
+import { arch } from "os";
 import { AppDataSource } from "../config/configDb.js";
 import { Apelacion } from "../entities/apelacion.entity.js";
 import { User } from "../entities/user.entity.js";
 import path from "path";
 import { fileURLToPath } from "url";
+import { renameUploadedFile } from "../services/archivo.service.js";
+import fs from "fs";
 
 
 
 export const createApelacion = async (req, res) => {
   try {
+
     const apelacionRepo = AppDataSource.getRepository(Apelacion);
     const userRepo = AppDataSource.getRepository(User);
 
     const { tipo, mensaje, profesorCorreo } = req.body;
-    const archivo = req.file ? req.file.filename : null;
     const alumnoId = req.user?.id || req.user?.sub;
 
     if (!alumnoId) {
@@ -36,22 +39,34 @@ export const createApelacion = async (req, res) => {
       return res.status(400).json({ message: "Profesor no válido o no encontrado" });
     }
 
+    let archivo = null;
+
+    if (req.file) {
+      archivo = renameUploadedFile(
+        req.file,              
+        `AP-${alumnoId}`,        
+        Date.now()              
+      );
+    }
+
     const apelacion = apelacionRepo.create({
       tipo,
       mensaje,
       estado: "pendiente",
       puedeEditar: true,
-      archivo,
+      archivo,        
       alumno,
       profesor,
     });
+
     await apelacionRepo.save(apelacion);
 
     const ahora = new Date();
     let puedeEditar = apelacion.puedeEditar;
 
     if (apelacion.fechaLimiteEdicion) {
-      const horasRestantes = (apelacion.fechaLimiteEdicion - ahora) / (1000 * 60 * 60);
+      const horasRestantes =
+        (apelacion.fechaLimiteEdicion - ahora) / (1000 * 60 * 60);
       puedeEditar = horasRestantes >= 24;
     }
 
@@ -59,6 +74,7 @@ export const createApelacion = async (req, res) => {
       tipo: apelacion.tipo,
       mensaje: apelacion.mensaje,
       estado: apelacion.estado,
+      archivo: apelacion.archivo,
       respuestaDocente: apelacion.respuestaDocente || null,
       fechaCreacion: apelacion.fechaCreacion,
       fechaLimiteEdicion: apelacion.fechaLimiteEdicion,
@@ -73,11 +89,14 @@ export const createApelacion = async (req, res) => {
       message: "Apelación creada correctamente",
       data: apelacionLimpia,
     });
+
   } catch (error) {
     console.error("Error al crear apelación:", error);
     res.status(500).json({ message: "Error interno al crear apelación" });
   }
 };
+
+
 
 
 
@@ -157,6 +176,7 @@ export const getMisApelaciones = async (req, res) => {
       return {
         tipo: a.tipo,
         mensaje: a.mensaje,
+        archivo: a.archivo,
         estado: a.estado,
         respuestaDocente: a.respuestaDocente,
         fechaCreacion: a.fechaCreacion,
@@ -180,6 +200,7 @@ export const getMisApelaciones = async (req, res) => {
     res.status(500).json({ message: "Error al obtener apelaciones" });
   }
 };
+
 
 
 
@@ -217,6 +238,9 @@ export const getApelacionPorId = async (req, res) => {
   }
 };
 
+
+
+
 export const getApelacionesDelProfesor = async (req, res) => {
   try {
     const profesorId = req.user?.id || req.user?.sub;
@@ -244,6 +268,7 @@ export const getApelacionesDelProfesor = async (req, res) => {
       id: a.id,
       tipo: a.tipo,
       mensaje: a.mensaje,
+      archivo: a.archivo,
       estado: a.estado,
       respuestaDocente: a.respuestaDocente,
       puedeEditar: a.puedeEditar,
@@ -268,6 +293,8 @@ export const getApelacionesDelProfesor = async (req, res) => {
     res.status(500).json({ message: "Error interno al obtener apelaciones del profesor" });
   }
 };
+
+
 
 
 export const updateEstadoApelacion = async (req, res) => {
@@ -407,6 +434,12 @@ export const deleteApelacion = async (req, res) => {
       return res.status(404).json({ message: "Apelación no encontrada." });
     }
 
+    // 🔒 VALIDACIÓN DE NEGOCIO
+    if (apelacion.estado !== "pendiente") {
+      return res.status(403).json({
+        message: "Solo se pueden eliminar apelaciones en estado pendiente.",
+      });
+    }
 
     await apelacionRepo.remove(apelacion);
 
@@ -419,3 +452,4 @@ export const deleteApelacion = async (req, res) => {
     res.status(500).json({ message: "Error interno al eliminar apelación" });
   }
 };
+
