@@ -128,6 +128,12 @@ export async function deleteRamoHandler(req, res) {
     if (error instanceof NotFoundError) {
       return res.status(404).json({ message: error.message });
     }
+    // Verificar si es error de llave foránea (violación de integridad)
+    if (error.code === '23503' || error.driverError?.code === '23503') {
+      return res.status(409).json({ 
+        message: "No se puede eliminar el ramo porque tiene evaluaciones asociadas. Elimina las evaluaciones primero." 
+      });
+    }
     console.error("Error al eliminar ramo: ", error);
     res.status(500).json({ message: "Error al eliminar ramo." });
   }
