@@ -23,10 +23,31 @@ export default function MisApelaciones() {
   };
 
   if (apelaciones === null)
-    return <p className="text-white">Cargando apelaciones...</p>;
+    return (
+      <div className="p-6 bg-[#e9f7fb] min-h-screen ml-[250px] flex flex-col items-center justify-center">
+        <p className="text-[#0E2C66] text-xl mb-6">
+          Cargando...
+        </p>
+        </div>);
 
-  if (apelaciones.length === 0)
-    return <p className="text-[#0E2C66] ml-64 p-6">No tienes apelaciones.</p>;
+  if (apelaciones.length === 0) {
+    return (
+      <div className="p-6 bg-[#e9f7fb] min-h-screen ml-[250px] flex flex-col items-center justify-center">
+        <p className="text-[#0E2C66] text-xl mb-6">
+          Aún no has hecho una apelación
+        </p>
+
+          {user?.role === "alumno" && (
+            <button
+              onClick={() => navigate("/apelaciones")}
+              className="bg-[#0E2C66] text-white px-8 py-2 rounded-full shadow hover:bg-[#143A80] transition"
+            >
+              Crear Apelación
+            </button>
+          )}
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 bg-[#e9f7fb] min-h-screen ml-[250px]">
