@@ -2,11 +2,11 @@ import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import Login from '@pages/Login';
 import Home from '@pages/Home';
-import ApelacionesPage from '@pages/ApelacionesPage';
 import VerApelacionCompleta from '@pages/VerApelacionCompleta';
 import Apelaciones from '@pages/apelaciones';
 import MisApelaciones from '@pages/MisApelaciones';
 import MiAgenda from '@pages/MiAgenda';
+import MiPerfil from '@pages/MiPerfil';
 import GestionRamosPage from '@pages/GestionRamosPage';
 import GestionUsuariosPage from '@pages/GestionUsuariosPage';
 import Error404 from '@pages/Error404';
@@ -39,6 +39,9 @@ const router = createBrowserRouter([
 
       // MI AGENDA
       { path: '/mi-agenda', element: <MiAgenda /> },
+
+      // MI PERFIL
+      { path: '/mi-perfil', element: <MiPerfil /> },
 
       // GESTIÓN DE RAMOS (solo admin y jefe de carrera)
       { path: '/ramos', element: <GestionRamosPage /> },

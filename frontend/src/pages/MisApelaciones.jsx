@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
 import { getMisApelaciones } from "../services/apelaciones.service";
 import { useNavigate } from "react-router-dom";
+import { useNavbar } from "../context/NavbarContext";
 
 export default function MisApelaciones() {
   const [apelaciones, setApelaciones] = useState(null);
   const [expandedRows, setExpandedRows] = useState({});
+  const [editingId, setEditingId] = useState(null);
+  const [editMensaje, setEditMensaje] = useState("");
+  const { isNavbarOpen } = useNavbar();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -22,35 +26,60 @@ export default function MisApelaciones() {
     }));
   };
 
+  const puedeEditarApelacion = (apelacion) => {
+    if (apelacion.estado !== "citada") return false;
+    if (!apelacion.fechaCitacion) return false;
+    
+    const ahora = new Date();
+    const citacion = new Date(apelacion.fechaCitacion);
+    const horasRestantes = (citacion - ahora) / (1000 * 60 * 60);
+    
+    return horasRestantes >= 24;
+  };
+
+  const handleEditar = (apelacion) => {
+    setEditingId(apelacion.id);
+    setEditMensaje(apelacion.mensaje);
+  };
+
+  const handleCancelarEdicion = () => {
+    setEditingId(null);
+    setEditMensaje("");
+  };
+
+  const handleGuardarEdicion = async (id) => {
+    // Aquí llamarías al servicio para actualizar
+    console.log("Guardar edición:", id, editMensaje);
+    // TODO: implementar servicio de actualización
+    setEditingId(null);
+  };
+
   if (apelaciones === null)
     return (
-      <div className="p-6 bg-[#e9f7fb] min-h-screen ml-[250px] flex flex-col items-center justify-center">
+      <div className={`p-6 bg-[#e9f7fb] min-h-screen transition-all duration-300 flex flex-col items-center justify-center ${isNavbarOpen ? 'ml-64' : 'ml-0'}`}>
         <p className="text-[#0E2C66] text-xl mb-6">
           Cargando...
         </p>
         </div>);
 
-  if (apelaciones.length === 0) {
+  if (apelaciones.length == 0) {
     return (
-      <div className="p-6 bg-[#e9f7fb] min-h-screen ml-[250px] flex flex-col items-center justify-center">
+      <div className={`p-6 bg-[#e9f7fb] min-h-screen transition-all duration-300 flex flex-col items-center justify-center ${isNavbarOpen ? 'ml-64' : 'ml-0'}`}>
         <p className="text-[#0E2C66] text-xl mb-6">
-          Aún no has hecho una apelación
+          Aún no has creado una apelación
         </p>
-
-          {user?.role === "alumno" && (
-            <button
-              onClick={() => navigate("/apelaciones")}
-              className="bg-[#0E2C66] text-white px-8 py-2 rounded-full shadow hover:bg-[#143A80] transition"
-            >
-              Crear Apelación
-            </button>
-          )}
+        <button
+          onClick={() => navigate("/apelaciones")}
+          className="bg-[#0E2C66] text-white px-8 py-2 rounded-full shadow hover:bg-[#143A80] transition"
+        >
+          Crear Apelación
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="p-6 bg-[#e9f7fb] min-h-screen ml-[250px]">
+    <div className={`p-6 bg-[#e9f7fb] min-h-screen transition-all duration-300 ${isNavbarOpen ? 'ml-64' : 'ml-0'}`}>
 
       {/* Título */}
       <div className="bg-[#113C63] text-white px-6 py-4 rounded">
@@ -74,35 +103,59 @@ export default function MisApelaciones() {
               <th className="px-4 py-2 border">Estado</th>
               <th className="px-4 py-2 border">Respuesta</th>
               <th className="px-4 py-2 border">Profesor</th>
-              <th className="px-4 py-2 border">Cit./Límite</th>
+              <th className="px-4 py-2 border">Fecha Citación</th>
+              <th className="px-4 py-2 border">Acciones</th>
             </tr>
           </thead>
 
           <tbody>
             {apelaciones.map((a, index) => {
               const expanded = expandedRows[index];
+              const esEditable = puedeEditarApelacion(a);
+              const estadoColor = 
+                a.estado === "aprobada" || a.estado === "citada" ? "text-green-600 font-semibold" :
+                a.estado === "rechazada" ? "text-red-600 font-semibold" :
+                "text-yellow-600 font-semibold";
+              
               return (
                 <tr
                   key={a.id}
-                  className={`cursor-pointer transition ${
+                  className={`transition ${
                     index % 2 === 0 ? "bg-[#f4f8ff]" : "bg-white"
                   } hover:bg-[#dbe7ff]`}
                 >
-                  <td className="px-4 py-2 border font-semibold">{a.tipo}</td>
+                  <td className="px-4 py-2 border font-semibold capitalize">
+                    {a.tipo}
+                    {a.subtipoInasistencia && (
+                      <span className="text-xs block text-gray-600">
+                        ({a.subtipoInasistencia === "evaluacion" ? "Reagendar" : "Justificación"})
+                      </span>
+                    )}
+                  </td>
 
-                  {/* MENSAJE (Expandible) */}
+                  {/* MENSAJE (Expandible o Editable) */}
                   <td
                     className="px-4 py-2 border max-w-[250px]"
                     onClick={() => toggleExpand(index)}
                   >
-                    {expanded ? (
-                      <p>{a.mensaje}</p>
+                    {editingId === a.id ? (
+                      <textarea
+                        value={editMensaje}
+                        onChange={(e) => setEditMensaje(e.target.value)}
+                        className="w-full p-2 border rounded"
+                        rows={3}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : expanded ? (
+                      <p className="cursor-pointer">{a.mensaje}</p>
                     ) : (
-                      <p className="truncate">{a.mensaje}</p>
+                      <p className="truncate cursor-pointer">{a.mensaje}</p>
                     )}
                   </td>
 
-                  <td className="px-4 py-2 border capitalize">{a.estado}</td>
+                  <td className={`px-4 py-2 border capitalize ${estadoColor}`}>
+                    {a.estado}
+                  </td>
 
                   {/* RESPUESTA DOCENTE (Expandible) */}
                   <td
@@ -111,12 +164,12 @@ export default function MisApelaciones() {
                   >
                     {a.respuestaDocente?.trim() !== "" ? (
                       expanded ? (
-                        <p>{a.respuestaDocente}</p>
+                        <p className="cursor-pointer">{a.respuestaDocente}</p>
                       ) : (
-                        <p className="truncate">{a.respuestaDocente}</p>
+                        <p className="truncate cursor-pointer">{a.respuestaDocente}</p>
                       )
                     ) : (
-                      "—"
+                      <span className="text-gray-400">Sin respuesta</span>
                     )}
                   </td>
 
@@ -125,13 +178,57 @@ export default function MisApelaciones() {
                     {a.profesor?.email || "—"}
                   </td>
 
-                  {/* FECHAS */}
+                  {/* FECHA CITACIÓN */}
                   <td className="px-4 py-2 border">
-                    {a.fechaCitacion || a.fechaLimiteEdicion ? (
-                    new Date(a.fechaCitacion || a.fechaLimiteEdicion).toLocaleString("es-CL", {
-                    dateStyle: "short",
-                    timeStyle: "short",
-                    })) : ("—")}
+                    {a.fechaCitacion ? (
+                      <>
+                        {new Date(a.fechaCitacion).toLocaleString("es-CL", {
+                          dateStyle: "short",
+                          timeStyle: "short",
+                        })}
+                        {esEditable && (
+                          <span className="block text-xs text-green-600 mt-1">
+                            ✓ Editable
+                          </span>
+                        )}
+                        {!esEditable && a.estado === "citada" && (
+                          <span className="block text-xs text-red-600 mt-1">
+                            ⚠️ Menos de 24h
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+
+                  {/* ACCIONES */}
+                  <td className="px-4 py-2 border text-center">
+                    {editingId === a.id ? (
+                      <div className="flex gap-2 justify-center">
+                        <button
+                          onClick={() => handleGuardarEdicion(a.id)}
+                          className="text-green-600 hover:text-green-800 text-sm font-semibold"
+                        >
+                          ✓ Guardar
+                        </button>
+                        <button
+                          onClick={handleCancelarEdicion}
+                          className="text-red-600 hover:text-red-800 text-sm font-semibold"
+                        >
+                          ✕ Cancelar
+                        </button>
+                      </div>
+                    ) : esEditable ? (
+                      <button
+                        onClick={() => handleEditar(a)}
+                        className="text-blue-600 hover:text-blue-800 text-sm font-semibold"
+                      >
+                        ✏️ Editar
+                      </button>
+                    ) : (
+                      <span className="text-gray-400 text-sm">—</span>
+                    )}
                   </td>
                 </tr>
               );

@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { getApelacionesProfesor, eliminarApelacion } from "../services/apelaciones.service";
+import { useNavbar } from "../context/NavbarContext";
 
 export default function ApelacionesProfesor() {
   const [apelaciones, setApelaciones] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { isNavbarOpen } = useNavbar();
 
   useEffect(() => {
     const cargarApelaciones = async () => {
@@ -40,7 +42,7 @@ export default function ApelacionesProfesor() {
   if (loading) return <p>Cargando apelaciones...</p>;
 
   return (
-    <div className="p-6 bg-[#e9f7fb] min-h-screen ml-[250px]">
+    <div className={`p-6 bg-[#e9f7fb] min-h-screen transition-all duration-300 ${isNavbarOpen ? 'ml-64' : 'ml-0'}`}>
 
       {/* Título */}
       <div className="bg-[#113C63] text-white px-6 py-4 rounded">
@@ -64,9 +66,8 @@ export default function ApelacionesProfesor() {
               <th className="px-4 py-2 border">Mensaje</th>
               <th className="px-4 py-2 border">Estado</th>
               <th className="px-4 py-2 border">Enviado por</th>
-              <th className="px-4 py-2 border">Creado</th>
-
-              {/* Columna mínima para la X */}
+              <th className="px-4 py-2 border">Fecha Creación</th>
+              <th className="px-4 py-2 border">Citación</th>
               <th className="px-2 py-2 border w-6"></th>
             </tr>
           </thead>
@@ -74,49 +75,91 @@ export default function ApelacionesProfesor() {
           <tbody>
             {apelaciones.length === 0 && (
               <tr>
-                <td colSpan="6" className="text-center py-4 text-gray-500">
+                <td colSpan="7" className="text-center py-4 text-gray-500">
                   No tienes apelaciones de tus alumnos.
                 </td>
               </tr>
             )}
 
-            {apelaciones.map((apel, index) => (
-              <tr
-                key={apel.id}
-                onClick={() =>
-                  window.location.href = `/profesor/apelacion/${apel.id}`
-                }
-                className={`group cursor-pointer transition ${
-                  index % 2 === 0 ? "bg-[#f4f8ff]" : "bg-white"
-                } hover:bg-[#dbe7ff]`}
-              >
-                <td className="px-4 py-2 border">{apel.tipo}</td>
-                <td className="px-4 py-2 border">{apel.mensaje}</td>
-                <td className="px-4 py-2 border capitalize">{apel.estado}</td>
-                <td className="px-4 py-2 border">
-                  {apel.alumno?.email || "Desconocido"}
-                </td>
-                <td className="px-4 py-2 border">
-                  {new Date(apel.creadoEl).toLocaleString()}
-                </td>
+            {apelaciones.map((apel, index) => {
+              const estadoColor = 
+                apel.estado === "aprobada" || apel.estado === "citada" ? "text-green-600 font-semibold" :
+                apel.estado === "rechazada" ? "text-red-600 font-semibold" :
+                "text-yellow-600 font-semibold";
+              
+              const requiereCitacion = 
+                apel.tipo === "inasistencia" && 
+                apel.subtipoInasistencia === "evaluacion";
+              
+              return (
+                <tr
+                  key={apel.id}
+                  onClick={() =>
+                    window.location.href = `/profesor/apelacion/${apel.id}`
+                  }
+                  className={`group cursor-pointer transition ${
+                    index % 2 === 0 ? "bg-[#f4f8ff]" : "bg-white"
+                  } hover:bg-[#dbe7ff]`}
+                >
+                  <td className="px-4 py-2 border capitalize">
+                    {apel.tipo}
+                    {apel.subtipoInasistencia && (
+                      <span className="text-xs block text-gray-600">
+                        ({apel.subtipoInasistencia === "evaluacion" ? "Reagendar" : "Justificación"})
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2 border truncate max-w-[200px]">
+                    {apel.mensaje}
+                  </td>
+                  <td className={`px-4 py-2 border capitalize ${estadoColor}`}>
+                    {apel.estado}
+                    {requiereCitacion && apel.estado === "pendiente" && (
+                      <span className="block text-xs text-blue-600">
+                        🔄 Requiere cita
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2 border">
+                    {apel.alumno?.email || "Desconocido"}
+                  </td>
+                  <td className="px-4 py-2 border">
+                    {new Date(apel.creadoEl).toLocaleString("es-CL", {
+                      dateStyle: "short",
+                      timeStyle: "short"
+                    })}
+                  </td>
+                  <td className="px-4 py-2 border">
+                    {apel.fechaCitacion ? (
+                      new Date(apel.fechaCitacion).toLocaleString("es-CL", {
+                        dateStyle: "short",
+                        timeStyle: "short"
+                      })
+                    ) : requiereCitacion && apel.estado === "aprobada" ? (
+                      <span className="text-orange-600 text-sm">⚠️ Falta agendar</span>
+                    ) : (
+                      "NO SE HA REVISADO"
+                    )}
+                  </td>
 
-                {/* ❌ X pequeña, sin romper layout */}
-                <td className="px-2 py-2 border text-center">
-                  {apel.estado?.toLowerCase() === "pendiente" && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEliminar(apel.id);
-                      }}
-                      className="opacity-0 group-hover:opacity-100 text-red-500 text-xs hover:text-red-700 transition"
-                      title="Eliminar apelación"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
+                  {/* ❌ X pequeña, sin romper layout */}
+                  <td className="px-2 py-2 border text-center">
+                    {apel.estado?.toLowerCase() === "pendiente" && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEliminar(apel.id);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 text-red-500 text-xs hover:text-red-700 transition"
+                        title="Eliminar apelación"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

@@ -1,61 +1,35 @@
-import { useState } from 'react';
-import { getProfile } from '../services/profile.service.js';
-import Navbar from '../components/Navbar.jsx';
+import { useAuth } from '../context/AuthContext';
+import { useNavbar } from '../context/NavbarContext';
 
 const Home = () => {
-  const [profileData, setProfileData] = useState(null);
+  const { user } = useAuth();
+  const { isNavbarOpen } = useNavbar();
 
-  const handleGetProfile = async () => {
-    console.log('Obtener perfil');
+  // Obtener el usuario del localStorage si no está en el contexto
+  const userData = user || JSON.parse(localStorage.getItem('user') || '{}');
 
-    try {
-      const data = await getProfile();   // 👈 LLAMA AL SERVICIO
-      console.log("Perfil recibido:", data);
-
-      setProfileData(data);              // 👈 LO MUESTRA EN PANTALLA
-    } catch (error) {
-      console.error("Error al obtener el perfil:", error);
-    }
-  };
+  // Detectar género por el primer nombre (si termina en 'a' es femenino)
+  const primerNombre = userData.nombres?.split(' ')[0] || '';
+  const esFemenino = primerNombre.toLowerCase().endsWith('a');
+  const saludo = esFemenino ? '¡Bienvenida!' : '¡Bienvenido!';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-600 flex">
+    <div className={`min-h-screen bg-gradient-to-br from-[#1e3a5f] via-[#2c4a6b] to-[#1e3a5f] flex items-center justify-center p-4 transition-all duration-300 ${isNavbarOpen ? 'ml-64' : 'ml-0'}`}>
+      <div className="bg-white rounded-3xl shadow-2xl p-12 max-w-2xl w-full transform transition-all">
+        <div className="text-center">
+          <h1 className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#1e3a5f] to-[#4a7ba7] mb-4">
+            {saludo}
+          </h1>
+          
+          <p className="text-2xl text-gray-700 font-semibold mb-8">
+            {userData.nombres} {userData.apellidoPaterno}
+          </p>
 
-      {/* NAVBAR LATERAL IZQUIERDA */}
-      <Navbar 
-        onCrearPauta={() => console.log("Crear pauta")}
-        onVerPerfil={() => console.log("Ver perfil")}
-        onApelaciones={() => navigate("/apelaciones")}
-      />
-
-      {/* CONTENIDO PRINCIPAL */}
-      <div className="flex-1 ml-64">
-        <div className="flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 md:p-12 w-full max-w-2xl transform transition-all hover:scale-105">
-
-            <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-8 text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-blue-600">
-              Página de Inicio
-            </h1>
-
-            <button 
-              onClick={handleGetProfile} 
-              className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold py-4 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-purple-300"
-            >
-              Obtener Perfil
-            </button>
-
-            {profileData && (
-              <div className="mt-8 bg-gray-50 rounded-xl p-6 border border-gray-200">
-                <pre className="text-sm text-gray-700 overflow-auto">
-                  {JSON.stringify(profileData, null, 2)}
-                </pre>
-              </div>
-            )}
-
-          </div>
+          <p className="text-gray-600 text-lg">
+            Utiliza el menú lateral para acceder a las diferentes funcionalidades de la plataforma
+          </p>
         </div>
       </div>
-
     </div>
   );
 };

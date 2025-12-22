@@ -1,16 +1,18 @@
 // src/pages/MiAgenda.jsx
 import { useAuth } from '../context/AuthContext';
+import { useNavbar } from '../context/NavbarContext';
 import AgendaProfesor from '../components/AgendaProfesor';
 import CalendarioAlumno from '../components/CalendarioAlumno';
 
 export default function MiAgenda() {
   const { user } = useAuth();
+  const { isNavbarOpen } = useNavbar();
   const userRole = user?.role || JSON.parse(localStorage.getItem('user') || '{}').role;
 
   console.log('📋 Usuario actual:', { user, userRole });
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className={`min-h-screen bg-gray-50 transition-all duration-300 ${isNavbarOpen ? 'ml-64' : 'ml-0'}`}>
       <header className="bg-[#1e3a5f] text-white shadow-lg">
         <div className="container mx-auto px-4 py-4">
           <div>
