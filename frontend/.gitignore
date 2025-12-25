@@ -3,3 +3,6 @@ dist
 .env
 .DS_Store
 *.log
+.qodo
+seed_data.sql
+seed_data_corrected.sql

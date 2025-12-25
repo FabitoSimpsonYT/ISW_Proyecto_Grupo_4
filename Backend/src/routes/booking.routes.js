@@ -7,6 +7,44 @@ const router = express.Router();
 let reservas = [];
 let bookingIdCounter = 1;
 
+// Ruta de ejemplo: obtener slots disponibles para un evento (mock)
+router.get('/slots/:eventoId', authMiddleware, (req, res) => {
+  try {
+    const eventoId = req.params.eventoId;
+    // Generar slots de ejemplo: 6 slots de 30 minutos desde ahora +1h
+    const ahora = new Date();
+    const inicioBase = new Date(ahora.getTime() + 60 * 60 * 1000);
+    const slots = [];
+    for (let i = 0; i < 6; i++) {
+      const inicio = new Date(inicioBase.getTime() + i * 30 * 60 * 1000);
+      const fin = new Date(inicio.getTime() + 30 * 60 * 1000);
+      slots.push({
+        slot_id: `${eventoId}-${i+1}`,
+        evento_id: eventoId,
+        inicio: inicio.toISOString(),
+        fin: fin.toISOString(),
+        disponible: true
+      });
+    }
+
+    console.log(`[OK] GET /api/bookings/slots/${eventoId} - Slots generados: ${slots.length} para usuario ${req.user.email}`);
+
+    res.json({
+      success: true,
+      message: 'Slots disponibles (mock) para el evento',
+      total: slots.length,
+      data: slots
+    });
+  } catch (error) {
+    console.error(`[ERROR] ERROR en GET /api/bookings/slots/:eventoId:`, error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener slots',
+      error: error.message
+    });
+  }
+});
+
 const ocultarIdInterno = (reserva) => {
   const { id, alumno_id, ...resto } = reserva;
   return resto;

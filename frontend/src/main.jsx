@@ -6,6 +6,7 @@ import VerApelacionCompleta from '@pages/VerApelacionCompleta';
 import Apelaciones from '@pages/apelaciones';
 import MisApelaciones from '@pages/MisApelaciones';
 import MiAgenda from '@pages/MiAgenda';
+import InscribirEvaluaciones from '@pages/InscribirEvaluaciones';
 import MiPerfil from '@pages/MiPerfil';
 import GestionRamosPage from '@pages/GestionRamosPage';
 import GestionSeccionesPage from '@pages/GestionSeccionesPage';
@@ -42,6 +43,7 @@ const router = createBrowserRouter([
 
       // MI AGENDA
       { path: '/mi-agenda', element: <MiAgenda /> },
+      { path: '/inscribir-evaluaciones', element: <InscribirEvaluaciones /> },
 
       // EVALUACIONES
       { path: '/evaluaciones', element: <EvaluacionPage /> },

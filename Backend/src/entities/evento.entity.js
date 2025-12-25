@@ -1,98 +1,111 @@
-// Backend/src/entities/Evento.js
-class Evento {
-  constructor({
-    id,
-    nombre,
-    descripcion,
-    estado, // 'pendiente', 'confirmado', 'tentativo', 'cancelado'
-    fechaInicio, // Date object
-    fechaFin, // Date object
-    tipoEvento, // 'evaluacion', 'reunion', 'clase'
-    modalidad, // 'presencial', 'online'
-    linkOnline,
-    ramoId,
-    seccionId,
-    profesorId,
-    duracionPorAlumno, // en minutos
-    cupoMaximo,
-    cupoDisponible,
-    permiteParejas = false,
-    sala,
-    createdAt = new Date(),
-    updatedAt = new Date()
-  }) {
-    this.id = id;
-    this.nombre = nombre;
-    this.descripcion = descripcion;
-    this.estado = estado;
-    this.fechaInicio = fechaInicio;
-    this.fechaFin = fechaFin;
-    this.tipoEvento = tipoEvento;
-    this.modalidad = modalidad;
-    this.linkOnline = linkOnline;
-    this.ramoId = ramoId;
-    this.seccionId = seccionId;
-    this.profesorId = profesorId;
-    this.duracionPorAlumno = duracionPorAlumno;
-    this.cupoMaximo = cupoMaximo;
-    this.cupoDisponible = cupoDisponible;
-    this.permiteParejas = permiteParejas;
-    this.sala = sala;
-    this.createdAt = createdAt;
-    this.updatedAt = updatedAt;
-  }
+// src/entities/evento.entity.js
+import { EntitySchema } from "typeorm";
 
-  // Validar que el evento esté dentro del horario permitido
-  validarHorario() {
-    const horaInicio = this.fechaInicio.getHours();
-    const horaFin = this.fechaFin.getHours();
-
-    if (this.modalidad === 'presencial') {
-      // Presencial: 8:00 AM - 8:00 PM
-      if (horaInicio < 8 || horaFin > 20) {
-        return { valido: false, mensaje: 'Los eventos presenciales deben estar entre las 8:00 AM y 8:00 PM' };
-      }
-    } else if (this.modalidad === 'online') {
-      // Online: 8:00 AM - 3:00 AM del día siguiente
-      if (horaInicio < 8 && horaInicio >= 3) {
-        return { valido: false, mensaje: 'Los eventos online deben estar entre las 8:00 AM y 3:00 AM' };
-      }
-    }
-
-    return { valido: true };
-  }
-
-  // Validar que tenga link si es online
-  validarModalidad() {
-    if (this.modalidad === 'online' && !this.linkOnline) {
-      return { valido: false, mensaje: 'Los eventos online requieren un link (Google Meet, Zoom, Discord)' };
-    }
-    return { valido: true };
-  }
-
-  toJSON() {
-    return {
-      id: this.id,
-      nombre: this.nombre,
-      descripcion: this.descripcion,
-      estado: this.estado,
-      fechaInicio: this.fechaInicio,
-      fechaFin: this.fechaFin,
-      tipoEvento: this.tipoEvento,
-      modalidad: this.modalidad,
-      linkOnline: this.linkOnline,
-      ramoId: this.ramoId,
-      seccionId: this.seccionId,
-      profesorId: this.profesorId,
-      duracionPorAlumno: this.duracionPorAlumno,
-      cupoMaximo: this.cupoMaximo,
-      cupoDisponible: this.cupoDisponible,
-      permiteParejas: this.permiteParejas,
-      sala: this.sala,
-      createdAt: this.createdAt,
-      updatedAt: this.updatedAt
-    };
-  }
-}
-
-export default Evento;
+export const Evento = new EntitySchema({
+  name: "Evento",
+  tableName: "eventos",
+  columns: {
+    id: {
+      primary: true,
+      type: "int",
+      generated: "increment",
+    },
+    nombre: {
+      type: "varchar",
+      length: 150,
+      nullable: false,
+    },
+    descripcion: {
+      type: "text",
+      nullable: true,
+    },
+    estado: {
+      type: "varchar",
+      length: 20,
+      enum: ["pendiente", "confirmado", "reagendado", "cancelado"],
+      default: "pendiente",
+    },
+    comentario: {
+      type: "text",
+      nullable: true,
+    },
+    fecha_inicio: {
+      type: "timestamp",
+      nullable: false,
+    },
+    fecha_fin: {
+      type: "timestamp",
+      nullable: false,
+    },
+    modalidad: {
+      type: "varchar",
+      length: 15,
+      enum: ["presencial", "online"],
+      nullable: false,
+    },
+    link_online: {
+      type: "varchar",
+      length: 500,
+      nullable: true,
+    },
+    duracion_por_alumno: {
+      type: "int",
+      nullable: true,
+    },
+    cupo_maximo: {
+      type: "int",
+      nullable: false,
+    },
+    cupo_disponible: {
+      type: "int",
+      nullable: false,
+    },
+    permite_parejas: {
+      type: "boolean",
+      default: false,
+    },
+    sala: {
+      type: "varchar",
+      length: 100,
+      nullable: true,
+    },
+    created_at: {
+      type: "timestamp",
+      createDate: true,
+      default: () => "CURRENT_TIMESTAMP",
+    },
+    updated_at: {
+      type: "timestamp",
+      updateDate: true,
+      default: () => "CURRENT_TIMESTAMP",
+    },
+  },
+  relations: {
+    tipoEvento: {
+      target: "TipoEvento",
+      type: "many-to-one",
+      joinColumn: { name: "tipo_evento_id" },
+      eager: true,
+      nullable: false,
+    },
+    profesor: {
+      target: "User",
+      type: "many-to-one",
+      joinColumn: { name: "profesor_id" },
+      eager: true,
+      nullable: false,
+    },
+    ramo: {
+      target: "Ramos",
+      type: "many-to-one",
+      joinColumn: { name: "ramo_id" },
+      nullable: true,
+    },
+    seccion: {
+      target: "Seccion",
+      type: "many-to-one",
+      joinColumn: { name: "seccion_id" },
+      nullable: true,
+    },
+  },
+});
