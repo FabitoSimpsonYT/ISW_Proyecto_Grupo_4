@@ -13,6 +13,7 @@ import Error404 from '@pages/Error404';
 import Root from '@pages/Root';
 import '@styles/styles.css';
 import ApelacionesProfesor from './pages/ApelacionesProfesor';
+import EditarApelacion from './pages/EditarApelacion';
 
 const router = createBrowserRouter([
   {
@@ -20,21 +21,17 @@ const router = createBrowserRouter([
     element: <Root />,
     errorElement: <Error404 />,
     children: [
-      // LOGIN
+
       { path: '/', element: <Login /> },
       { path: '/auth', element: <Login /> },
 
-      // HOME
       { path: '/home', element: <Home /> },
 
-      // APELACIONES (esta es la página principal de apelaciones)
       { path: '/apelaciones', element: <Apelaciones /> },
-
-      // MIS APELACIONES (esta se muestra dentro de ApelacionesPage)
       { path: '/apelaciones/mis', element: <MisApelaciones /> },
+      { path: '/apelaciones/:id/editar', element: <EditarApelacion /> },
 
       { path: "/apelaciones-profesor", element: <ApelacionesProfesor /> },
-
       { path: "/profesor/apelacion/:id", element: <VerApelacionCompleta /> },
 
       // MI AGENDA

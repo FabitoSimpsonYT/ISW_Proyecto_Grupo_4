@@ -5,8 +5,11 @@ export default function ApelacionInfo({ apelacion }) {
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
-  // URL REAL al archivo
-  const fileUrl = `${API_URL}/uploads/${apelacion.archivo}`;
+  // URL REAL al archivo vía endpoint seguro
+  const fileUrl = apelacion.archivo
+    ? `${API_URL}/api/apelaciones/${apelacion.id}/archivo`
+    : null;
+
 
   const esImagen = apelacion.archivo?.match(/\.(jpg|jpeg|png|gif)$/i);
   const esPDF = apelacion.archivo?.match(/\.pdf$/i);
@@ -23,7 +26,7 @@ export default function ApelacionInfo({ apelacion }) {
       <p className="bg-[#f2f7ff] p-4 rounded border mt-2">{apelacion.mensaje}</p>
 
       {/* ARCHIVO ADJUNTO */}
-      {apelacion.archivo && (
+      {fileUrl && (
         <div className="mt-6">
           <p className="font-semibold flex items-center gap-2">
             <span className="text-xl">📎</span> Archivo adjunto:
@@ -58,8 +61,7 @@ export default function ApelacionInfo({ apelacion }) {
           {/* DESCARGAR */}
           <a
             href={fileUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+            download
             className="inline-block mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
           >
             Descargar archivo
