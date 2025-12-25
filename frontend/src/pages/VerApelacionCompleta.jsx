@@ -1,96 +1,110 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getApelacionById, responderApelacion } from "../services/apelaciones.service";
+import {
+  getApelacionById,
+  responderApelacion,
+} from "../services/apelaciones.service";
 
 import ApelacionInfo from "../components/ApelacionInfo";
-import ResponderApelacion from "../components/ResponderApelacion";
+import FormularioApelacion from "../components/FormularioApelacion";
 
 export default function VerApelacionCompleta() {
   const { id } = useParams();
   const navigate = useNavigate();
 
   const [apelacion, setApelacion] = useState(null);
-  const [estado, setEstado] = useState("");
-  const [comentario, setComentario] = useState("");
-  const [fechaLimiteEdicion, setFechaLimiteEdicion] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    getApelacionById(id).then((res) => {
-      const data = res.data;
-      setApelacion(data);
-      setEstado(data.estado ? data.estado.toLowerCase() : "");
-      setFechaLimiteEdicion(
-        data.fechaLimiteEdicion
-          ? data.fechaLimiteEdicion.slice(0, 16)
-          : ""
-      );
-    });
+    const loadApelacion = async () => {
+      try {
+        const res = await getApelacionById(id);
+
+        if (res?.data) {
+          setApelacion(res.data);
+
+          // 🔹 Marcar automáticamente como revisada
+          if (res.data.estado?.toLowerCase() === "pendiente") {
+            await responderApelacion(id, { estado: "revisada" });
+            setApelacion((prev) => ({
+              ...prev,
+              estado: "revisada",
+            }));
+          }
+        }
+      } catch (error) {
+        console.error("Error cargando apelación:", error);
+      }
+    };
+
+    loadApelacion();
   }, [id]);
 
-  const enviarRespuesta = async () => {
-    const res = await responderApelacion(id, {
-      estado,
-      respuestaDocente: comentario,
-      fechaLimiteEdicion: fechaLimiteEdicion || null
-    });
+  const handleResponder = async (data) => {
+    setLoading(true);
 
-    if (res?.data) {
-      setApelacion(res.data);
+    try {
+      await responderApelacion(id, data);
       navigate("/apelaciones-profesor");
+    } catch (error) {
+      console.error("Error respondiendo apelación:", error);
+      alert(error?.data?.message || "Error al responder la apelación");
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (!apelacion) return <p>Cargando...</p>;
+  if (!apelacion) {
+    return <p className="p-8">Cargando apelación...</p>;
+  }
 
   return (
-    <div className="p-6 bg-[#e9f7fb] min-h-screen ml-[250px]">
+    <div className="min-h-screen bg-gradient-to-br from-[#e9f7fb] to-[#d5e8f6] transition-all duration-300 ml-[250px] p-8">
+      <div className="max-w-4xl mx-auto">
+        {/* ENCABEZADO */}
+        <div className="bg-gradient-to-r from-[#0E2C66] to-[#1a3f8f] text-white px-8 py-6 rounded-t-2xl shadow-lg">
+          <h1 className="text-3xl font-bold">Detalle de Apelación</h1>
+          <p className="text-white/80 mt-1">
+            Revisa la información y responde la apelación
+          </p>
+        </div>
 
-      {/* TÍTULO PRINCIPAL */}
-      <div className="bg-[#113C63] text-white px-6 py-4 rounded">
-        <h2 className="text-3xl font-bold">Perfil de Profesor</h2>
-      </div>
+        {/* CARD */}
+        <div className="bg-white rounded-b-2xl shadow-xl p-8 space-y-8">
+          {/* INFO */}
+          <section>
+            <h2 className="text-xl font-semibold mb-4">
+              Información de la apelación
+            </h2>
+            <ApelacionInfo apelacion={apelacion} />
+          </section>
 
-      {/* Línea separadora blanca */}
-      <div className="mt-6 bg-white h-4 rounded"></div>
+          <hr />
 
-      {/* Subtítulo */}
-      <h3 className="mt-6 text-xl font-semibold ml-2">
-        Detalle de la apelación:
-      </h3>
+          {/* RESPUESTA */}
+          <section>
+            <h2 className="text-xl font-semibold mb-4">
+              Responder apelación
+            </h2>
 
-      {/* Línea azul */}
-      <div className="mt-2 bg-[#9cb0e5] h-3 rounded"></div>
+            <FormularioApelacion
+              modo="responder"
+              apelacionInicial={apelacion}
+              onSubmit={handleResponder}
+              loading={loading}
+            />
+          </section>
 
-      {/* CONTENIDO */}
-      <div className="mt-6 bg-white shadow-md rounded-lg p-6 max-w-4xl">
-
-        <h4 className="text-2xl font-bold mb-4">
-          Apelación completa
-        </h4>
-
-        <ApelacionInfo apelacion={apelacion} />
-
-        <hr className="my-6" />
-
-        <ResponderApelacion
-          estado={estado}
-          setEstado={setEstado}
-          comentario={comentario}
-          setComentario={setComentario}
-          fechaLimiteEdicion={fechaLimiteEdicion}
-          setFechaLimiteEdicion={setFechaLimiteEdicion}
-          enviarRespuesta={enviarRespuesta}
-        />
-      </div>
-
-      {/* VOLVER */}
-<div className="flex justify-center mt-8">
-        <button
-          onClick={() => navigate("/apelaciones-profesor")}
-          className="bg-[#9cb0e5] text-[#0E2C66] px-6 py-2 rounded-full shadow hover:bg-[#8aa2d6] transition"
-        >
-          Volver a la bandeja
-        </button>
+          {/* VOLVER */}
+          <div className="flex justify-center pt-6">
+            <button
+              onClick={() => navigate("/apelaciones-profesor")}
+              className="bg-[#9cb0e5] text-[#0E2C66] px-8 py-2 rounded-full shadow hover:bg-[#8aa2d6] transition"
+            >
+              Volver a la bandeja
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

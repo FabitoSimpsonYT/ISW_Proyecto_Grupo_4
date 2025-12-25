@@ -1,63 +1,69 @@
 import { useEffect, useState } from "react";
-import { getApelacionesProfesor, eliminarApelacion } from "../services/apelaciones.service";
+import { useNavigate } from "react-router-dom";
+import {
+  getApelacionesProfesor,
+  eliminarApelacion
+} from "../services/apelaciones.service";
 import { useNavbar } from "../context/NavbarContext";
 
 export default function ApelacionesProfesor() {
   const [apelaciones, setApelaciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const { isNavbarOpen } = useNavbar();
+  const navigate = useNavigate();
 
+  /* ===============================
+     CARGAR APELACIONES
+  =============================== */
   useEffect(() => {
     const cargarApelaciones = async () => {
-      const res = await getApelacionesProfesor();
-      if (res?.data) {
-        setApelaciones(res.data);
+      try {
+        const res = await getApelacionesProfesor();
+        if (res?.data) setApelaciones(res.data);
+      } catch (error) {
+        console.error("Error cargando apelaciones", error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     cargarApelaciones();
   }, []);
 
+  /* ===============================
+     ELIMINAR (pendiente / revisada)
+  =============================== */
   const handleEliminar = async (id) => {
-  const confirmar = window.confirm(
-    "¿Estás seguro de que deseas eliminar esta apelación?"
-  );
-
-  if (!confirmar) return;
-
-  try {
-    await eliminarApelacion(id);
-
-    // Quitar la apelación del estado (sin recargar)
-    setApelaciones((prev) =>
-      prev.filter((apel) => apel.id !== id)
+    const confirmar = window.confirm(
+      "¿Estás seguro de que deseas eliminar esta apelación?"
     );
-  } catch (error) {
-    console.error("Error al eliminar apelación", error);
-    alert("No se pudo eliminar la apelación.");
-  }
-};
+
+    if (!confirmar) return;
+
+    try {
+      await eliminarApelacion(id);
+      setApelaciones((prev) => prev.filter((apel) => apel.id !== id));
+    } catch (error) {
+      console.error("Error al eliminar apelación", error);
+      alert("No se pudo eliminar la apelación.");
+    }
+  };
 
   if (loading) return <p>Cargando apelaciones...</p>;
 
   return (
-    <div className={`p-6 bg-[#e9f7fb] min-h-screen transition-all duration-300 ${isNavbarOpen ? 'ml-64' : 'ml-0'}`}>
-
-      {/* Título */}
+    <div
+      className={`p-6 bg-[#e9f7fb] min-h-screen transition-all duration-300 ${
+        isNavbarOpen ? "ml-64" : "ml-0"
+      }`}
+    >
+      {/* TÍTULO */}
       <div className="bg-[#113C63] text-white px-6 py-4 rounded">
-        <h2 className="text-3xl font-bold">Perfil de Profesor</h2>
+        <h2 className="text-3xl font-bold">Bandeja de entrada</h2>
       </div>
 
-      <div className="mt-6 bg-white h-4 rounded"></div>
 
-      <h3 className="mt-6 text-xl font-semibold ml-2">
-        Bandeja de entrada:
-      </h3>
-
-      <div className="mt-2 bg-[#9cb0e5] h-3 rounded"></div>
-
-      {/* ⬅️ Tabla MÁS ANCHA usando el contenedor */}
+      {/* TABLA */}
       <div className="mt-6 bg-white shadow-md rounded-lg overflow-hidden mr-8 ml-2">
         <table className="w-full text-left border-collapse">
           <thead>
@@ -65,8 +71,9 @@ export default function ApelacionesProfesor() {
               <th className="px-4 py-2 border">Tipo</th>
               <th className="px-4 py-2 border">Mensaje</th>
               <th className="px-4 py-2 border">Estado</th>
-              <th className="px-4 py-2 border">Enviado por</th>
-              <th className="px-4 py-2 border">Fecha Creación</th>
+              <th className="px-4 py-2 border">Alumno</th>
+              <th className="px-4 py-2 border">Fecha creación</th>
+              <th className="px-4 py-2 border">Última actualización</th>
               <th className="px-4 py-2 border">Citación</th>
               <th className="px-2 py-2 border w-6"></th>
             </tr>
@@ -82,69 +89,105 @@ export default function ApelacionesProfesor() {
             )}
 
             {apelaciones.map((apel, index) => {
-              const estadoColor = 
-                apel.estado === "aprobada" || apel.estado === "citada" ? "text-green-600 font-semibold" :
-                apel.estado === "rechazada" ? "text-red-600 font-semibold" :
-                "text-yellow-600 font-semibold";
-              
-              const requiereCitacion = 
-                apel.tipo === "inasistencia" && 
+              const estado = apel.estado?.toLowerCase();
+
+              const estadoColor =
+                estado === "aceptada" || estado === "cita"
+                  ? "text-green-600 font-semibold"
+                  : estado === "rechazada"
+                  ? "text-red-600 font-semibold"
+                  : "text-yellow-600 font-semibold";
+
+              const requiereCitacion =
+                apel.tipo === "inasistencia" &&
                 apel.subtipoInasistencia === "evaluacion";
-              
+
+              const puedeEliminar =
+                estado === "pendiente" || estado === "revisada";
+
               return (
                 <tr
                   key={apel.id}
                   onClick={() =>
-                    window.location.href = `/profesor/apelacion/${apel.id}`
+                    navigate(`/profesor/apelacion/${apel.id}`)
                   }
                   className={`group cursor-pointer transition ${
                     index % 2 === 0 ? "bg-[#f4f8ff]" : "bg-white"
                   } hover:bg-[#dbe7ff]`}
                 >
+                  {/* TIPO */}
                   <td className="px-4 py-2 border capitalize">
                     {apel.tipo}
                     {apel.subtipoInasistencia && (
                       <span className="text-xs block text-gray-600">
-                        ({apel.subtipoInasistencia === "evaluacion" ? "Reagendar" : "Justificación"})
+                        (
+                        {apel.subtipoInasistencia === "evaluacion"
+                          ? "Reagendar"
+                          : "Justificación"}
+                        )
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-2 border truncate max-w-[200px]">
+
+                  {/* MENSAJE */}
+                  <td className="px-4 py-2 border truncate max-w-[220px]">
                     {apel.mensaje}
                   </td>
+
+                  {/* ESTADO */}
                   <td className={`px-4 py-2 border capitalize ${estadoColor}`}>
-                    {apel.estado}
-                    {requiereCitacion && apel.estado === "pendiente" && (
+                    {estado === "aceptada" && "Aprobada"}
+                    {estado === "rechazada" && "Rechazada"}
+                    {estado === "revisada" && "Revisada"}
+                    {estado === "pendiente" && "Pendiente"}
+                    {estado === "cita" && "Citada"}
+
+                    {requiereCitacion && estado === "pendiente" && (
                       <span className="block text-xs text-blue-600">
                         🔄 Requiere cita
                       </span>
                     )}
                   </td>
+
+                  {/* ALUMNO */}
                   <td className="px-4 py-2 border">
                     {apel.alumno?.email || "Desconocido"}
                   </td>
+
+                  {/* FECHA CREACIÓN */}
                   <td className="px-4 py-2 border">
                     {new Date(apel.creadoEl).toLocaleString("es-CL", {
                       dateStyle: "short",
-                      timeStyle: "short"
+                      timeStyle: "short",
                     })}
                   </td>
+                  <td className="px-4 py-2 border">
+                    {(["pendiente", "cita", "revisada"].includes(apel.estado?.toLowerCase())) ? (
+                      new Date(apel.actualizadoEl).toLocaleString("es-CL", {
+                        dateStyle: "short",
+                        timeStyle: "short",
+                      })
+                    ) : "—"}
+                  </td>
+                  {/* CITACIÓN */}
                   <td className="px-4 py-2 border">
                     {apel.fechaCitacion ? (
                       new Date(apel.fechaCitacion).toLocaleString("es-CL", {
                         dateStyle: "short",
-                        timeStyle: "short"
+                        timeStyle: "short",
                       })
-                    ) : requiereCitacion && apel.estado === "aprobada" ? (
-                      <span className="text-orange-600 text-sm">⚠️ Falta agendar</span>
+                    ) : requiereCitacion && estado === "aceptada" ? (
+                      <span className="text-orange-600 text-sm">
+                        ⚠️ Falta agendar
+                      </span>
                     ) : (
-                      "NO SE HA REVISADO"
+                      "—"
                     )}
                   </td>
 
-                  {/* ❌ X pequeña, sin romper layout */}
+                  {/* ELIMINAR */}
                   <td className="px-2 py-2 border text-center">
-                    {apel.estado?.toLowerCase() === "pendiente" && (
+                    {puedeEliminar && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();

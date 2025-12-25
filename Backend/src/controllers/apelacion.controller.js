@@ -17,6 +17,7 @@ export const createApelacion = async (req, res) => {
 
     const { tipo, mensaje, profesorCorreo } = req.body;
     const alumnoId = req.user?.id || req.user?.sub;
+    const file = req.file; 
 
     if (!alumnoId) {
       return res.status(401).json({ message: "Usuario no autenticado" });
@@ -54,7 +55,7 @@ export const createApelacion = async (req, res) => {
       mensaje,
       estado: "pendiente",
       puedeEditar: true,
-      archivo,        
+      archivo: file ? file.filename : null,        
       alumno,
       profesor,
     });
@@ -76,6 +77,7 @@ export const createApelacion = async (req, res) => {
       estado: apelacion.estado,
       archivo: apelacion.archivo,
       respuestaDocente: apelacion.respuestaDocente || null,
+      fechaCitacion: apelacion.fechaCitacion || null,
       fechaCreacion: apelacion.fechaCreacion,
       fechaLimiteEdicion: apelacion.fechaLimiteEdicion,
       puedeEditar,
@@ -132,23 +134,31 @@ export const subirArchivo = async (req, res) => {
 
 export const descargarArchivo = async (req, res) => {
   try {
-    const idApelacion = req.params.id;
+    const { id } = req.params;
     const repo = AppDataSource.getRepository(Apelacion);
 
-    const apelacion = await repo.findOneBy({ id: idApelacion });
+    const apelacion = await repo.findOneBy({ id });
 
     if (!apelacion || !apelacion.archivo) {
       return res.status(404).json({ mensaje: "Archivo no encontrado" });
     }
 
-    const ruta = path.join(process.cwd(), "uploads", apelacion.archivo);
+    // Ruta correcta
+    const uploadsDir = path.resolve("src/uploads");
+    const filePath = path.join(uploadsDir, apelacion.archivo);
 
-    return res.download(ruta);
+    // Verificación física del archivo
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ mensaje: "El archivo no existe en el servidor" });
+    }
+
+    return res.download(filePath, apelacion.archivo);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ mensaje: "Error al descargar archivo" });
+    console.error("Error al descargar archivo:", error);
+    return res.status(500).json({ mensaje: "Error al descargar archivo" });
   }
 };
+
 
 
 
@@ -174,11 +184,13 @@ export const getMisApelaciones = async (req, res) => {
       }
 
       return {
+        id: a.id,
         tipo: a.tipo,
         mensaje: a.mensaje,
         archivo: a.archivo,
         estado: a.estado,
         respuestaDocente: a.respuestaDocente,
+        fechaCitacion: a.fechaCitacion,
         fechaCreacion: a.fechaCreacion,
         fechaLimiteEdicion: a.fechaLimiteEdicion,
         puedeEditar,
@@ -271,6 +283,7 @@ export const getApelacionesDelProfesor = async (req, res) => {
       archivo: a.archivo,
       estado: a.estado,
       respuestaDocente: a.respuestaDocente,
+      fechaCitacion: a.fechaCitacion,
       puedeEditar: a.puedeEditar,
       fechaLimiteEdicion: a.fechaLimiteEdicion,
       creadoEl: a.createdAt,
@@ -296,20 +309,130 @@ export const getApelacionesDelProfesor = async (req, res) => {
 
 
 
+export const editarApelacionAlumno = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { mensaje, profesorEmail, removeArchivo } = req.body;
+    const nuevoArchivo = req.file?.filename;
+
+    if (!mensaje && !nuevoArchivo && !profesorEmail && removeArchivo !== "true") {
+      return res.status(400).json({
+        message: "Debe enviar al menos un campo para editar.",
+      });
+    }
+
+    const apelacionRepo = AppDataSource.getRepository(Apelacion);
+    const userRepo = AppDataSource.getRepository(User);
+
+    const apelacion = await apelacionRepo.findOne({
+      where: { id },
+      relations: ["alumno", "profesor"],
+    });
+
+    if (!apelacion) {
+      return res.status(404).json({ message: "Apelación no encontrada." });
+    }
+
+    // 🔐 Validar dueño
+    const alumnoId = req.user?.id || req.user?.sub;
+    if (apelacion.alumno.id !== alumnoId) {
+      return res.status(403).json({ message: "No autorizado." });
+    }
+
+    // 🔒 Validar estado
+    if (!["pendiente", "cita", "revisada"].includes(apelacion.estado)) {
+      return res.status(400).json({
+        message: "La apelación no se puede editar en este estado.",
+      });
+    }
+
+    if (!apelacion.puedeEditar) {
+      return res.status(400).json({
+        message: "La apelación ya no se puede editar.",
+      });
+    }
+
+    // ==========================
+    // 📝 ACTUALIZAR MENSAJE
+    // ==========================
+    if (mensaje?.trim()) {
+      apelacion.mensaje = mensaje.trim();
+    }
+
+    // ==========================
+    // 📎 MANEJO DE ARCHIVOS
+    // ==========================
+    const uploadsDir = path.resolve("src/uploads");
+
+    // 👉 Caso 1: eliminar archivo existente
+    if (removeArchivo === "true" && apelacion.archivo) {
+      const oldPath = path.join(uploadsDir, apelacion.archivo);
+      if (fs.existsSync(oldPath)) {
+        fs.unlinkSync(oldPath);
+      }
+      apelacion.archivo = null;
+    }
+
+    // 👉 Caso 2: reemplazar archivo
+    if (nuevoArchivo) {
+      if (apelacion.archivo) {
+        const oldPath = path.join(uploadsDir, apelacion.archivo);
+        if (fs.existsSync(oldPath)) {
+          fs.unlinkSync(oldPath);
+        }
+      }
+      apelacion.archivo = nuevoArchivo;
+    }
+
+    // ==========================
+    // 👨‍🏫 CAMBIO DE PROFESOR
+    // ==========================
+    if (profesorEmail) {
+      const nuevoProfesor = await userRepo.findOne({
+        where: { email: profesorEmail, role: "profesor" },
+      });
+
+      if (!nuevoProfesor) {
+        return res.status(404).json({ message: "Profesor no encontrado." });
+      }
+
+      apelacion.profesor = nuevoProfesor;
+    }
+
+    await apelacionRepo.save(apelacion);
+
+    return res.status(200).json({
+      message: "Apelación editada correctamente",
+      data: apelacion,
+    });
+
+  } catch (error) {
+    console.error("Error al editar apelación:", error);
+    return res.status(500).json({ message: "Error interno del servidor" });
+  }
+};
+
+
+
+
+
+
 
 export const updateEstadoApelacion = async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const { estado, respuestaDocente, fechaLimiteEdicion } = req.body;
 
-    if (!["aceptada", "rechazada"].includes(estado)) {
-      return res.status(400).json({ message: "Estado inválido. Debe ser 'aceptada' o 'rechazada'." });
+    const { estado, respuestaDocente, fechaCitacion } = req.body;
+
+    const estadosValidos = ["revisada", "aceptada", "rechazada", "cita"];
+    if (!estadosValidos.includes(estado)) {
+      return res.status(400).json({ message: "Estado inválido." });
     }
 
     const apelacionRepo = AppDataSource.getRepository(Apelacion);
     const apelacion = await apelacionRepo.findOne({
       where: { id },
-      relations: ["profesor", "alumno"],
+      relations: ["profesor"],
     });
 
     if (!apelacion) {
@@ -317,55 +440,93 @@ export const updateEstadoApelacion = async (req, res) => {
     }
 
     const profesorId = req.user?.id || req.user?.sub;
-    if (!profesorId) {
-      return res.status(401).json({ message: "Token inválido o sin identificador de usuario." });
+    if (!profesorId || apelacion.profesor.id !== profesorId) {
+      return res.status(403).json({ message: "No autorizado." });
     }
 
-    if (apelacion.profesor?.id !== profesorId) {
-      return res.status(403).json({ message: "No tienes permiso para actualizar esta apelación." });
+    if (["aceptada", "rechazada"].includes(apelacion.estado)) {
+      return res.status(400).json({
+        message: "La apelación ya fue resuelta y no puede modificarse.",
+      });
     }
 
-    if (apelacion.estado === "rechazada" && estado === "rechazada") {
-      return res.status(400).json({ message: "La apelación ya fue rechazada y no puede modificarse nuevamente." });
-    }
-
-    if (estado === "aceptada") {
-      if (!respuestaDocente?.trim()) {
-        return res.status(400).json({ message: "Debes incluir una respuesta del profesor al aceptar la apelación." });
+    if (estado === "revisada") {
+      if (apelacion.estado !== "pendiente") {
+        return res.status(400).json({
+          message: "Solo se puede revisar una apelación pendiente.",
+        });
       }
 
-      apelacion.estado = "aceptada";
-      apelacion.respuestaDocente = respuestaDocente.trim();
+      apelacion.estado = "revisada";
+      await apelacionRepo.save(apelacion);
 
-      const fechaValida = fechaLimiteEdicion ? new Date(fechaLimiteEdicion) : null;
-      apelacion.fechaLimiteEdicion = isNaN(fechaValida?.getTime()) ? null : fechaValida;
-
-      if (apelacion.fechaLimiteEdicion) {
-        const horasRestantes = (apelacion.fechaLimiteEdicion - new Date()) / (1000 * 60 * 60);
-        apelacion.puedeEditar = horasRestantes >= 24;
-      } else {
-        apelacion.puedeEditar = false;
-      }
+      return res.status(200).json({
+        message: "Apelación marcada como revisada.",
+        data: apelacion,
+      });
     }
 
     if (estado === "rechazada") {
+      if (!respuestaDocente?.trim()) {
+        return res.status(400).json({
+          message: "El rechazo requiere un mensaje obligatorio.",
+        });
+      }
+
       apelacion.estado = "rechazada";
-      apelacion.respuestaDocente = null;
+      apelacion.respuestaDocente = respuestaDocente.trim();
+      apelacion.fechaCitacion = null;
       apelacion.fechaLimiteEdicion = null;
       apelacion.puedeEditar = false;
+    }
+
+    if (estado === "aceptada") {
+      apelacion.estado = "aceptada";
+      apelacion.respuestaDocente = respuestaDocente?.trim() || null;
+      apelacion.fechaCitacion = null;
+      apelacion.fechaLimiteEdicion = null;
+      apelacion.puedeEditar = false;
+    }
+
+    if (estado === "cita") {
+      if (!fechaCitacion) {
+        return res.status(400).json({
+          message: "La citación requiere una fecha de citación válida.",
+        });
+      }
+
+      const fechaCita = new Date(fechaCitacion);
+      if (isNaN(fechaCita.getTime())) {
+        return res.status(400).json({
+          message: "La fecha de citación no es válida.",
+        });
+      }
+
+      apelacion.estado = "cita";
+      apelacion.respuestaDocente = respuestaDocente?.trim() || null;
+      apelacion.fechaCitacion = fechaCita;
+
+      const limite = new Date(fechaCita);
+      limite.setHours(limite.getHours() - 24);
+
+      apelacion.fechaLimiteEdicion = limite;
+      apelacion.puedeEditar = true;
     }
 
     await apelacionRepo.save(apelacion);
 
     return res.status(200).json({
-      message: "Apelación actualizada correctamente",
+      message: "Estado actualizado correctamente",
       data: apelacion,
     });
-  } catch (err) {
-    console.error("Error al actualizar apelación:", err);
-    res.status(500).json({ message: "Error al actualizar la apelación" });
+
+  } catch (error) {
+    console.error("Error al actualizar apelación:", error);
+    return res.status(500).json({ message: "Error interno" });
   }
 };
+
+
 
 
 
@@ -452,4 +613,71 @@ export const deleteApelacion = async (req, res) => {
     res.status(500).json({ message: "Error interno al eliminar apelación" });
   }
 };
+
+
+
+export async function getApelacionesPorEstado(req, res) {
+  try {
+    const { estado } = req.params;
+
+    const estadosValidos = [
+      "pendiente",
+      "revisada",
+      "aceptada",
+      "rechazada",
+      "cita",
+    ];
+
+    if (!estado || !estadosValidos.includes(estado)) {
+      return res.status(400).json({
+        message: "Estado inválido o no enviado",
+      });
+    }
+
+    const apelacionRepo = AppDataSource.getRepository(Apelacion);
+
+    const apelaciones = await apelacionRepo.find({
+      where: { estado },
+      relations: ["alumno", "profesor"],
+      order: { createdAt: "DESC" },
+    });
+
+    const apelacionesFiltradas = apelaciones.map((apelacion) => {
+      const { alumno, profesor, ...resto } = apelacion;
+
+      return {
+        ...resto,
+        alumno: alumno
+          ? {
+              id: alumno.id,
+              nombres: alumno.nombres,
+              apellidoPaterno: alumno.apellidoPaterno,
+              apellidoMaterno: alumno.apellidoMaterno,
+              email: alumno.email,
+            }
+          : null,
+        profesor: profesor
+          ? {
+              id: profesor.id,
+              nombres: profesor.nombres,
+              apellidoPaterno: profesor.apellidoPaterno,
+              apellidoMaterno: profesor.apellidoMaterno,
+              email: profesor.email,
+            }
+          : null,
+      };
+    });
+
+    return res.status(200).json({
+      message: `Apelaciones con estado "${estado}" encontradas`,
+      data: apelacionesFiltradas,
+    });
+
+  } catch (error) {
+    console.error("Error al obtener apelaciones por estado:", error);
+    return res.status(500).json({
+      message: "Error al obtener apelaciones por estado",
+    });
+  }
+}
 
