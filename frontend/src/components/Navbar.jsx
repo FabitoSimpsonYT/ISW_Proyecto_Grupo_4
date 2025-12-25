@@ -35,15 +35,29 @@ const Navbar = () => {
       >
         {/* CABECERA CON TÍTULO Y BOTÓN */}
         <div className="flex items-center justify-between mb-10">
-          <h1 className="text-lg font-semibold">
-            Plataforma Derecho
-          </h1>
+          <div className="flex items-center gap-3">
+            <button aria-label="Logo" className="p-1 rounded-md hover:bg-[#1a3f8f] transition">
+              {/* Vertical three dots (logo) */}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="5" r="1.8" fill="white" />
+                <circle cx="12" cy="12" r="1.8" fill="white" />
+                <circle cx="12" cy="19" r="1.8" fill="white" />
+              </svg>
+            </button>
+            <h1 className="text-lg font-semibold">
+              Plataforma Derecho
+            </h1>
+          </div>
           <button
             onClick={() => setIsOpen(false)}
             className="p-2 hover:bg-[#1a3f8f] rounded-lg transition"
             title="Ocultar menú"
           >
-            ◀
+            {/* Close icon */}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M18 6L6 18" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M6 6L18 18" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </button>
         </div>
 
@@ -64,6 +78,16 @@ const Navbar = () => {
           >
             📅 Mi Agenda
           </button>
+
+          {/* ALUMNO: Inscribir evaluaciones (acceso directo) */}
+          {user?.role === "alumno" && (
+            <button
+              onClick={() => navigate("/inscribir-evaluaciones")}
+              className="px-4 py-2 border border-white rounded-lg hover:bg-white hover:text-[#0E2C66] transition font-medium"
+            >
+              ✍️ Inscribir Evaluaciones
+            </button>
+          )}
 
           {/* APELACIONES */}
           {user?.role === "alumno" && (
@@ -108,6 +132,16 @@ const Navbar = () => {
             </button>
           )}
 
+          {/* ADMIN / JEFE DE CARRERA: ADMINISTRAR BLOQUEOS */}
+          {(user?.role === "admin" || user?.role === "jefecarrera") && (
+            <button
+              onClick={() => navigate("/bloqueos")}
+              className="px-4 py-2 border border-white rounded-lg hover:bg-white hover:text-[#0E2C66] transition font-medium"
+            >
+              ⛔ Administrar Bloqueos
+            </button>
+          )}
+
           {/* GESTIÓN DE USUARIOS - SOLO ADMIN */}
           {user?.role === "admin" && (
             <button
@@ -117,6 +151,8 @@ const Navbar = () => {
               👥 Gestionar Usuarios
             </button>
           )}
+
+
 
           {/* ALUMNO */}
           {user?.role === "alumno" && (
@@ -151,8 +187,14 @@ const Navbar = () => {
           onClick={() => setIsOpen(true)}
           className="fixed left-4 top-4 z-30 p-3 bg-[#0E2C66] text-white rounded-lg hover:bg-[#1a3f8f] transition shadow-lg"
           title="Mostrar menú"
+          aria-label="Abrir menú"
         >
-          ▶
+          {/* Hamburger icon */}
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 6h18" stroke="white" strokeWidth="2" strokeLinecap="round" />
+            <path d="M3 12h18" stroke="white" strokeWidth="2" strokeLinecap="round" />
+            <path d="M3 18h18" stroke="white" strokeWidth="2" strokeLinecap="round" />
+          </svg>
         </button>
       )}
 

@@ -1,9 +1,9 @@
 // Backend/src/routes/inscripcion.routes.js
-const express = require('express');
-const router = express.Router();
-const InscripcionController = require('../controllers/inscripcionController');
-const { authMiddleware, alumnoMiddleware, profesorMiddleware, jefeCarreraMiddleware } = require('../middleware/auth');
+import express from 'express';
+import InscripcionController from '../controllers/inscripcion.controller.js';
+import { authMiddleware, alumnoMiddleware, profesorMiddleware, jefeCarreraMiddleware } from '../middleware/auth.js';
 
+const router = express.Router();
 const inscripcionController = new InscripcionController();
 
 // Rutas para alumnos
@@ -51,4 +51,4 @@ router.post(
   inscripcionController.reasignarSeccion
 );
 
-module.exports = router;
+export default router;

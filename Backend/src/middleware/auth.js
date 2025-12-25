@@ -1,8 +1,6 @@
-// Backend/src/middleware/auth.js
-const jwt = require('jsonwebtoken');
+import jwt from 'jsonwebtoken';
 
-// Middleware de autenticación
-const authMiddleware = (req, res, next) => {
+export const authMiddleware = (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(' ')[1]; // Bearer TOKEN
 
@@ -22,8 +20,7 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
-// Middleware para profesores
-const profesorMiddleware = (req, res, next) => {
+export const profesorMiddleware = (req, res, next) => {
   if (req.user.role !== 'profesor' && req.user.role !== 'jefe_carrera') {
     return res.status(403).json({
       error: 'Acceso denegado. Se requiere rol de profesor'
@@ -32,8 +29,7 @@ const profesorMiddleware = (req, res, next) => {
   next();
 };
 
-// Middleware para alumnos
-const alumnoMiddleware = (req, res, next) => {
+export const alumnoMiddleware = (req, res, next) => {
   if (req.user.role !== 'alumno') {
     return res.status(403).json({
       error: 'Acceso denegado. Se requiere rol de alumno'
@@ -42,19 +38,11 @@ const alumnoMiddleware = (req, res, next) => {
   next();
 };
 
-// Middleware para jefe de carrera
-const jefeCarreraMiddleware = (req, res, next) => {
+export const jefeCarreraMiddleware = (req, res, next) => {
   if (req.user.role !== 'jefe_carrera') {
     return res.status(403).json({
       error: 'Acceso denegado. Se requiere rol de jefe de carrera'
     });
   }
   next();
-};
-
-module.exports = {
-  authMiddleware,
-  profesorMiddleware,
-  alumnoMiddleware,
-  jefeCarreraMiddleware
 };

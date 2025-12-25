@@ -13,6 +13,7 @@ import adminRoutes from './routes/admin.routes.js';
 import profileRoutes from './routes/profile.routes.js';
 import apelacionRoutes from './routes/apelacion.routes.js';
 import path from 'path';
+import bloqueoRoutes from "./bloqueo.routes.js";
 
 const app = express();
 
@@ -50,6 +51,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/apelaciones', apelacionRoutes);
 app.use('/api/evaluaciones', evaluacionesRoutes);
+
 
 // Middlewares finales
 app.use(notFound);
