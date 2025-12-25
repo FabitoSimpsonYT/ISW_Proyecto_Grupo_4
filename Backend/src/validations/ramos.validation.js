@@ -13,10 +13,12 @@ export const createRamoValidation = Joi.object({
     }),
   codigo: Joi.string()
     .required()
-    .pattern(/^[A-Z]{3}[0-9]{4}$/)
+    .length(6)
+    .pattern(/^[0-9]{6}$/)
     .messages({
       "string.empty": "El código del ramo es obligatorio",
-      "string.pattern.base": "El código debe tener el formato ABC1234 (3 letras mayúsculas seguidas de 4 números)",
+      "string.length": "El código del ramo debe tener exactamente 6 caracteres",
+      "string.pattern.base": "El código debe contener solo números",
       "any.required": "El código del ramo es obligatorio"
     }),
   rutProfesor: Joi.string()
@@ -37,9 +39,11 @@ export const updateRamoValidation = Joi.object({
       "string.max": "El nombre del ramo no puede exceder los 255 caracteres"
     }),
   codigo: Joi.string()
-    .pattern(/^[A-Z]{3}[0-9]{4}$/)
+    .length(6)
+    .pattern(/^[0-9]{6}$/)
     .messages({
-      "string.pattern.base": "El código debe tener el formato ABC1234 (3 letras mayúsculas seguidas de 4 números)"
+      "string.length": "El código del ramo debe tener exactamente 6 caracteres",
+      "string.pattern.base": "El código debe contener solo números"
     }),
   rutProfesor: Joi.string()
     .pattern(/^\d{7,8}-[\dkK]$/)
@@ -62,8 +66,12 @@ export const updateRamoValidation = Joi.object({
 export const createSeccionValidation = Joi.object({
   codigoRamo: Joi.string()
     .required()
+    .length(6)
+    .pattern(/^[0-9]{6}$/)
     .messages({
       "string.empty": "El código del ramo es obligatorio",
+      "string.length": "El código del ramo debe tener exactamente 6 caracteres",
+      "string.pattern.base": "El código del ramo debe contener solo números",
       "any.required": "El código del ramo es obligatorio"
     }),
   numero: Joi.number()

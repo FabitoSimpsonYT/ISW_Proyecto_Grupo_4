@@ -5,26 +5,62 @@ import { BadRequestError } from "../Handlers/responseHandlers.js";
 
 const evaluacionRepository = AppDataSource.getRepository(Evaluacion); 
 
+function isAlumnoRole(role) {
+  return role === "alumno" || role === "estudiante";
+}
+
 export async function getAllEvaluacionesService(user) {
-  if (user.role ==="profesor") {
+  if (user.role === "profesor") {
     return await evaluacionRepository.find();
-  } else {
+  }
+
+  if (isAlumnoRole(user.role)) {
     return await evaluacionRepository.find({
-      select:["titulo", "fechaProgramada", "ponderacion", "estado"],
+      where: { pautaPublicada: true },
+      select: [
+        "titulo",
+        "fechaProgramada",
+        "horaInicio",
+        "horaFin",
+        "ponderacion",
+        "estado",
+        "aplicada",
+        "pautaPublicada",
+      ],
+      order: { fechaProgramada: "DESC" },
     });
   }
+
+  return await evaluacionRepository.find({
+    select: [
+      "titulo",
+      "fechaProgramada",
+      "horaInicio",
+      "horaFin",
+      "ponderacion",
+      "estado",
+      "aplicada",
+      "pautaPublicada",
+    ],
+    order: { fechaProgramada: "DESC" },
+  });
 }
 
 export async function getEvaluacionByIdService(id, user){
 
-  if (user.role === "estudiante") {
+  if (isAlumnoRole(user.role)) {
     const evaluacion = await evaluacionRepository.findOneBy({ id });
     if (!evaluacion) return null;
+    if (!evaluacion.pautaPublicada) return null;
     return {
       titulo: evaluacion.titulo,
       fechaProgramada: evaluacion.fechaProgramada,
+      horaInicio: evaluacion.horaInicio,
+      horaFin: evaluacion.horaFin,
       ponderacion: evaluacion.ponderacion,
       aplicada: evaluacion.aplicada,
+      estado: evaluacion.estado,
+      pautaPublicada: evaluacion.pautaPublicada,
     };
   }
 
@@ -33,9 +69,41 @@ export async function getEvaluacionByIdService(id, user){
   return evaluacionConRelaciones;
 }
 
+export async function getEvaluacionesByCodigoRamoService(codigoRamo, user) {
+  const ramosRepository = AppDataSource.getRepository(Ramos);
+  const ramo = await ramosRepository.findOne({ where: { codigo: codigoRamo } });
+
+  if (!ramo) return null;
+
+  const whereClause = isAlumnoRole(user.role)
+    ? { ramo: { id: ramo.id }, pautaPublicada: true }
+    : { ramo: { id: ramo.id } };
+
+  const evaluaciones = await evaluacionRepository.find({
+    where: whereClause,
+    relations: isAlumnoRole(user.role) ? [] : ["ramo"],
+    order: { fechaProgramada: "DESC" },
+  });
+
+  if (isAlumnoRole(user.role)) {
+    return evaluaciones.map((evaluacion) => ({
+      titulo: evaluacion.titulo,
+      fechaProgramada: evaluacion.fechaProgramada,
+      horaInicio: evaluacion.horaInicio,
+      horaFin: evaluacion.horaFin,
+      ponderacion: evaluacion.ponderacion,
+      aplicada: evaluacion.aplicada,
+      estado: evaluacion.estado,
+      pautaPublicada: evaluacion.pautaPublicada,
+    }));
+  }
+
+  return evaluaciones;
+}
+
 
 export async function createEvaluacionService(data) {
-  const { titulo, fechaProgramada, horaInicio, horaFin, ponderacion, contenidos, ramo_id, codigoRamo, puntajeTotal } = data;
+  const { titulo, fechaProgramada, horaInicio, horaFin, ponderacion, contenidos, ramo_id, codigoRamo, puntajeTotal, pautaPublicada } = data;
   let resolvedRamoId = ramo_id;
   if (!resolvedRamoId && codigoRamo) {
     const ramosRepository = AppDataSource.getRepository(Ramos);
@@ -105,6 +173,7 @@ export async function createEvaluacionService(data) {
     ponderacion,
     contenidos,
     puntajeTotal: puntajeTotal || 0,
+    pautaPublicada: Boolean(pautaPublicada),
     ramo: { id: resolvedRamoId }
   });
   const saved = await evaluacionRepository.save(nueva);

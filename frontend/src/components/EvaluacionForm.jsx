@@ -2,23 +2,45 @@ import { useState, useEffect } from "react";
 import { createEvaluacion, updateEvaluacion } from "../services/evaluacion.service.js";
 import { getAllPautas } from "../services/pauta.service.js";
 
-export default function EvaluacionForm({ evaluacionEdit, onSaved }) {
+export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamoFields = false }) {
     const initialState = {
         titulo: "",
         fechaProgramada: "",
+        horaInicio: "",
+        horaFin: "",
         ponderacion: 0,
         contenidos: "",
         estado: "pendiente",
         pauta: { id: null },
         pautaPublicada: false,
+        ramo_id: "",
+        codigoRamo: "",
+        puntajeTotal: 0,
     };
 
     const [evaluacion, setEvaluacion] = useState(initialState);
     const [error, setError] = useState("");
+    const [errors, setErrors] = useState({});
     const [isLoading, setIsLoading] = useState(false);
     const [pautas, setPautas] = useState([]);
 
-    // Cargar pautas al montar el componente
+    const normalizeFechaInput = (value) => {
+        if (!value) return "";
+        if (value instanceof Date) return value.toISOString().slice(0, 10);
+        const str = String(value);
+        return str.includes("T") ? str.split("T")[0] : str;
+    };
+
+    const normalizePauta = (pautaValue) => {
+        if (!pautaValue) return { id: null };
+        if (typeof pautaValue === "object") {
+            return { id: pautaValue.id ?? null };
+        }
+        const n = Number(pautaValue);
+        return Number.isFinite(n) ? { id: n } : { id: null };
+    };
+
+    
     useEffect(() => {
         const loadPautas = async () => {
             try {
@@ -32,68 +54,210 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved }) {
     }, []);
 
     useEffect(() => {
-        if (evaluacionEdit) setEvaluacion(evaluacionEdit);
-    }, [evaluacionEdit]);
+        if (evaluacionEdit) {
+            const next = {
+                ...initialState,
+                ...evaluacionEdit,
+            };
+
+            next.fechaProgramada = normalizeFechaInput(next.fechaProgramada);
+            next.pauta = normalizePauta(evaluacionEdit.pauta ?? next.pauta);
+
+            const ramoId =
+                evaluacionEdit.ramo_id ??
+                evaluacionEdit.ramo?.id ??
+                ramo?.id ??
+                "";
+            const codigoRamo =
+                evaluacionEdit.codigoRamo ??
+                evaluacionEdit.ramo?.codigo ??
+                ramo?.codigo ??
+                "";
+
+            next.ramo_id = ramoId ? String(ramoId) : "";
+            next.codigoRamo = codigoRamo ? String(codigoRamo) : "";
+
+            setEvaluacion(next);
+            return;
+        }
+
+        if (ramo) {
+            setEvaluacion({
+                ...initialState,
+                ramo_id: ramo?.id ? String(ramo.id) : "",
+                codigoRamo: ramo?.codigo ? String(ramo.codigo) : "",
+            });
+        }
+    }, [evaluacionEdit, ramo]);
+
+    
+    const validarEvaluacion = (eval_data) => {
+        const err = {};
+
+      
+        if (!eval_data.titulo || eval_data.titulo.trim() === "") {
+            err.titulo = "El título es obligatorio";
+        } else if (eval_data.titulo.trim().length < 3) {
+            err.titulo = "El título debe tener al menos 3 caracteres";
+        } else if (eval_data.titulo.length > 255) {
+            err.titulo = "El título no puede exceder los 255 caracteres";
+        }
+
+     
+        if (!eval_data.fechaProgramada) {
+            err.fechaProgramada = "La fecha programada es obligatoria";
+        } else {
+            const fecha = new Date(eval_data.fechaProgramada);
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+            const manana = new Date(hoy);
+            manana.setDate(manana.getDate() + 1);
+
+            if (isNaN(fecha.getTime())) {
+                err.fechaProgramada = "La fecha debe ser válida";
+            } else if (fecha < manana) {
+                err.fechaProgramada = "La fecha debe ser igual o posterior a mañana";
+            }
+        }
+
+        
+        if (!eval_data.horaInicio) {
+            err.horaInicio = "La hora de inicio es obligatoria";
+        } else if (!/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/.test(eval_data.horaInicio)) {
+            err.horaInicio = "La hora de inicio debe estar en formato HH:mm (ej: 10:30)";
+        }
+
+       
+        if (!eval_data.horaFin) {
+            err.horaFin = "La hora de fin es obligatoria";
+        } else if (!/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/.test(eval_data.horaFin)) {
+            err.horaFin = "La hora de fin debe estar en formato HH:mm (ej: 11:30)";
+        }
+
+       
+        if (eval_data.horaInicio && eval_data.horaFin) {
+            if (eval_data.horaInicio >= eval_data.horaFin) {
+                err.horaFin = "La hora de fin debe ser posterior a la hora de inicio";
+            }
+        }
+
+      
+        if (eval_data.ponderacion === "" || eval_data.ponderacion === null) {
+            err.ponderacion = "La ponderación es obligatoria";
+        } else if (isNaN(eval_data.ponderacion)) {
+            err.ponderacion = "La ponderación debe ser un número";
+        } else if (eval_data.ponderacion < 0) {
+            err.ponderacion = "La ponderación no puede ser menor a 0";
+        } else if (eval_data.ponderacion > 100) {
+            err.ponderacion = "La ponderación no puede superar los 100";
+        }
+
+       
+        if (!eval_data.contenidos || eval_data.contenidos.trim() === "") {
+            err.contenidos = "El campo contenido es obligatorio";
+        } else if (eval_data.contenidos.trim().length < 10) {
+            err.contenidos = "El contenido debe tener al menos 10 caracteres";
+        }
+
+       
+        if (!ramo && (!eval_data.codigoRamo || eval_data.codigoRamo.trim() === "")) {
+            err.codigoRamo = "El código del ramo es obligatorio";
+        }
+
+       
+        if (!ramo && (!eval_data.ramo_id || eval_data.ramo_id.trim() === "")) {
+            err.ramo_id = "El ID del ramo es obligatorio";
+        }
+
+        
+        if (eval_data.puntajeTotal === "" || eval_data.puntajeTotal === null) {
+            err.puntajeTotal = "El puntaje total es obligatorio";
+        } else if (isNaN(eval_data.puntajeTotal)) {
+            err.puntajeTotal = "El puntaje total debe ser un número entero";
+        } else if (!Number.isInteger(Number(eval_data.puntajeTotal))) {
+            err.puntajeTotal = "El puntaje total debe ser un número entero";
+        } else if (eval_data.puntajeTotal < 1) {
+            err.puntajeTotal = "El puntaje total debe ser al menos 1";
+        }
+
+        
+        const estadosValidos = ["pendiente", "aplicada", "finalizada"];
+        if (!estadosValidos.includes(eval_data.estado)) {
+            err.estado = "El estado debe ser 'pendiente', 'aplicada' o 'finalizada'";
+        }
+
+      
+        if (!eval_data.pauta?.id || eval_data.pauta.id === null) {
+            err.pauta = "Debe seleccionar una pauta";
+        }
+
+        return err;
+    };
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
-        
+
         if (name === "pautaPublicada") {
             setEvaluacion({
                 ...evaluacion,
-                pautaPublicada: checked
+                pautaPublicada: checked,
             });
-        } else if (name === "ponderacion") {
-            setEvaluacion({
-                ...evaluacion,
-                ponderacion: Number(value)
-            });
-        } else if (name === "pauta") {
-            setEvaluacion({
-                ...evaluacion,
-                pauta: { id: Number(value) }
-            });
-        } else {
-            setEvaluacion({
-                ...evaluacion,
-                [name]: value
-            });
+            setErrors({ ...errors, pautaPublicada: "" });
+            return;
         }
+
+        if (name === "pauta") {
+            setEvaluacion({
+                ...evaluacion,
+                pauta: { id: Number(value) },
+            });
+            setErrors({ ...errors, pauta: "" });
+            return;
+        }
+
+        if (type === "number") {
+            setEvaluacion({ ...evaluacion, [name]: Number(value) });
+        } else {
+            setEvaluacion({ ...evaluacion, [name]: value });
+        }
+
+        
+        setErrors({ ...errors, [name]: "" });
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError("");
+        
+        
+        const validationErrors = validarEvaluacion(evaluacion);
+
+        if (Object.keys(validationErrors).length > 0) {
+            setErrors(validationErrors);
+            return;
+        }
+
+        setErrors({});
         setIsLoading(true);
 
-        // Validaciones
-        if (!evaluacion.titulo || !evaluacion.fechaProgramada || !evaluacion.contenidos) {
-            setError("Todos los campos marcados son obligatorios");
-            setIsLoading(false);
-            return;
-        }
-
-        if (evaluacion.ponderacion <= 0 || evaluacion.ponderacion > 100) {
-            setError("La ponderación debe estar entre 1 y 100");
-            setIsLoading(false);
-            return;
-        }
-
-        if (!evaluacion.pauta.id) {
-            setError("Debe seleccionar una pauta");
-            setIsLoading(false);
-            return;
-        }
-
         try {
+            const pautaVal = evaluacion.pauta?.id ?? evaluacion.pauta ?? null;
+            const payload = {
+                ...evaluacion,
+                pauta: pautaVal !== null && pautaVal !== undefined ? String(pautaVal) : null,
+                codigoRamo: evaluacion.codigoRamo || undefined,
+                ramo_id: evaluacion.ramo_id || undefined,
+            };
+
             if (evaluacion.id) {
-                await updateEvaluacion(evaluacion.id, evaluacion);
+                await updateEvaluacion(evaluacion.id, payload);
                 alert("Evaluación actualizada correctamente");
             } else {
-                await createEvaluacion(evaluacion);
+                await createEvaluacion(payload);
                 alert("Evaluación creada correctamente");
             }
             setEvaluacion(initialState);
+            setErrors({});
             onSaved();
         } catch (error) {
             setError(error.message || "Error al guardar la evaluación");
@@ -101,91 +265,232 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved }) {
             setIsLoading(false);
         }
     };
+
+    const getFieldError = (fieldName) => errors[fieldName];
+    const hasFieldError = (fieldName) => !!errors[fieldName];
+
     return (
-        <form onSubmit={handleSubmit} className="p-4 border rounded bg-gray-50 space-y-4">
-            <h2 className="text-xl font-semibold">
+        <form onSubmit={handleSubmit} className="p-6 border rounded bg-gray-50 space-y-5">
+            <h2 className="text-xl font-semibold text-gray-800">
                 {evaluacion.id ? "Editar Evaluación" : "Nueva Evaluación"}
             </h2>
 
-            {error && (
-                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-                    {error}
-                </div>
-            )}
 
+            {/* Título */}
             <div>
-                <label className="block mb-1">Título: *</label>
+                <label className="block mb-1 font-semibold text-gray-700">Título: *</label>
                 <input
                     type="text"
                     name="titulo"
                     value={evaluacion.titulo}
                     onChange={handleChange}
-                    className="border p-2 w-full rounded"
+                    className={`border p-2 w-full rounded transition ${
+                        hasFieldError("titulo")
+                            ? "border-red-500 bg-red-50"
+                            : "border-gray-300 focus:border-blue-500"
+                    }`}
                     placeholder="Título de la evaluación"
-                    required
                 />
+                {hasFieldError("titulo") && (
+                    <p className="text-red-600 text-sm mt-1">{getFieldError("titulo")}</p>
+                )}
             </div>
 
+            {/* Fecha Programada */}
             <div>
-                <label className="block mb-1">Fecha Programada: *</label>
+                <label className="block mb-1 font-semibold text-gray-700">Fecha Programada: *</label>
                 <input
                     type="date"
                     name="fechaProgramada"
                     value={evaluacion.fechaProgramada}
                     onChange={handleChange}
-                    className="border p-2 w-full rounded"
-                    required
+                    className={`border p-2 w-full rounded transition ${
+                        hasFieldError("fechaProgramada")
+                            ? "border-red-500 bg-red-50"
+                            : "border-gray-300 focus:border-blue-500"
+                    }`}
                 />
+                {hasFieldError("fechaProgramada") && (
+                    <p className="text-red-600 text-sm mt-1">{getFieldError("fechaProgramada")}</p>
+                )}
             </div>
 
+            {/* Horas */}
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <label className="block mb-1 font-semibold text-gray-700">Hora Inicio: *</label>
+                    <input
+                        type="time"
+                        name="horaInicio"
+                        value={evaluacion.horaInicio}
+                        onChange={handleChange}
+                        className={`border p-2 w-full rounded transition ${
+                            hasFieldError("horaInicio")
+                                ? "border-red-500 bg-red-50"
+                                : "border-gray-300 focus:border-blue-500"
+                        }`}
+                    />
+                    {hasFieldError("horaInicio") && (
+                        <p className="text-red-600 text-sm mt-1">{getFieldError("horaInicio")}</p>
+                    )}
+                </div>
+                <div>
+                    <label className="block mb-1 font-semibold text-gray-700">Hora Fin: *</label>
+                    <input
+                        type="time"
+                        name="horaFin"
+                        value={evaluacion.horaFin}
+                        onChange={handleChange}
+                        className={`border p-2 w-full rounded transition ${
+                            hasFieldError("horaFin")
+                                ? "border-red-500 bg-red-50"
+                                : "border-gray-300 focus:border-blue-500"
+                        }`}
+                    />
+                    {hasFieldError("horaFin") && (
+                        <p className="text-red-600 text-sm mt-1">{getFieldError("horaFin")}</p>
+                    )}
+                </div>
+            </div>
+
+            {/* Ponderación */}
             <div>
-                <label className="block mb-1">Ponderación (%): *</label>
+                <label className="block mb-1 font-semibold text-gray-700">Ponderación (%): *</label>
                 <input
                     type="number"
                     name="ponderacion"
                     value={evaluacion.ponderacion}
                     onChange={handleChange}
-                    className="border p-2 w-full rounded"
-                    min="1"
+                    className={`border p-2 w-full rounded transition ${
+                        hasFieldError("ponderacion")
+                            ? "border-red-500 bg-red-50"
+                            : "border-gray-300 focus:border-blue-500"
+                    }`}
+                    min="0"
                     max="100"
-                    required
                 />
+                {hasFieldError("ponderacion") && (
+                    <p className="text-red-600 text-sm mt-1">{getFieldError("ponderacion")}</p>
+                )}
             </div>
 
+            {/* Ramo y Puntaje Total */}
+            <div className="grid grid-cols-3 gap-4">
+                {!hideRamoFields && (
+                    <div>
+                        <label className="block mb-1 font-semibold text-gray-700">Código Ramo:</label>
+                        <input
+                            type="text"
+                            name="codigoRamo"
+                            value={evaluacion.codigoRamo}
+                            onChange={handleChange}
+                            className={`border p-2 w-full rounded transition ${
+                                hasFieldError("codigoRamo")
+                                    ? "border-red-500 bg-red-50"
+                                    : "border-gray-300 focus:border-blue-500"
+                            }`}
+                            placeholder="Código del ramo"
+                            disabled={!!ramo}
+                        />
+                        {hasFieldError("codigoRamo") && (
+                            <p className="text-red-600 text-sm mt-1">{getFieldError("codigoRamo")}</p>
+                        )}
+                    </div>
+                )}
+                {!hideRamoFields && (
+                    <div>
+                        <label className="block mb-1 font-semibold text-gray-700">Ramo ID:</label>
+                        <input
+                            type="text"
+                            name="ramo_id"
+                            value={evaluacion.ramo_id}
+                            onChange={handleChange}
+                            className={`border p-2 w-full rounded transition ${
+                                hasFieldError("ramo_id")
+                                    ? "border-red-500 bg-red-50"
+                                    : "border-gray-300 focus:border-blue-500"
+                            }`}
+                            placeholder="ID del ramo"
+                            disabled={!!ramo}
+                        />
+                        {hasFieldError("ramo_id") && (
+                            <p className="text-red-600 text-sm mt-1">{getFieldError("ramo_id")}</p>
+                        )}
+                    </div>
+                )}
+                <div className={!hideRamoFields ? "" : "col-span-3"}>
+                    <label className="block mb-1 font-semibold text-gray-700">Puntaje Total: *</label>
+                    <input
+                        type="number"
+                        name="puntajeTotal"
+                        value={evaluacion.puntajeTotal}
+                        onChange={handleChange}
+                        className={`border p-2 w-full rounded transition ${
+                            hasFieldError("puntajeTotal")
+                                ? "border-red-500 bg-red-50"
+                                : "border-gray-300 focus:border-blue-500"
+                        }`}
+                        min="1"
+                    />
+                    {hasFieldError("puntajeTotal") && (
+                        <p className="text-red-600 text-sm mt-1">{getFieldError("puntajeTotal")}</p>
+                    )}
+                </div>
+            </div>
+
+            {/* Contenidos */}
             <div>
-                <label className="block mb-1">Contenidos: *</label>
+                <label className="block mb-1 font-semibold text-gray-700">Contenidos: *</label>
                 <textarea
                     name="contenidos"
                     value={evaluacion.contenidos}
                     onChange={handleChange}
-                    className="border p-2 w-full rounded min-h-[100px]"
+                    className={`border p-2 w-full rounded min-h-[100px] transition ${
+                        hasFieldError("contenidos")
+                            ? "border-red-500 bg-red-50"
+                            : "border-gray-300 focus:border-blue-500"
+                    }`}
                     placeholder="Contenidos a evaluar"
-                    required
                 />
+                {hasFieldError("contenidos") && (
+                    <p className="text-red-600 text-sm mt-1">{getFieldError("contenidos")}</p>
+                )}
             </div>
 
+            {/* Estado */}
             <div>
-                <label className="block mb-1">Estado:</label>
+                <label className="block mb-1 font-semibold text-gray-700">Estado:</label>
                 <select
                     name="estado"
                     value={evaluacion.estado}
                     onChange={handleChange}
-                    className="border p-2 w-full rounded"
+                    className={`border p-2 w-full rounded transition ${
+                        hasFieldError("estado")
+                            ? "border-red-500 bg-red-50"
+                            : "border-gray-300 focus:border-blue-500"
+                    }`}
                 >
                     <option value="pendiente">Pendiente</option>
                     <option value="aplicada">Aplicada</option>
                     <option value="finalizada">Finalizada</option>
                 </select>
+                {hasFieldError("estado") && (
+                    <p className="text-red-600 text-sm mt-1">{getFieldError("estado")}</p>
+                )}
             </div>
 
+            {/* Pauta */}
             <div>
-                <label className="block mb-1">Pauta: *</label>
+                <label className="block mb-1 font-semibold text-gray-700">Pauta: *</label>
                 <select
                     name="pauta"
-                    value={evaluacion.pauta.id || ""}
+                    value={evaluacion.pauta?.id || ""}
                     onChange={handleChange}
-                    className="border p-2 w-full rounded"
-                    required
+                    className={`border p-2 w-full rounded transition ${
+                        hasFieldError("pauta")
+                            ? "border-red-500 bg-red-50"
+                            : "border-gray-300 focus:border-blue-500"
+                    }`}
                 >
                     <option value="">Seleccione una pauta</option>
                     {pautas.map(p => (
@@ -194,36 +499,41 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved }) {
                         </option>
                     ))}
                 </select>
+                {hasFieldError("pauta") && (
+                    <p className="text-red-600 text-sm mt-1">{getFieldError("pauta")}</p>
+                )}
             </div>
 
-            <div>
-               
-            </div>
-
-            <div className="flex items-center gap-2">
+            {/* Publicar Evaluación */}
+            <div className="flex items-center gap-2 p-3 bg-blue-50 rounded border border-blue-200">
                 <input
                     type="checkbox"
                     name="pautaPublicada"
+                    id="pautaPublicada"
                     checked={evaluacion.pautaPublicada}
                     onChange={handleChange}
-                    className="h-4 w-4"
+                    className="h-4 w-4 cursor-pointer"
                 />
-                <label>Publicar pauta</label>
+                <label htmlFor="pautaPublicada" className="cursor-pointer font-semibold text-gray-700">
+                    Publicar evaluación
+                </label>
             </div>
 
+            {/* Botón Submit */}
             <button
                 type="submit"
                 disabled={isLoading}
-                className={`w-full ${
-                    isLoading 
-                        ? "bg-gray-400 cursor-not-allowed" 
-                        : "bg-blue-500 hover:bg-blue-600"
-                } text-white px-4 py-2 rounded transition`}
+                className={`w-full py-3 px-4 rounded font-semibold transition ${
+                    isLoading
+                        ? "bg-gray-400 cursor-not-allowed text-gray-600"
+                        : "bg-blue-500 hover:bg-blue-600 text-white hover:shadow-lg"
+                }`}
             >
-                {isLoading 
-                    ? "Guardando..." 
-                    : (evaluacion.id ? "Actualizar Evaluación" : "Crear Evaluación")
-                }
+                {isLoading
+                    ? "Guardando..."
+                    : evaluacion.id
+                    ? "Actualizar Evaluación"
+                    : "Crear Evaluación"}
             </button>
         </form>
     );

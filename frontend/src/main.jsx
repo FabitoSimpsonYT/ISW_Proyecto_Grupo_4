@@ -9,7 +9,10 @@ import MiAgenda from '@pages/MiAgenda';
 import InscribirEvaluaciones from '@pages/InscribirEvaluaciones';
 import MiPerfil from '@pages/MiPerfil';
 import GestionRamosPage from '@pages/GestionRamosPage';
+import GestionSeccionesPage from '@pages/GestionSeccionesPage';
 import GestionUsuariosPage from '@pages/GestionUsuariosPage';
+import EvaluacionPage from '@pages/EvaluacionPage';
+import NotificacionesPage from '@pages/NotificacionesPage';
 import Error404 from '@pages/Error404';
 import Root from '@pages/Root';
 import '@styles/styles.css';
@@ -42,11 +45,18 @@ const router = createBrowserRouter([
       { path: '/mi-agenda', element: <MiAgenda /> },
       { path: '/inscribir-evaluaciones', element: <InscribirEvaluaciones /> },
 
+      // EVALUACIONES
+      { path: '/evaluaciones', element: <EvaluacionPage /> },
+
       // MI PERFIL
       { path: '/mi-perfil', element: <MiPerfil /> },
 
+      // NOTIFICACIONES
+      { path: '/notificaciones', element: <NotificacionesPage /> },
+
       // GESTIÓN DE RAMOS (solo admin y jefe de carrera)
       { path: '/ramos', element: <GestionRamosPage /> },
+      { path: '/ramos/:codigoRamo/secciones', element: <GestionSeccionesPage /> },
 
       // GESTIÓN DE USUARIOS (solo admin)
       { path: '/usuarios', element: <GestionUsuariosPage /> }

@@ -12,10 +12,13 @@ import {
   getMisRamosHandler,
   createSeccionHandler,
   getSeccionesByRamoHandler,
-  deleteSeccionHandler
+  deleteSeccionHandler,
+  getAlumnosBySeccion,
+  buscarAlumnosHandler,
 } from "../controllers/ramos.controller.js";
 import { validateRequest } from "../middleware/validation.middleware.js";
 import { createRamoValidation, updateRamoValidation, createSeccionValidation } from "../validations/ramos.validation.js";
+import { getAllAlumnosHandler } from "../controllers/alumno.controller.js";
 
 const router = Router();
 
@@ -32,7 +35,30 @@ router.post("/inscribir/:codigoRamo/:seccionId",
   inscribirAlumno
 );
 
-router.post("/secciones", 
+
+// Buscar alumnos por query (nombre, apellido, rut)
+router.get("/alumnos", 
+  authMiddleware,
+  checkRole(["profesor", "jefecarrera", "admin"]),
+  buscarAlumnosHandler
+);
+
+// Obtener alumnos inscritos en una sección
+router.get("/alumnos/:codigoRamo/:numero", 
+  checkRole(["profesor", "jefecarrera", "admin"]),
+  getAlumnosBySeccion
+);
+
+// Obtener todos los alumnos (igual que gestor de usuarios)
+
+router.get("/alumnos/todos",
+  checkRole(["profesor", "jefecarrera", "admin"]),
+  getAllAlumnosHandler
+);
+
+
+// Crear sección: ahora recibe el código de ramo como parámetro
+router.post("/secciones/:codigoRamo", 
   checkRole(["profesor", "admin", "jefecarrera"]),
   validateRequest(createSeccionValidation),
   createSeccionHandler

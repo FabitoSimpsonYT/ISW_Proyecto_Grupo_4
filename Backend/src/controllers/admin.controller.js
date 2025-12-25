@@ -171,7 +171,10 @@ export async function getJefeCarreraActualHandler(req, res) {
     });
   } catch (error) {
     if (error instanceof NotFoundError) {
-      return res.status(404).json({ message: error.message });
+      return res.status(200).json({
+        message: "No hay jefe de carrera asignado",
+        data: null
+      });
     }
     console.error("Error al obtener jefe de carrera: ", error);
     res.status(500).json({ message: "Error al obtener jefe de carrera." });

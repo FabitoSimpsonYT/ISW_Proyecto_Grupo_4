@@ -6,7 +6,7 @@ import axios from "./root.service.js";
 export async function getAllEvaluaciones() {
     try {
         const response = await axios.get("/evaluaciones");
-        return response.data;
+        return response.data?.data?.evaluaciones || [];
     } catch (error) {
         return error.response?.data || {message: "error al obtener las evaluaciones"};
 
@@ -16,12 +16,21 @@ export async function getAllEvaluaciones() {
 export async function getEvaluacionById(id) {
     try {
         const response = await axios.get(`/evaluaciones/${id}`);
-        return response.data;
+        return response.data?.data?.evaluacion || null;
     } catch (error) {
         return error.response?.data || {message: "error al obtener la evaluavion"};
 
     }
     
+}
+
+export async function getEvaluacionesByCodigoRamo(codigoRamo) {
+    try {
+        const response = await axios.get(`/evaluaciones/${encodeURIComponent(codigoRamo)}`);
+        return response.data?.data?.evaluaciones || [];
+    } catch (error) {
+        throw error.response?.data || { message: "Error al obtener evaluaciones del ramo" };
+    }
 }
 /**
  * crear evaluacion
@@ -29,7 +38,8 @@ export async function getEvaluacionById(id) {
 export async function createEvaluacion(evaluacionData) {
     try {
         const response = await axios.post("/evaluaciones", evaluacionData);
-        return response.data.data;
+   
+        return response.data?.data?.evaluacion || response.data?.data || null;
     } catch (error) {
         throw error.response?.data || { message: "Error al crear la evaluación" };
     }
@@ -39,7 +49,7 @@ export async function createEvaluacion(evaluacionData) {
  */
 export async function updateEvaluacion(id, evaluacionData) {
     try {
-        const response = await axios.put(`/evaluaciones/${id}`,evaluacionData);
+        const response = await axios.patch(`/evaluaciones/${id}`,evaluacionData);
         return response.data;
     } catch (error) {
         return error.response?.data || {message : "error al actulizar la evaluacion"};
