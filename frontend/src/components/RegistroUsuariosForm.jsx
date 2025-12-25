@@ -1,4 +1,16 @@
 import { useState } from "react";
+// Validación de correo para profesores/administradores y alumnos
+function validateEmail(email, tipo) {
+  // Profesores y administradores: deben terminar en @ubiobio.cl
+  if (tipo === "profesor" || tipo === "admin") {
+    return /^[^\s@]+@ubiobio\.cl$/.test(email);
+  }
+  // Alumnos: nombre.apellidoAAMM@alumnos.ubiobio.cl
+  if (tipo === "alumno") {
+    return /^[a-zA-Z]+\.[a-zA-Z]+\d{4}@alumnos\.ubiobio\.cl$/.test(email);
+  }
+  return false;
+}
 import { createAdmin, createProfesor, createAlumno } from "../services/users.service.js";
 
 export default function RegistroUsuariosForm({ onSaved }) {
@@ -32,6 +44,11 @@ export default function RegistroUsuariosForm({ onSaved }) {
     
     // Validar que el número sea solo dígitos
     if (!/^\d{7,8}$/.test(numero)) {
+      return false;
+    }
+
+    // Validar que no sea RUT de empresa (> 50 millones)
+    if (parseInt(numero) > 50000000) {
       return false;
     }
 
@@ -113,15 +130,27 @@ export default function RegistroUsuariosForm({ onSaved }) {
       return false;
     }
     if (!validateRut(formData.rut)) {
-      setError('El RUT no es válido. Verifica el dígito verificador');
+      // Extraer el número para verificar si es de empresa
+      const [numero] = formData.rut.split('-');
+      if (parseInt(numero) > 50000000) {
+        setError('No se pueden registrar RUTs de empresa. Debes usar un RUT personal');
+      } else {
+        setError('El RUT no es válido. Verifica el dígito verificador');
+      }
       return false;
     }
     if (!formData.email.trim()) {
       setError('El email es obligatorio');
       return false;
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      setError('El email no es válido');
+    if (!validateEmail(formData.email, tipo)) {
+      if (tipo === "profesor" || tipo === "admin") {
+        setError('El correo debe terminar en @ubiobio.cl');
+      } else if (tipo === "alumno") {
+        setError('El correo de alumno debe tener el formato nombre.apellidoAAMM@alumnos.ubiobio.cl');
+      } else {
+        setError('El correo no es válido');
+      }
       return false;
     }
     if (!formData.password.trim()) {
@@ -180,15 +209,27 @@ export default function RegistroUsuariosForm({ onSaved }) {
       return;
     }
     if (!validateRut(formDataConRutFormateado.rut)) {
-      setError('El RUT no es válido. Verifica el dígito verificador');
+      // Extraer el número para verificar si es de empresa
+      const [numero] = formDataConRutFormateado.rut.split('-');
+      if (parseInt(numero) > 50000000) {
+        setError('El RUT no debe ser superior a 50 millones. Verifica que sea un RUT personal');
+      } else {
+        setError('El RUT no es válido. Verifica el dígito verificador');
+      }
       return;
     }
     if (!formDataConRutFormateado.email.trim()) {
       setError('El email es obligatorio');
       return;
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formDataConRutFormateado.email)) {
-      setError('El email no es válido');
+    if (!validateEmail(formDataConRutFormateado.email, tipo)) {
+      if (tipo === "profesor" || tipo === "admin") {
+        setError('El correo debe terminar en @ubiobio.cl');
+      } else if (tipo === "alumno") {
+        setError('El correo de alumno debe tener el formato nombre.apellidoAAMM@alumnos.ubiobio.cl');
+      } else {
+        setError('El correo no es válido');
+      }
       return;
     }
     if (!formDataConRutFormateado.password.trim()) {

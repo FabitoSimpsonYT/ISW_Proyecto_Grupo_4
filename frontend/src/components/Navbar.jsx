@@ -1,28 +1,33 @@
 import { useAuth } from "../context/AuthContext.jsx";
 import { useNavbar } from "../context/NavbarContext.jsx";
 import { useNavigate } from "react-router-dom";
-import { logout } from "../services/auth.service.js";
+import { logout as logoutService } from "../services/auth.service.js";
 
 const Navbar = () => {
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const { isNavbarOpen: isOpen, setIsNavbarOpen: setIsOpen } = useNavbar();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    await logout();
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    navigate('/');
-  };
-
-  const handleApelaciones = () => {
-    if (user?.role === "alumno") {
-      navigate("/apelaciones/mis");  // Página del alumno
-    } else if (user?.role === "profesor") {
-      navigate("/apelaciones-profesor"); // Página del profesor
-    } else {
-      console.warn("Usuario sin rol válido para apelaciones");
+    try {
+      await logoutService();
+    } catch (err) {
+      console.error('Error al cerrar sesión:', err);
     }
+    // Limpiar estado y redirigir al login
+    try {
+      sessionStorage.removeItem('usuario');
+    } catch (e) {}
+    try {
+      localStorage.removeItem('token');
+    } catch (e) {}
+    try {
+      localStorage.removeItem('user');
+    } catch (e) {}
+    try {
+      setUser(null);
+    } catch (e) {}
+    navigate('/');
   };
 
   return (
@@ -48,10 +53,13 @@ const Navbar = () => {
         </div>
 
         {/* MENÚ DE OPCIONES */}
-        <div className="flex flex-col gap-3 flex-1">
+        <div className="flex flex-col gap-4 flex-1">
           {/* INICIO */}
           <button
-            onClick={() => navigate("/home")}
+            onClick={() => {
+              navigate("/home");
+              setIsOpen(false);
+            }}
             className="px-4 py-2 border border-white rounded-lg hover:bg-white hover:text-[#0E2C66] transition font-medium"
           >
             🏠 Inicio
@@ -59,39 +67,56 @@ const Navbar = () => {
 
           {/* MI AGENDA */}
           <button
-            onClick={() => navigate("/mi-agenda")}
+            onClick={() => {
+              navigate("/mi-agenda");
+              setIsOpen(false);
+            }}
             className="px-4 py-2 border border-white rounded-lg hover:bg-white hover:text-[#0E2C66] transition font-medium"
           >
             📅 Mi Agenda
           </button>
 
           {/* APELACIONES */}
-          {user?.role === "alumno" && (
-            <button
-              onClick={() => navigate("/apelaciones/mis")}
+          <button
+            onClick={() => {
+              navigate("/apelaciones/mis");
+              setIsOpen(false);
+            }}
             className="px-4 py-2 border border-white rounded-lg hover:bg-white hover:text-[#0E2C66] transition font-medium"
           >
             Apelaciones
-            </button>
-          )}
-          
-          {user?.role === "profesor" && (
-            <button
-              onClick={() => navigate("/apelaciones-profesor")}
+          </button>
+
+          {/* EVALUACIONES */}
+          <button
+            onClick={() => {
+              navigate("/evaluaciones");
+              setIsOpen(false);
+            }}
             className="px-4 py-2 border border-white rounded-lg hover:bg-white hover:text-[#0E2C66] transition font-medium"
           >
-            Apelaciones
-            </button>
-          )}
+            Evaluaciones
+          </button>
 
-
-
+          {/* NOTIFICACIONES */}
+          <button
+            onClick={() => {
+              navigate("/notificaciones");
+              setIsOpen(false);
+            }}
+            className="px-4 py-2 border border-white rounded-lg hover:bg-white hover:text-[#0E2C66] transition font-medium"
+          >
+            Notificaciones
+          </button>
 
 
           {/* PROFESOR */}
           {user?.role === "profesor" && (
             <button
-              onClick={() => navigate("/crear-pauta")}
+              onClick={() => {
+                navigate("/crear-pauta");
+                setIsOpen(false);
+              }}
               className="px-4 py-2 border border-white rounded-lg hover:bg-white hover:text-[#0E2C66] transition font-medium"
             >
               Crear Pauta
@@ -101,17 +126,23 @@ const Navbar = () => {
           {/* GESTIONAR RAMOS - SOLO ADMIN Y JEFE DE CARRERA */}
           {(user?.role === "admin" || user?.role === "jefecarrera") && (
             <button
-              onClick={() => navigate("/ramos")}
+              onClick={() => {
+                navigate("/ramos");
+                setIsOpen(false);
+              }}
               className="px-4 py-2 border border-white rounded-lg hover:bg-white hover:text-[#0E2C66] transition font-medium"
             >
               📚 Gestionar Ramos
             </button>
           )}
 
-          {/* GESTIÓN DE USUARIOS - SOLO ADMIN */}
-          {user?.role === "admin" && (
+          {/* GESTIÓN DE USUARIOS - SOLO ADMIN Y JEFE DE CARRERA */}
+          {(user?.role === "admin" || user?.role === "jefecarrera") && (
             <button
-              onClick={() => navigate("/usuarios")}
+              onClick={() => {
+                navigate("/usuarios");
+                setIsOpen(false);
+              }}
               className="px-4 py-2 border border-white rounded-lg hover:bg-white hover:text-[#0E2C66] transition font-medium"
             >
               👥 Gestionar Usuarios
@@ -121,7 +152,10 @@ const Navbar = () => {
           {/* ALUMNO */}
           {user?.role === "alumno" && (
             <button
-              onClick={() => navigate("/ver-pautas")}
+              onClick={() => {
+                navigate("/ver-pautas");
+                setIsOpen(false);
+              }}
               className="px-4 py-2 border border-white rounded-lg hover:bg-white hover:text-[#0E2C66] transition font-medium"
             >
               Ver Pautas
@@ -130,7 +164,10 @@ const Navbar = () => {
 
           {/* VER PERFIL */}
           <button
-            onClick={() => navigate("/mi-perfil")}
+            onClick={() => {
+              navigate("/mi-perfil");
+              setIsOpen(false);
+            }}
             className="px-4 py-2 border border-white rounded-lg hover:bg-white hover:text-[#0E2C66] transition font-medium"
           >
             Ver Perfil

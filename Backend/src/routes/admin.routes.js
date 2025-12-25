@@ -18,7 +18,7 @@ const router = Router();
 
 router.use(authMiddleware);
 
-router.use(checkRole(["admin"]));
+router.use(checkRole(["admin", "jefecarrera"]));
 
 router.post("/", 
   validateRequest(createAdminValidation), 
@@ -27,6 +27,18 @@ router.post("/",
 
 router.get("/", 
   getAllAdminsHandler
+);
+
+router.post("/promover", 
+  promoverProfesorAJefeCarreraHandler
+);
+
+router.post("/degradar", 
+  degradarJefeCarreraAProfesorHandler
+);
+
+router.get("/jefe-carrera", 
+  getJefeCarreraActualHandler
 );
 
 router.get("/:id", 
@@ -40,18 +52,6 @@ router.put("/:id",
 
 router.delete("/:id", 
   deleteAdminHandler
-);
-
-router.post("/promover", 
-  promoverProfesorAJefeCarreraHandler
-);
-
-router.post("/degradar", 
-  degradarJefeCarreraAProfesorHandler
-);
-
-router.get("/jefe-carrera", 
-  getJefeCarreraActualHandler
 );
 
 export default router;

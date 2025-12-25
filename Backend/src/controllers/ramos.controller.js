@@ -1,3 +1,24 @@
+// Buscar alumnos por query (nombre, apellido o rut)
+import { buscarAlumnosPorQuery } from "../services/ramos.service.js";
+import { Seccion } from "../entities/seccion.entity.js";
+import { AppDataSource } from "../config/configDb.js";
+
+export async function buscarAlumnosHandler(req, res) {
+  try {
+    const { query } = req.query;
+    if (!query || query.trim() === "") {
+      return res.status(400).json({ message: "Debe proporcionar un parámetro de búsqueda (query)" });
+    }
+    const alumnos = await buscarAlumnosPorQuery(query);
+    res.status(200).json({
+      message: "Alumnos encontrados",
+      data: alumnos
+    });
+  } catch (error) {
+    console.error("Error al buscar alumnos:", error);
+    res.status(500).json({ message: "Error al buscar alumnos" });
+  }
+}
 import { BadRequestError, NotFoundError, handleSuccess, handleErrorClient, handleErrorServer } from "../Handlers/responseHandlers.js";
 import {
   createRamo,
@@ -165,22 +186,24 @@ export async function inscribirAlumno(req, res) {
 }
 
 export async function createSeccionHandler(req, res) {
-    try {
-        const newSeccion = await createSeccion(req.body);
-        res.status(201).json({
-            message: "Sección creada exitosamente",
-            data: newSeccion
-        });
-    } catch (error) {
-        if (error instanceof BadRequestError) {
-            return handleErrorClient(res, 400, error.message);
-        }
-        if (error instanceof NotFoundError) {
-            return handleErrorClient(res, 404, error.message);
-        }
-        console.error("Error al crear sección: ", error);
-        handleErrorServer(res, 500, "Error al crear sección", error.message);
+  try {
+    // Tomar el código de ramo desde los params
+    const { codigoRamo } = req.params;
+    const newSeccion = await createSeccion({ ...req.body, codigoRamo });
+    res.status(201).json({
+      message: "Sección creada exitosamente",
+      data: newSeccion
+    });
+  } catch (error) {
+    if (error instanceof BadRequestError) {
+      return handleErrorClient(res, 400, error.message);
     }
+    if (error instanceof NotFoundError) {
+      return handleErrorClient(res, 404, error.message);
+    }
+    console.error("Error al crear sección: ", error);
+    handleErrorServer(res, 500, "Error al crear sección", error.message);
+  }
 }
 
 export async function getSeccionesByRamoHandler(req, res) {
@@ -215,3 +238,35 @@ export async function deleteSeccionHandler(req, res) {
         handleErrorServer(res, 500, "Error al eliminar sección", error.message);
     }
 }
+
+
+
+// Obtener alumnos inscritos en una sección
+export async function getAlumnosBySeccion(req, res) {
+  try {
+    const { codigoRamo, numero } = req.params;
+    const seccionRepository = AppDataSource.getRepository(Seccion);
+    const seccion = await seccionRepository.findOne({
+      where: {
+        ramo: { codigo: codigoRamo },
+        numero: parseInt(numero)
+      },
+      relations: ['alumnos', 'alumnos.user', 'ramo']
+    });
+    if (!seccion) {
+      return res.status(404).json({ message: 'Sección no encontrada' });
+    }
+    const alumnos = seccion.alumnos.map(a => ({
+      id: a.id,
+      rut: a.user.rut,
+      nombres: a.user.nombres,
+      apellidoPaterno: a.user.apellidoPaterno,
+      apellidoMaterno: a.user.apellidoMaterno
+    }));
+    return res.status(200).json({ message: 'Alumnos inscritos encontrados', data: alumnos });
+  } catch (error) {
+    console.error('Error al obtener alumnos inscritos:', error);
+    return res.status(500).json({ message: 'Error al obtener alumnos inscritos', error: error.message });
+  }
+}
+

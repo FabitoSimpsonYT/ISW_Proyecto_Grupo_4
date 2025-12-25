@@ -1,3 +1,29 @@
+// Buscar alumnos por nombre, apellido o rut
+import { Like } from "typeorm";
+
+export async function buscarAlumnosPorQuery(query) {
+  const alumnoRepository = AppDataSource.getRepository(Alumno);
+  // Buscar en los campos del usuario relacionado, solo usuarios con rol 'alumno'
+  const alumnos = await alumnoRepository.find({
+    relations: ["user"],
+    where: [
+      { user: { nombres: Like(`%${query}%`), role: "alumno" } },
+      { user: { apellidoPaterno: Like(`%${query}%`), role: "alumno" } },
+      { user: { apellidoMaterno: Like(`%${query}%`), role: "alumno" } },
+      { user: { rut: Like(`%${query}%`), role: "alumno" } },
+    ],
+    take: 20 // Limitar resultados
+  });
+  // Devolver solo los datos necesarios
+  return alumnos.map(a => ({
+    id: a.id,
+    nombres: a.user.nombres,
+    apellidoPaterno: a.user.apellidoPaterno,
+    apellidoMaterno: a.user.apellidoMaterno,
+    rut: a.user.rut,
+    email: a.user.email
+  }));
+}
 import { AppDataSource } from "../config/configDb.js";
 import { BadRequestError, NotFoundError } from "../Handlers/responseHandlers.js";
 import { Ramos } from "../entities/ramos.entity.js";
@@ -21,11 +47,14 @@ export async function createRamo(ramoData) {
   if (ramoData.rutProfesor) {
     const userRepository = AppDataSource.getRepository(User);
     const user = await userRepository.findOne({
-      where: { rut: ramoData.rutProfesor, role: "profesor" }
+      where: [
+        { rut: ramoData.rutProfesor, role: "profesor" },
+        { rut: ramoData.rutProfesor, role: "jefecarrera" }
+      ]
     });
 
     if (!user) {
-      throw new BadRequestError("No se encontró un profesor con el RUT especificado");
+      throw new BadRequestError("No se encontró un profesor/jefe de carrera con el RUT especificado");
     }
 
     const profesor = await profesorRepository.findOne({
@@ -33,7 +62,7 @@ export async function createRamo(ramoData) {
     });
 
     if (!profesor) {
-      throw new BadRequestError("No se encontró el perfil del profesor");
+      throw new BadRequestError("No se encontró el perfil del profesor/jefe de carrera");
     }
 
     const newRamo = ramosRepository.create({
@@ -111,11 +140,14 @@ export async function updateRamo(codigo, ramoData) {
   if (ramoData.rutProfesor) {
     const userRepository = AppDataSource.getRepository(User);
     const user = await userRepository.findOne({
-      where: { rut: ramoData.rutProfesor, role: "profesor" }
+      where: [
+        { rut: ramoData.rutProfesor, role: "profesor" },
+        { rut: ramoData.rutProfesor, role: "jefecarrera" }
+      ]
     });
 
     if (!user) {
-      throw new BadRequestError("No se encontró un profesor con el RUT especificado");
+      throw new BadRequestError("No se encontró un profesor/jefe de carrera con el RUT especificado");
     }
 
     profesor = await profesorRepository.findOne({
@@ -123,7 +155,7 @@ export async function updateRamo(codigo, ramoData) {
     });
 
     if (!profesor) {
-      throw new BadRequestError("No se encontró el perfil del profesor");
+      throw new BadRequestError("No se encontró el perfil del profesor/jefe de carrera");
     }
   }
 

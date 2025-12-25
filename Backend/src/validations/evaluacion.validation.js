@@ -54,8 +54,12 @@ export const createEvaluacionValidation = Joi.object({
         }),
         codigoRamo: Joi.string()
         .required()
+        .length(6)
+        .pattern(/^[0-9]{6}$/)
         .messages({
             "string.empty":"el código del ramo es obligatorio",
+            "string.length":"el código del ramo debe tener exactamente 6 caracteres",
+            "string.pattern.base":"el código del ramo debe contener solo números",
             "any.required":"el código del ramo es obligatorio",
         }),
         estado: Joi.string()

@@ -12,7 +12,8 @@ import { createAlumnoValidation, updateAlumnoValidation } from "../validations/a
 
 export async function getAllAlumnosHandler(req, res) {
     try {
-        const alumnos = await getAllAlumnos();
+        const query = req.query.query || "";
+        const alumnos = await getAllAlumnos(query);
         res.status(200).json({ 
             message: "Alumnos encontrados", 
             data: alumnos 

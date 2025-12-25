@@ -37,12 +37,22 @@ export async function createAlumno(alumnoData) {
 }
 
 export async function getAllAlumnos() {
-  const alumnos = await alumnoRepository.find({
-    relations: {
-      user: true
-    }
-  });
-
+  let alumnos;
+  if (arguments.length > 0 && arguments[0]) {
+    // Si hay query, buscar por nombre, apellido o rut (case insensitive)
+    const query = arguments[0].toLowerCase();
+    alumnos = await alumnoRepository
+      .createQueryBuilder("alumno")
+      .leftJoinAndSelect("alumno.user", "user")
+      .where("LOWER(user.nombres) LIKE :q OR LOWER(user.apellidoPaterno) LIKE :q OR LOWER(user.apellidoMaterno) LIKE :q OR LOWER(user.rut) LIKE :q", { q: `%${query}%` })
+      .getMany();
+  } else {
+    alumnos = await alumnoRepository.find({
+      relations: {
+        user: true
+      }
+    });
+  }
   return alumnos.map(alumno => {
     if (alumno.user) delete alumno.user.password;
     return alumno;
