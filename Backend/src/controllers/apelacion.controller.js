@@ -333,13 +333,24 @@ export const editarApelacionAlumno = async (req, res) => {
       return res.status(404).json({ message: "Apelación no encontrada." });
     }
 
-    // 🔐 Validar dueño
     const alumnoId = req.user?.id || req.user?.sub;
     if (apelacion.alumno.id !== alumnoId) {
       return res.status(403).json({ message: "No autorizado." });
     }
 
-    // 🔒 Validar estado
+    if (apelacion.fechaLimiteEdicion) {
+  const ahora = new Date();
+
+  if (ahora > apelacion.fechaLimiteEdicion) {
+    apelacion.puedeEditar = false;
+    await apelacionRepo.save(apelacion);
+
+    return res.status(403).json({
+      message: "El plazo para editar esta apelación ya expiró.",
+    });
+  }
+}
+
     if (!["pendiente", "cita", "revisada"].includes(apelacion.estado)) {
       return res.status(400).json({
         message: "La apelación no se puede editar en este estado.",
@@ -352,19 +363,12 @@ export const editarApelacionAlumno = async (req, res) => {
       });
     }
 
-    // ==========================
-    // 📝 ACTUALIZAR MENSAJE
-    // ==========================
     if (mensaje?.trim()) {
       apelacion.mensaje = mensaje.trim();
     }
 
-    // ==========================
-    // 📎 MANEJO DE ARCHIVOS
-    // ==========================
     const uploadsDir = path.resolve("src/uploads");
 
-    // 👉 Caso 1: eliminar archivo existente
     if (removeArchivo === "true" && apelacion.archivo) {
       const oldPath = path.join(uploadsDir, apelacion.archivo);
       if (fs.existsSync(oldPath)) {
@@ -373,7 +377,6 @@ export const editarApelacionAlumno = async (req, res) => {
       apelacion.archivo = null;
     }
 
-    // 👉 Caso 2: reemplazar archivo
     if (nuevoArchivo) {
       if (apelacion.archivo) {
         const oldPath = path.join(uploadsDir, apelacion.archivo);
@@ -384,9 +387,6 @@ export const editarApelacionAlumno = async (req, res) => {
       apelacion.archivo = nuevoArchivo;
     }
 
-    // ==========================
-    // 👨‍🏫 CAMBIO DE PROFESOR
-    // ==========================
     if (profesorEmail) {
       const nuevoProfesor = await userRepo.findOne({
         where: { email: profesorEmail, role: "profesor" },
@@ -488,31 +488,39 @@ export const updateEstadoApelacion = async (req, res) => {
       apelacion.puedeEditar = false;
     }
 
-    if (estado === "cita") {
-      if (!fechaCitacion) {
-        return res.status(400).json({
-          message: "La citación requiere una fecha de citación válida.",
-        });
-      }
+if (estado === "cita") {
+  if (!fechaCitacion && apelacion.fechaCitacion) {
+    apelacion.estado = "cita";
+    apelacion.respuestaDocente = respuestaDocente?.trim() || null;
+    apelacion.puedeEditar = true;
 
-      const fechaCita = new Date(fechaCitacion);
-      if (isNaN(fechaCita.getTime())) {
-        return res.status(400).json({
-          message: "La fecha de citación no es válida.",
-        });
-      }
+  }
 
-      apelacion.estado = "cita";
-      apelacion.respuestaDocente = respuestaDocente?.trim() || null;
-      apelacion.fechaCitacion = fechaCita;
-
-      const limite = new Date(fechaCita);
-      limite.setHours(limite.getHours() - 24);
-
-      apelacion.fechaLimiteEdicion = limite;
-      apelacion.puedeEditar = true;
+  else {
+    if (!fechaCitacion) {
+      return res.status(400).json({
+        message: "La citación requiere una fecha de citación válida.",
+      });
     }
 
+    const fechaCita = new Date(fechaCitacion);
+    if (isNaN(fechaCita.getTime())) {
+      return res.status(400).json({
+        message: "La fecha de citación no es válida.",
+      });
+    }
+
+    apelacion.estado = "cita";
+    apelacion.respuestaDocente = respuestaDocente?.trim() || null;
+    apelacion.fechaCitacion = fechaCita;
+
+    const limite = new Date(fechaCita);
+    limite.setHours(limite.getHours() - 24);
+
+    apelacion.fechaLimiteEdicion = limite;
+    apelacion.puedeEditar = true;
+  }
+}
     await apelacionRepo.save(apelacion);
 
     return res.status(200).json({
@@ -525,7 +533,6 @@ export const updateEstadoApelacion = async (req, res) => {
     return res.status(500).json({ message: "Error interno" });
   }
 };
-
 
 
 
