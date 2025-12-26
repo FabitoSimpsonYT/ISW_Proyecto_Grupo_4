@@ -87,7 +87,6 @@ const Navbar = () => {
 
 
 
-
           {/* PROFESOR */}
           {user?.role === "profesor" && (
             <button
