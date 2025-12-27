@@ -195,6 +195,7 @@ export default function EvaluacionPage() {
                   onSaved={handleSaved}
                   ramo={selectedRamo}
                   hideRamoFields
+                  isIntegradora={selectedEvaluacion?.esIntegradora || false}
                 />
               </div>
             )}

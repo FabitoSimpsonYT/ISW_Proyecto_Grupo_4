@@ -39,6 +39,31 @@ export async function createPauta(pautaData, evaluacionId) {
 }
 
 /**
+ * Crear pauta para evaluación integradora
+ */
+export async function createPautaIntegradora(pautaData, evaluacionIntegradoraId) {
+  try {
+    const url = `/pauta/integradora/${evaluacionIntegradoraId}`;
+    const response = await axios.post(url, pautaData);
+    return response.data?.data?.pauta || response.data;
+  } catch (error) {
+    throw error.response?.data || {message:'Error al crear la pauta integradora'};
+  }
+}
+
+/**
+ * Obtener pauta integradora por evaluacionIntegradoraId
+ */
+export async function getPautaIntegradora(evaluacionIntegradoraId) {
+  try {
+    const response = await axios.get(`/pauta/integradora/${evaluacionIntegradoraId}`);
+    return response.data?.data?.pauta || response.data;
+  } catch (error) {
+    throw error.response?.data || {message: 'Error al obtener la pauta integradora'};
+  }
+}
+
+/**
  * Actualizar una pauta
  */
 export async function updatePauta(id, pautaData) {
@@ -51,6 +76,18 @@ export async function updatePauta(id, pautaData) {
 }
 
 /**
+ * Actualizar pauta integradora
+ */
+export async function updatePautaIntegradora(evaluacionIntegradoraId, pautaData) {
+  try {
+    const response = await axios.patch(`/pauta/integradora/${evaluacionIntegradoraId}`, pautaData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || {message: 'Error al actualizar la pauta integradora'};
+  }
+}
+
+/**
  * Eliminar pauta
  */
 export async function deletePauta(id) {
@@ -59,5 +96,17 @@ export async function deletePauta(id) {
     return response.data;
   } catch (error) {
     throw error.response?.data || {message:'Error al eliminar la pauta'};
+  }
+}
+
+/**
+ * Eliminar pauta integradora
+ */
+export async function deletePautaIntegradora(evaluacionIntegradoraId) {
+  try {
+    const response = await axios.delete(`/pauta/integradora/${evaluacionIntegradoraId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || {message: 'Error al eliminar la pauta integradora'};
   }
 }

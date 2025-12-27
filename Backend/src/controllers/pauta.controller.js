@@ -35,13 +35,36 @@ export async function createPauta(req, res) {
       );
     }
 
-    const result = await createPautaService(req.body, evaluacionId ? parseInt(evaluacionId) : null);
+    const result = await createPautaService(req.body, evaluacionId ? parseInt(evaluacionId) : null, null);
 
     if(result.error) return  handleErrorClient(res, 400, result.error);
 
     handleSuccess(res, 201, "Pauta creada exitosamente", { pauta: result });
   } catch (error) {
     handleErrorServer(res, 500, "Errror al crear pauta", error.message);
+  }
+}
+
+export async function createPautaIntegradora(req, res) {
+  try {
+    const { evaluacionIntegradoraId } = req.params;
+    const user = req.user;
+
+    if (user.role !== "profesor" && user.role !== "jefecarrera") {
+      return handleErrorClient(
+        res,
+        403,
+        "Solo los profesores y jefes de carrera pueden crear pautas"
+      );
+    }
+
+    const result = await createPautaService(req.body, null, evaluacionIntegradoraId ? parseInt(evaluacionIntegradoraId) : null);
+
+    if(result.error) return  handleErrorClient(res, 400, result.error);
+
+    handleSuccess(res, 201, "Pauta integradora creada exitosamente", { pauta: result });
+  } catch (error) {
+    handleErrorServer(res, 500, "Error al crear pauta integradora", error.message);
   }
 }
 
@@ -97,5 +120,73 @@ export async function getAllPautas(req, res) {
     handleSuccess(res, 200, "Pautas obtenidas exitosamente", { pautas });
   } catch (error) {
     handleErrorServer(res, 500, "Error al obtener pautas", error.message);
+  }
+}
+
+export async function getPautaIntegradora(req, res) {
+  try {
+    const { evaluacionIntegradoraId } = req.params;
+    const user = req.user;
+
+    const result = await getPautaIntegradoraService(evaluacionIntegradoraId ? parseInt(evaluacionIntegradoraId) : null, user);
+
+    if (result.error) return handleErrorClient(res, 404, result.error);
+
+    handleSuccess(res, 200, "Pauta integradora obtenida exitosamente", { pauta: result });
+  } catch (error) {
+    handleErrorServer(res, 500, "Error al obtener pauta integradora", error.message);
+  }
+}
+
+export async function updatePautaIntegradora(req, res) {
+  try {
+    const { evaluacionIntegradoraId } = req.params;
+    const user = req.user;
+
+    if (user.role !== "profesor" && user.role !== "jefecarrera") {
+      return handleErrorClient(
+        res,
+        403,
+        "Solo los profesores y jefes de carrera pueden actualizar pautas"
+      );
+    }
+
+    const result = await updatePautaIntegradoraService(
+      evaluacionIntegradoraId ? parseInt(evaluacionIntegradoraId) : null, 
+      req.body, 
+      user
+    );
+
+    if (result.error) return handleErrorClient(res, 400, result.error);
+
+    handleSuccess(res, 200, "Pauta integradora actualizada exitosamente", { pauta: result });
+  } catch (error) {
+    handleErrorServer(res, 500, "Error al actualizar pauta integradora", error.message);
+  }
+}
+
+export async function deletePautaIntegradora(req, res) {
+  try {
+    const { evaluacionIntegradoraId } = req.params;
+    const user = req.user;
+
+    if (user.role !== "profesor" && user.role !== "jefecarrera") {
+      return handleErrorClient(
+        res,
+        403,
+        "Solo los profesores y jefes de carrera pueden eliminar pautas"
+      );
+    }
+
+    const result = await deletePautaIntegradoraService(
+      evaluacionIntegradoraId ? parseInt(evaluacionIntegradoraId) : null,
+      user
+    );
+
+    if (result.error) return handleErrorClient(res, 400, result.error);
+
+    handleSuccess(res, 200, "Pauta integradora eliminada exitosamente");
+  } catch (error) {
+    handleErrorServer(res, 500, "Error al eliminar pauta integradora", error.message);
   }
 }

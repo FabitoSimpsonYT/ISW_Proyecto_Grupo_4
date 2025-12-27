@@ -13,6 +13,10 @@ export const Pauta = new EntitySchema({
             type: "int",
             nullable: true,
         },
+        evaluacionIntegradoraId: {
+            type: "int",
+            nullable: true,
+        },
         criterios: {
             type: "text",
         },

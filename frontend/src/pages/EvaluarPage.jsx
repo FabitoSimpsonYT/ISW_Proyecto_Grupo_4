@@ -1,17 +1,23 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { getEvaluacionById } from "../services/evaluacion.service.js";
+import { getEvaluacionIntegradora } from "../services/evaluacionIntegradora.service.js";
 import { getAlumnosBySeccion, getSeccionesByRamo } from "../services/ramos.service.js";
 import { getPautaById } from "../services/pauta.service.js";
-import { createPautaEvaluada, updatePautaEvaluada, getPautaEvaluada } from "../services/pautaEvaluada.service.js";
+import { createPautaEvaluada, updatePautaEvaluada, getPautaEvaluada, getPautaEvaluadaIntegradora, createPautaEvaluadaIntegradora, updatePautaEvaluadaIntegradora } from "../services/pautaEvaluada.service.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
 export default function EvaluarPage() {
     const { codigoRamo, idEvaluacion } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
     const { user } = useAuth();
     
+    // Detectar si es evaluación integradora
+    const isIntegradora = location.pathname.includes('evaluar-integradora');
+    
     const [evaluacion, setEvaluacion] = useState(null);
+    const [ramoNombre, setRamoNombre] = useState(null);
     const [estudiantes, setEstudiantes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -24,9 +30,23 @@ export default function EvaluarPage() {
     useEffect(() => {
         const loadData = async () => {
             try {
-                // Cargar evaluación
-                const evalData = await getEvaluacionById(codigoRamo, idEvaluacion);
-                console.log("Evaluación cargada:", evalData);
+                // Cargar evaluación (regular o integradora)
+                let evalData;
+                if (isIntegradora) {
+                    const response = await getEvaluacionIntegradora(codigoRamo);
+                    evalData = response?.data || response;
+                    console.log("Evaluación integradora cargada:", evalData);
+                } else {
+                    evalData = await getEvaluacionById(codigoRamo, idEvaluacion);
+                    console.log("Evaluación regular cargada:", evalData);
+                }
+                
+                if (!evalData) {
+                    setError("No se pudo cargar la evaluación");
+                    setLoading(false);
+                    return;
+                }
+                
                 setEvaluacion(evalData);
                 
                 // Cargar pauta si existe
@@ -77,7 +97,16 @@ export default function EvaluarPage() {
                 // Cargar notas para cada estudiante
                 for (const estudiante of allEstudiantes) {
                     try {
-                        const pautaEvaluada = await getPautaEvaluada(idEvaluacion, estudiante.rut);
+                        // Usar el servicio correcto dependiendo del tipo de evaluación
+                        const evaluacionId = isIntegradora ? evalData.id : idEvaluacion;
+                        let pautaEvaluada;
+                        
+                        if (isIntegradora) {
+                            pautaEvaluada = await getPautaEvaluadaIntegradora(evaluacionId, estudiante.rut);
+                        } else {
+                            pautaEvaluada = await getPautaEvaluada(evaluacionId, estudiante.rut);
+                        }
+                        
                         if (pautaEvaluada && pautaEvaluada.notaFinal) {
                             estudiante.nota = pautaEvaluada.notaFinal;
                         }
@@ -97,7 +126,24 @@ export default function EvaluarPage() {
         };
         
         loadData();
-    }, [codigoRamo, idEvaluacion]);
+    }, [codigoRamo, idEvaluacion, isIntegradora]);
+
+    // Cargar nombre del ramo cuando sea integradora
+    useEffect(() => {
+        if (isIntegradora && codigoRamo) {
+            const loadRamo = async () => {
+                try {
+                    const secciones = await getSeccionesByRamo(codigoRamo);
+                    if (secciones && secciones.length > 0) {
+                        setRamoNombre(secciones[0].ramo?.nombre);
+                    }
+                } catch (err) {
+                    console.error("Error cargando nombre del ramo:", err);
+                }
+            };
+            loadRamo();
+        }
+    }, [isIntegradora, codigoRamo]);
 
     if (loading) {
         return (
@@ -115,7 +161,15 @@ export default function EvaluarPage() {
         // Si fue evaluado antes, cargar los datos existentes
         if (estudiante.nota) {
             try {
-                const pautaExistente = await getPautaEvaluada(evaluacion?.id, estudiante.rut);
+                let pautaExistente;
+                
+                // Usar la función correcta según el tipo de evaluación
+                if (isIntegradora) {
+                    pautaExistente = await getPautaEvaluadaIntegradora(evaluacion?.id, estudiante.rut);
+                } else {
+                    pautaExistente = await getPautaEvaluada(evaluacion?.id, estudiante.rut);
+                }
+                
                 console.log("Pauta existente:", pautaExistente);
                 
                 if (pautaExistente) {
@@ -177,11 +231,19 @@ export default function EvaluarPage() {
             // Si el estudiante ya fue evaluado, usar PATCH (reevaluación)
             if (estudianteSeleccionado.nota) {
                 console.log("Reevaluando estudiante");
-                result = await updatePautaEvaluada(evaluacion?.id, estudianteSeleccionado.rut, pautaEvaluadaData);
+                if (isIntegradora) {
+                    result = await updatePautaEvaluadaIntegradora(evaluacion?.id, estudianteSeleccionado.rut, pautaEvaluadaData);
+                } else {
+                    result = await updatePautaEvaluada(evaluacion?.id, estudianteSeleccionado.rut, pautaEvaluadaData);
+                }
             } else {
                 // Si es primera evaluación, usar POST
                 console.log("Primera evaluación del estudiante");
-                result = await createPautaEvaluada(evaluacion?.id, pauta?.id, pautaEvaluadaData);
+                if (isIntegradora) {
+                    result = await createPautaEvaluadaIntegradora(evaluacion?.id, pauta?.id, pautaEvaluadaData);
+                } else {
+                    result = await createPautaEvaluada(evaluacion?.id, pauta?.id, pautaEvaluadaData);
+                }
             }
             
             console.log("Pauta evaluada guardada:", result);
@@ -244,7 +306,7 @@ export default function EvaluarPage() {
                         {evaluacion && (
                             <div className="mt-4 p-4 bg-green-50 rounded-xl border border-green-200">
                                 <p className="text-sm text-gray-700">
-                                    <span className="font-semibold text-green-700">Ramo:</span> {evaluacion.ramo?.nombre}
+                                    <span className="font-semibold text-green-700">Ramo:</span> {isIntegradora ? ramoNombre : evaluacion.ramo?.nombre}
                                 </p>
                                 <p className="text-sm text-gray-700 mt-2">
                                     <span className="font-semibold text-green-700">Puntaje Total:</span> {evaluacion.puntajeTotal}
