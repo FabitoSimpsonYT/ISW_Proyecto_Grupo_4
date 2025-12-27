@@ -124,7 +124,7 @@ export async function createEvaluacion(req, res) {
       return handleErrorClient(res, 403, "Solo el profesor o jefe de carrera puede crear evaluaciones");
     }
 
-    const { titulo, fechaProgramada, horaInicio, horaFin, ponderacion, contenidos, ramo_id, codigoRamo, puntajeTotal, pautaPublicada } = req.body;
+    const { titulo, fechaProgramada, horaInicio, horaFin, contenidos, ramo_id, puntajeTotal, pautaPublicada } = req.body;
 
     console.log("Creando evaluación con datos:", {
       titulo, fechaProgramada, horaInicio, horaFin, ponderacion, contenidos, ramo_id, codigoRamo, puntajeTotal

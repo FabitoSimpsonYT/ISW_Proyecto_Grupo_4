@@ -141,15 +141,6 @@ const Navbar = () => {
             Notificaciones
           </button>
 
-          {user?.role === "profesor" && (
-            <button
-              onClick={() => { navigate("/crear-pauta"); setIsOpen(false); }}
-              className="px-4 py-2 border border-white rounded-lg hover:bg-white hover:text-[#0E2C66] transition font-medium"
-            >
-              Crear Pauta
-            </button>
-          )}
-
           {(user?.role === "admin" || user?.role === "jefecarrera") && (
             <>
               <button
