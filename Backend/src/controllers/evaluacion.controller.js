@@ -47,26 +47,33 @@ export async function getEvaluaciones(req, res) {
 
 export async function getEvaluacionById(req, res) {
   try {
-    const { id } = req.params;
+    const { codigoRamo, idEvaluacion } = req.params;
     const user = req.user;
 
-    const isNumericId = /^\d+$/.test(String(id));
-    if (isNumericId) {
-      const evaluacion = await getEvaluacionByIdService(id, user);
+    console.log("getEvaluacionById recibido con codigoRamo:", codigoRamo, "idEvaluacion:", idEvaluacion);
+
+    // Si hay idEvaluacion, retorna una evaluación específica
+    if (idEvaluacion) {
+      console.log("Buscando evaluación específica con id:", idEvaluacion);
+      const evaluacion = await getEvaluacionByIdService(idEvaluacion, user);
       if (!evaluacion) {
         return handleErrorClient(res, 404, "Evaluación no encontrada");
       }
       return handleSuccess(res, 200, "Evaluación obtenida exitosamente", { evaluacion });
     }
 
-    const codigoRamo = String(id).trim();
+    // Si no hay idEvaluacion, retorna todas las evaluaciones del ramo
+    console.log("Buscando todas las evaluaciones para codigoRamo:", codigoRamo);
     const evaluaciones = await getEvaluacionesByCodigoRamoService(codigoRamo, user);
+    console.log("Evaluaciones encontradas:", evaluaciones);
+    
     if (!evaluaciones) {
       return handleErrorClient(res, 404, "Ramo no encontrado");
     }
 
     return handleSuccess(res, 200, "Evaluaciones obtenidas exitosamente", { evaluaciones });
   } catch (error) {
+    console.error("Error en getEvaluacionById:", error);
     handleErrorServer(res, 500, "Error al obtener evaluación", error.message);
   }
 }
@@ -80,16 +87,25 @@ export async function createEvaluacion(req, res) {
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(0, 0, 0, 0);
 
+    console.log("Datos recibidos:", req.body);
+    
     const {error} = createEvaluacionValidation.validate(req.body, {
       context: { tomorrow }
     });
-    if(error) return res.status(400).json({message: error.message});
+    if(error) {
+      console.error("Error de validación:", error.message);
+      return res.status(400).json({message: error.message});
+    }
 
-    if (user.role !== "profesor") {
-      return handleErrorClient(res, 403, "Solo el profesor puede crear evaluaciones");
+    if (user.role !== "profesor" && user.role !== "jefecarrera") {
+      return handleErrorClient(res, 403, "Solo el profesor o jefe de carrera puede crear evaluaciones");
     }
 
     const { titulo, fechaProgramada, horaInicio, horaFin, ponderacion, contenidos, ramo_id, codigoRamo, puntajeTotal, pautaPublicada } = req.body;
+
+    console.log("Creando evaluación con datos:", {
+      titulo, fechaProgramada, horaInicio, horaFin, ponderacion, contenidos, ramo_id, codigoRamo, puntajeTotal
+    });
 
     const nuevaEvaluacion = await createEvaluacionService({
       titulo,
@@ -105,6 +121,8 @@ export async function createEvaluacion(req, res) {
       creadaPor: user.id,
       aplicada: false,
     });
+
+    console.log("Evaluación creada:", nuevaEvaluacion);
 
     await syncEvaluacionWithEvent(nuevaEvaluacion, user, false);
 
@@ -135,8 +153,8 @@ export async function createEvaluacion(req, res) {
 
     handleSuccess(res, 201, "Evaluación creada exitosamente", { evaluacion: nuevaEvaluacion });
   } catch (error) {
+    console.error("Error al crear evaluación:", error);
     handleErrorServer(res, 500, "Error al crear evaluación", error.message);
-    res.status(500).json({message: error.message})
   }
 }
 
@@ -144,11 +162,23 @@ export async function updateEvaluacion(req, res) {
   try {
     const user = req.user;
     const { id } = req.params;
-    const {error} = updateEvaluacionValidation.validate(req.body);
-    if(error) return res.status(400).json({message: error.message});
+    
+    // Validación condicional: solo validar la fecha si se proporciona
+    const validationSchema = updateEvaluacionValidation;
+    const { error } = validationSchema.validate(req.body);
+    
+    // Si hay error y es sobre la fecha, verificar si la fecha se proporcionó
+    if (error) {
+      // Si el error es sobre fechaProgramada y la fecha NO viene en el body, ignorar el error
+      if (error.details && error.details.some(d => d.context.key === 'fechaProgramada') && !req.body.fechaProgramada) {
+        // La fecha no se proporcionó, es OK
+      } else {
+        return res.status(400).json({message: error.message});
+      }
+    }
 
-    if (user.role !== "profesor") {
-      return  handleErrorClient(res, 403, "Solo los profesor pueden modificar evaluaciones");
+    if (user.role !== "profesor" && user.role !== "jefecarrera") {
+      return  handleErrorClient(res, 403, "Solo el profesor o jefe de carrera puede modificar evaluaciones");
     }
 
     const { titulo, fechaProgramada, ponderacion, contenidos, pauta, aplicada, puntajeTotal, pautaPublicada } = req.body;
@@ -206,8 +236,8 @@ export async function updateEvaluacion(req, res) {
 
     handleSuccess(res, 200, "Evaluación actualizada exitosamente", { evaluacion: evaluacionActualizada });
   } catch (error) {
+    console.error("Error al actualizar evaluación:", error);
     handleErrorServer(res, 500, "Error al actualizar evaluación", error.message);
-    res.status(500).json({message:error.messaje});
   }
 }
 
@@ -216,8 +246,8 @@ export async function deleteEvaluacion(req, res) {
     const user = req.user;
     const { id } = req.params;
 
-    if (user.role !== "profesor") {
-      return  handleErrorClient(res, 403, "Solo el profesor puede eliminar evaluaciones");
+    if (user.role !== "profesor" && user.role !== "jefecarrera") {
+      return  handleErrorClient(res, 403, "Solo el profesor o jefe de carrera puede eliminar evaluaciones");
     }
 
     const eliminada = await deleteEvaluacionService(id, user.id);

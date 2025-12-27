@@ -14,6 +14,8 @@ export async function loginUser(email, password) {
   }
 
   const payload = { 
+    id: user.id,
+    rut: user.rut,
     sub: user.rut, 
     nombres: user.nombres,
     email: user.email,

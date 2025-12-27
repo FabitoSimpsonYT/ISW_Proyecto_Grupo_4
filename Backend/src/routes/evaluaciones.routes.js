@@ -12,7 +12,8 @@ const router = Router();
 
 router.post("/", authMiddleware, createEvaluacion);
 router.get("/", authMiddleware,  getEvaluaciones);
-router.get("/:id", authMiddleware, getEvaluacionById);
+router.get("/:codigoRamo/:idEvaluacion", authMiddleware, getEvaluacionById);
+router.get("/:codigoRamo", authMiddleware, getEvaluacionById);
 router.patch("/:id", authMiddleware,  updateEvaluacion);
 router.delete("/:id", authMiddleware, deleteEvaluacion);
 

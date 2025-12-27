@@ -1,10 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate, Navigate } from "react-router-dom";
 import EvaluacionList from "../components/EvaluacionList.jsx";
 import EvaluacionForm from "../components/EvaluacionForm.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { getMisRamos } from "../services/ramos.service.js";
 
 export default function EvaluacionPage() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Solo profesores y jefes de carrera pueden ver esta página
+  if (user && user.role !== "profesor" && user.role !== "jefecarrera" && user.role !== "admin") {
+    return <Navigate to="/home" replace />;
+  }
+
   const defaultRamos = useMemo(
     () => [
       { nombre: "Ingeniería de Software", codigo: "ISW0101" },
@@ -22,7 +32,6 @@ export default function EvaluacionPage() {
   const [selectedEvaluacion, setSelectedEvaluacion] = useState(null);
   const [reload, setReload] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const { user } = useAuth();
 
   const handleSaved = () => {
     setSelectedEvaluacion(null);
@@ -57,14 +66,41 @@ export default function EvaluacionPage() {
       isMounted = false;
     };
   }, [user]);
+
+  // Al inicio del componente, si hay un query param ramo, selecciona ese ramo automáticamente:
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const codigoRamo = params.get("ramo");
+    if (codigoRamo && ramos.length > 0) {
+      const found = ramos.find(r => r.codigo === codigoRamo);
+      if (found) setSelectedRamo(found);
+    }
+  }, [location.search, ramos]);
+
   const handleNuevaEvaluacion = () => {
-    setSelectedEvaluacion(null);
-    setShowForm(true);
+    try {
+      setSelectedEvaluacion(null);
+      setShowForm(true);
+    } catch (error) {
+      console.error("Error en handleNuevaEvaluacion:", error);
+    }
   };
 
   const handleEdit = (ev) => {
     setSelectedEvaluacion(ev);
     setShowForm(true);
+  };
+
+  const handleSelectRamo = (ramo) => {
+    setSelectedRamo(ramo);
+    navigate(`/evaluaciones?ramo=${ramo.codigo}`);
+  };
+
+  const handleBackToRamos = () => {
+    setSelectedRamo(null);
+    setSelectedEvaluacion(null);
+    setShowForm(false);
+    navigate("/evaluaciones");
   };
 
   return (
@@ -95,6 +131,7 @@ export default function EvaluacionPage() {
               <div className="space-y-5">
                 {ramos.map((ramo) => (
                   <button
+                    type="button"
                     key={ramo.id || ramo.codigo}
                     onClick={() => handleSelectRamo(ramo)}
                     className="group w-full rounded-2xl border border-blue-200 bg-white p-6 text-left shadow hover:border-blue-400 transition"
@@ -119,27 +156,18 @@ export default function EvaluacionPage() {
           </div>
         ) : (
           <div className="space-y-6">
-            <button
-              onClick={handleBackToRamos}
-              className="text-blue-700 hover:text-blue-900 transition"
-            >
-              ✕
-            </button>
-
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h1 className="text-4xl font-bold text-[#113C63]">{tituloRamo.nombre}</h1>
-                <div className="mt-1 text-sm font-medium text-blue-600">{tituloRamo.codigo}</div>
-              </div>
-
-              {(user?.role === "profesor" || user?.role === "jefecarrera") && (
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1">
                 <button
-                  onClick={handleNuevaEvaluacion}
-                  className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700 transition"
+                  type="button"
+                  onClick={handleBackToRamos}
+                  className="mb-3 text-blue-700 hover:text-blue-900 transition font-medium"
                 >
-                  + Nueva Evaluación
+                  ← Volver
                 </button>
-              )}
+                <h1 className="text-4xl font-bold text-[#113C63]">{selectedRamo?.nombre}</h1>
+                <div className="mt-1 text-sm font-medium text-blue-600">{selectedRamo?.codigo}</div>
+              </div>
             </div>
 
             {!(user?.role === "profesor" || user?.role === "jefecarrera") && (
@@ -150,6 +178,18 @@ export default function EvaluacionPage() {
 
             {(user?.role === "profesor" || user?.role === "jefecarrera") && showForm && (
               <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+                <div className="flex items-center justify-between gap-4 mb-4">
+                  <h2 className="text-xl font-bold text-[#143A80]">
+                    {selectedEvaluacion ? "Editar Evaluación" : "Nueva Evaluación"}
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => setShowForm(false)}
+                    className="text-red-600 hover:text-red-800 font-bold text-xl"
+                  >
+                    ✕
+                  </button>
+                </div>
                 <EvaluacionForm
                   evaluacionEdit={selectedEvaluacion}
                   onSaved={handleSaved}
@@ -163,6 +203,7 @@ export default function EvaluacionPage() {
               onEdit={handleEdit}
               key={`${reload}-${selectedRamo?.codigo || ""}`}
               codigoRamo={selectedRamo?.codigo}
+              onNuevaEvaluacion={handleNuevaEvaluacion}
             />
           </div>
         )}

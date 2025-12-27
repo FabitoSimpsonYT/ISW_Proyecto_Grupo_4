@@ -1,10 +1,12 @@
 import { handleSuccess, handleErrorClient, handleErrorServer } from "../Handlers/responseHandlers.js";
-import { createPautaEvaluadaService, getPautaEvaluadaService, updatePautaEvaluadaService, deletePautaEvaluadaService } from "../services/pautaEvaluada.service.js";
+import { createPautaEvaluadaService, getPautaEvaluadaService, getPautasEvaluadasByEvaluacionService, updatePautaEvaluadaService, deletePautaEvaluadaService } from "../services/pautaEvaluada.service.js";
 import { createPautaEvaluadaValidation, updatePautaEvaluadaValidation } from "../validations/pautaEvaluada.validation.js";
 import { AppDataSource } from "../config/configDb.js";
 import { Pauta } from "../entities/pauta.entity.js";
+import { Evaluacion } from "../entities/evaluaciones.entity.js";
 
 const pautaRepository = AppDataSource.getRepository(Pauta);
+const evaluacionRepository = AppDataSource.getRepository(Evaluacion);
 
 /**
  * Valida que los puntajes obtenidos tengan las mismas claves que la distribución de puntos
@@ -61,8 +63,8 @@ export async function createPautaEvaluada(req, res) {
     const { alumnoRut, puntajes_obtenidos } = req.body;
     const user = req.user;
 
-    if (user.role !== "profesor") {
-      return handleErrorClient(res, 403, "Solo el profesor puede registrar una pauta evaluada");
+    if (user.role !== "profesor" && user.role !== "jefecarrera") {
+      return handleErrorClient(res, 403, "Solo el profesor o jefe de carrera puede registrar una pauta evaluada");
     }
 
     // Obtener la pauta para validar que los puntajes coincidan con la distribución
@@ -75,7 +77,19 @@ export async function createPautaEvaluada(req, res) {
       return handleErrorClient(res, 400, validationResult.message);
     }
 
-    const result = await createPautaEvaluadaService(evaluacionId, pautaId, alumnoRut, req.body, user);
+    // Obtener la evaluación para extraer el codigoRamo
+    const evaluacion = await evaluacionRepository.findOneBy({ id: parseInt(evaluacionId) });
+    if (!evaluacion) return handleErrorClient(res, 400, "Evaluación no encontrada");
+
+    // Completar los datos que se envían al servicio
+    const dataCompleta = {
+      ...req.body,
+      idEvaluacion: parseInt(evaluacionId),
+      idPauta: parseInt(pautaId),
+      codigoRamo: evaluacion.codigoRamo,
+    };
+
+    const result = await createPautaEvaluadaService(evaluacionId, pautaId, alumnoRut, dataCompleta, user);
     if (result.error) return handleErrorClient(res, 400, result.error);
 
     handleSuccess(res, 201, "Pauta evaluada creada exitosamente", { pautaEvaluada: result });
@@ -88,7 +102,10 @@ export async function getPautaEvaluada(req, res) {
   try {
     const { evaluacionId, alumnoRut } = req.params;
     const result = await getPautaEvaluadaService(evaluacionId, alumnoRut);
-    if (result.error) return handleErrorClient(res, 404, result.error);
+    if (result.error) {
+      // Retornar 200 con null si no existe la pauta (estudiante aún no evaluado)
+      return handleSuccess(res, 200, "Pauta evaluada no encontrada", { pautaEvaluada: null });
+    }
     handleSuccess(res, 200, "Pauta evaluada obtenida", { pautaEvaluada: result });
   } catch (error) {
     handleErrorServer(res, 500, "Error al obtener pauta evaluada", error.message);
@@ -123,6 +140,17 @@ export async function updatePautaEvaluada(req, res) {
     handleSuccess(res, 200, "Pauta evaluada actualizada", { pautaEvaluada: result });
   } catch (error) {
     handleErrorServer(res, 500, "Error al actualizar pauta evaluada", error.message);
+  }
+}
+
+export async function getPautasEvaluadasByEvaluacion(req, res) {
+  try {
+    const { evaluacionId } = req.params;
+    const result = await getPautasEvaluadasByEvaluacionService(evaluacionId);
+    if (result.error) return handleErrorClient(res, 404, result.error);
+    handleSuccess(res, 200, "Pautas evaluadas obtenidas", { pautasEvaluadas: result });
+  } catch (error) {
+    handleErrorServer(res, 500, "Error al obtener pautas evaluadas", error.message);
   }
 }
 

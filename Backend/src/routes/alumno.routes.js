@@ -16,39 +16,39 @@ const router = Router();
 
 router.post("/", 
   authMiddleware,
-  checkRole(["admin"]), 
+  checkRole(["admin", "jefecarrera"]), 
   validateRequest(createAlumnoValidation), 
   createAlumnoHandler
 );
 
 router.get("/", 
   authMiddleware,
-  checkRole(["admin", "profesor", "alumno"]), 
+  checkRole(["admin", "profesor", "alumno", "jefecarrera"]), 
   getAllAlumnosHandler
 );
 
 router.get("/:id", 
   authMiddleware,
-  checkRole(["admin", "profesor"]), 
+  checkRole(["admin", "jefecarrera", "profesor"]), 
   getAlumnoByIdHandler
 );
 
 router.put("/", 
   authMiddleware,
-  checkRole(["admin", "alumno"]), 
+  checkRole(["admin", "alumno", "jefecarrera"]), 
   validateRequest(updateAlumnoValidation), 
   updateAlumnoHandler
 );
 
 router.delete("/:id", 
   authMiddleware,
-  checkRole(["admin"]), 
+  checkRole(["admin", "jefecarrera"]), 
   deleteAlumnoHandler
 );
 
 router.get("/:id/evaluaciones", 
   authMiddleware,
-  checkRole(["admin", "alumno"]), 
+  checkRole(["admin", "alumno", "jefecarrera"]), 
   getEvaluacionesYNotasHandler
 );
 

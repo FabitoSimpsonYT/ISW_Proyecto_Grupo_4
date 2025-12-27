@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "../context/AuthContext.jsx";
 import { getAllUsers, getAllAlumnos, promoverProfesorAJefeCarrera, degradarJefeCarreraAProfesor, getJefeCarreraActual } from "../services/users.service.js";
 
 export default function UsuariosList({ reload }) {
+  const { user } = useAuth();
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -163,7 +165,7 @@ export default function UsuariosList({ reload }) {
                 </td>
                 <td className="px-4 py-2 border text-gray-600">{user.email}</td>
                 <td className="px-4 py-2 border text-gray-600">{user.telefono}</td>
-                {selectedRango === 'profesores' && (
+                {selectedRango === 'profesores' && user?.role === 'admin' && (
                   <td className="px-4 py-2 border text-center">
                     <button
                       onClick={() => handlePromover(user.rut)}
@@ -173,7 +175,7 @@ export default function UsuariosList({ reload }) {
                     </button>
                   </td>
                 )}
-                {selectedRango === 'jefecarrera' && (
+                {selectedRango === 'jefecarrera' && user?.role === 'admin' && (
                   <td className="px-4 py-2 border text-center">
                     <button
                       onClick={handleDegradar}

@@ -1,17 +1,28 @@
-// src/services/bloqueo.service.js
-import api from './api.service';
+import axios from './root.service.js';
 
-export const getBloqueos = async () => {
-  return await api('/bloqueos');
-};
+export async function getBloqueos() {
+  try {
+    const response = await axios.get('/bloqueos');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error al obtener bloqueos' };
+  }
+}
 
-export const crearBloqueo = async (bloqueo) => {
-  return await api('/bloqueos', {
-    method: 'POST',
-    body: JSON.stringify(bloqueo)
-  });
-};
+export async function crearBloqueo(data) {
+  try {
+    const response = await axios.post('/bloqueos', data);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error al crear bloqueo' };
+  }
+}
 
-export const eliminarBloqueo = async (id) => {
-  return await api(`/bloqueos/${id}`, { method: 'DELETE' });
-};
+export async function eliminarBloqueo(id) {
+  try {
+    const response = await axios.delete(`/bloqueos/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error al eliminar bloqueo' };
+  }
+}
