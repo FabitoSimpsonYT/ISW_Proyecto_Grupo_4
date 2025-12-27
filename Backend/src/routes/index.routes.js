@@ -8,7 +8,7 @@ import adminRoutes from "./admin.routes.js";
 import evaluacionesRoutes from "./evaluaciones.routes.js";
 import pautaRoutes from "./pauta.routes.js";
 import pautaEvaluadaRoutes from "./pautaEvaluada.routes.js";
-import notificacionRoutes from "./notificacion.routes.js";
+import notificacionRoutes from "./notificacionuno.routes.js";
 import eventosRoutes from "./eventos.routes.js";
 import tipoEventoRoutes from "./tipoEvento.routes.js";
 import bookingRoutes from "./booking.routes.js";
