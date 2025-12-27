@@ -65,29 +65,30 @@ export async function getEvaluacionByIdService(id, user){
   }
 
 
-  const evaluacionConRelaciones = await evaluacionRepository.findOne({ where: { id }, relations: ["ramo"] });
+  const evaluacionConRelaciones = await evaluacionRepository.findOne({ where: { id }, relations: ["ramo", "pauta"] });
   return evaluacionConRelaciones;
 }
 
 export async function getEvaluacionesByCodigoRamoService(codigoRamo, user) {
-  const ramosRepository = AppDataSource.getRepository(Ramos);
-  const ramo = await ramosRepository.findOne({ where: { codigo: codigoRamo } });
+  console.log("getEvaluacionesByCodigoRamoService - buscando evaluaciones con codigoRamo:", codigoRamo);
+  
+  const whereClause = { codigoRamo: codigoRamo };
 
-  if (!ramo) return null;
-
-  const whereClause = isAlumnoRole(user.role)
-    ? { ramo: { id: ramo.id }, pautaPublicada: true }
-    : { ramo: { id: ramo.id } };
+  console.log("Búscando evaluaciones con whereClause:", whereClause);
 
   const evaluaciones = await evaluacionRepository.find({
     where: whereClause,
-    relations: isAlumnoRole(user.role) ? [] : ["ramo"],
+    relations: ["ramo", "pauta"],
     order: { fechaProgramada: "DESC" },
   });
 
+  console.log("Evaluaciones encontradas:", JSON.stringify(evaluaciones, null, 2));
+
   if (isAlumnoRole(user.role)) {
     return evaluaciones.map((evaluacion) => ({
+      id: evaluacion.id,
       titulo: evaluacion.titulo,
+      nombre: evaluacion.titulo,
       fechaProgramada: evaluacion.fechaProgramada,
       horaInicio: evaluacion.horaInicio,
       horaFin: evaluacion.horaFin,
@@ -174,6 +175,7 @@ export async function createEvaluacionService(data) {
     contenidos,
     puntajeTotal: puntajeTotal || 0,
     pautaPublicada: Boolean(pautaPublicada),
+    codigoRamo: codigoRamo || null,
     ramo: { id: resolvedRamoId }
   });
   const saved = await evaluacionRepository.save(nueva);
@@ -192,8 +194,49 @@ export async function updateEvaluacionService(id, data) {
 
   if (!evaluacion) return null;
 
-  Object.assign(evaluacion, data);
-  return await evaluacionRepository.save(evaluacion);
+  // Procesar los campos que se actualizan
+  if (data.titulo !== undefined) evaluacion.titulo = data.titulo;
+  if (data.fechaProgramada !== undefined) evaluacion.fechaProgramada = data.fechaProgramada;
+  if (data.horaInicio !== undefined) evaluacion.horaInicio = data.horaInicio;
+  if (data.horaFin !== undefined) evaluacion.horaFin = data.horaFin;
+  if (data.ponderacion !== undefined) evaluacion.ponderacion = data.ponderacion;
+  if (data.contenidos !== undefined) evaluacion.contenidos = data.contenidos;
+  if (data.estado !== undefined) evaluacion.estado = data.estado;
+  if (data.puntajeTotal !== undefined) evaluacion.puntajeTotal = data.puntajeTotal;
+  if (data.pautaPublicada !== undefined) evaluacion.pautaPublicada = data.pautaPublicada;
+  if (data.aplicada !== undefined) evaluacion.aplicada = data.aplicada;
+  
+  // Procesar pauta correctamente
+  if (data.pauta !== undefined) {
+    if (data.pauta === null || data.pauta === '') {
+      evaluacion.pauta = null;
+    } else if (typeof data.pauta === 'object') {
+      // Si es objeto, extraer el id
+      if (data.pauta && data.pauta.id !== null && data.pauta.id !== undefined) {
+        evaluacion.pauta = Number(data.pauta.id);
+      } else {
+        evaluacion.pauta = null;
+      }
+    } else if (typeof data.pauta === 'string') {
+      // Si es string, convertir a número si no es vacío
+      const pautaNum = Number(data.pauta);
+      evaluacion.pauta = Number.isFinite(pautaNum) ? pautaNum : null;
+    } else if (typeof data.pauta === 'number') {
+      evaluacion.pauta = data.pauta;
+    } else {
+      evaluacion.pauta = null;
+    }
+  }
+
+  const updated = await evaluacionRepository.save(evaluacion);
+  
+  // Recargar con relaciones
+  const evaluacionCompleta = await evaluacionRepository.findOne({
+    where: { id: updated.id },
+    relations: ["ramo"]
+  });
+  
+  return evaluacionCompleta;
 }
 
 export async function deleteEvaluacionService(id) {

@@ -27,15 +27,15 @@ export async function createPauta(req, res) {
     const { evaluacionId } = req.params;
     const user = req.user;
 
-    if (user.role !== "profesor") {
+    if (user.role !== "profesor" && user.role !== "jefecarrera") {
       return handleErrorClient(
         res,
         403,
-        "Solo los profesor pueden crear pautas"
+        "Solo los profesores y jefes de carrera pueden crear pautas"
       );
     }
 
-    const result = await createPautaService(req.body, evaluacionId || null);
+    const result = await createPautaService(req.body, evaluacionId ? parseInt(evaluacionId) : null);
 
     if(result.error) return  handleErrorClient(res, 400, result.error);
 
@@ -50,11 +50,11 @@ export async function updatePauta(req, res) {
     const {id} = req.params;
     const user = req.user;
 
-    if (user.role !== "profesor") {
+    if (user.role !== "profesor" && user.role !== "jefecarrera") {
       return handleErrorClient(
         res,
         403,
-        "Solo los profesor pueden actualizar pautas"
+        "Solo los profesores y jefes de carrera pueden actualizar pautas"
       );
     }
 
@@ -72,11 +72,11 @@ export async function deletePauta(req, res) {
     const {id} = req.params;
     const user = req.user;
 
-    if (user.role !== "profesor") {
+    if (user.role !== "profesor" && user.role !== "jefecarrera") {
       return handleErrorClient(
         res,
         403,
-        "Solo los profesores pueden eliminar pautas"
+        "Solo los profesores y jefes de carrera pueden eliminar pautas"
       );
     }
 

@@ -9,6 +9,10 @@ export const Pauta = new EntitySchema({
             type: "int",
             generated: true,
         },
+        evaluacionId: {
+            type: "int",
+            nullable: true,
+        },
         criterios: {
             type: "text",
         },

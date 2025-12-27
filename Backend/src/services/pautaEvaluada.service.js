@@ -125,6 +125,10 @@ export async function createPautaEvaluadaService(evaluacionId, pautaId, alumnoRu
     observaciones: data.observaciones || null,
     retroalimentacion: [],
     creadaPor: user?.id || null,
+    alumnoRut: alumnoRut,
+    codigoRamo: data.codigoRamo || null,
+    idEvaluacion: data.idEvaluacion || evaluacionId,
+    idPauta: data.idPauta || pauta.id,
     evaluacion: { id: evaluacionId },
     pauta: { id: pauta.id },
     alumno: { id: alumno.id },
@@ -149,6 +153,28 @@ export async function getPautaEvaluadaService(evaluacionId, alumnoRut) {
 
   if (!pauta) return { error: "Pauta evaluada no encontrada" };
   return pauta;
+}
+
+export async function getPautasEvaluadasByEvaluacionService(evaluacionId) {
+  try {
+    const pautas = await pautaEvaluadaRepository
+      .createQueryBuilder("pe")
+      .leftJoinAndSelect("pe.alumno", "a")
+      .leftJoinAndSelect("a.user", "u")
+      .leftJoinAndSelect("pe.evaluacion", "e")
+      .leftJoinAndSelect("pe.pauta", "p")
+      .where("pe.evaluacion_id = :evaluacionId", { evaluacionId })
+      .getMany();
+
+    if (!pautas || pautas.length === 0) {
+      return { error: "No hay pautas evaluadas para esta evaluación" };
+    }
+
+    return pautas;
+  } catch (error) {
+    console.error("Error al obtener pautas evaluadas:", error);
+    return { error: "Error al obtener pautas evaluadas" };
+  }
 }
 
 async function updateEvaluacionPromedio(evaluacionId) {
@@ -229,6 +255,20 @@ export async function updatePautaEvaluadaService(evaluacionId, alumnoRut, data, 
   // Actualizar observaciones si se proporcionan
   if (data.observaciones !== undefined) {
     pauta.observaciones = data.observaciones;
+  }
+
+  // Actualizar campos identificadores si se proporcionan (aunque normalmente no cambien)
+  if (data.alumnoRut !== undefined) {
+    pauta.alumnoRut = data.alumnoRut;
+  }
+  if (data.idPauta !== undefined) {
+    pauta.idPauta = data.idPauta;
+  }
+  if (data.idEvaluacion !== undefined) {
+    pauta.idEvaluacion = data.idEvaluacion;
+  }
+  if (data.codigoRamo !== undefined) {
+    pauta.codigoRamo = data.codigoRamo;
   }
 
   // Recalcular la nota automáticamente basándose en los puntajes actuales

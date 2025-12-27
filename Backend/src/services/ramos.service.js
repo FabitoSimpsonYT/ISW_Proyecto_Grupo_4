@@ -258,7 +258,7 @@ export async function getRamosByUser(userId, role) {
 
     return ramosInscritos;
 
-  } else if (role === "profesor") {
+  } else if (role === "profesor" || role === "jefecarrera") {
     const userRepository = AppDataSource.getRepository(User);
     const profesorRepository = AppDataSource.getRepository(Profesor);
     

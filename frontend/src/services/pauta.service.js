@@ -6,9 +6,10 @@ import axios from "./root.service.js";
 export async function getAllPautas(){
       try {
         const response = await axios.get('/pauta');
-        return response.data;
+        return Array.isArray(response.data) ? response.data : (response.data?.data || []);
       } catch (error) {
-        throw error.response?.data || {message: 'Error al obtener las pautas'};
+        console.error('Error al obtener las pautas:', error);
+        return [];
       }
 }
 /**
@@ -17,7 +18,7 @@ export async function getAllPautas(){
 export async function getPautaById(id) {
    try {
     const response = await axios.get(`/pauta/${id}`);
-    return response.data;
+    return response.data?.data?.pauta || response.data;
    } catch (error) {
       throw error.response?.data || {message: 'Error al obtener la pauta'};
    }
@@ -27,10 +28,11 @@ export async function getPautaById(id) {
 /**
  * Crear pauta 
  */
-export async function createPauta(pautaData) {
+export async function createPauta(pautaData, evaluacionId) {
   try {
-    const response = await axios.post('/pauta', pautaData);
-    return response.data;
+    const url = evaluacionId ? `/pauta/${evaluacionId}` : '/pauta';
+    const response = await axios.post(url, pautaData);
+    return response.data?.data?.pauta || response.data;
   } catch (error) {
     throw error.response?.data || {message:'Error al crear la pauta'};
   }

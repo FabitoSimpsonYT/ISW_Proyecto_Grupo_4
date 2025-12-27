@@ -45,9 +45,11 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
         const loadPautas = async () => {
             try {
                 const data = await getAllPautas();
-                setPautas(data);
+                setPautas(Array.isArray(data) ? data : (data?.data || []));
             } catch (error) {
-                setError("Error al cargar las pautas");
+                console.error("Error al cargar pautas:", error);
+                setPautas([]);
+                // No establecemos error para no romper la UI
             }
         };
         loadPautas();
@@ -93,6 +95,7 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
     
     const validarEvaluacion = (eval_data) => {
         const err = {};
+        const isEditing = !!eval_data.id; // Si tiene ID, es modo edición
 
       
         if (!eval_data.titulo || eval_data.titulo.trim() === "") {
@@ -106,7 +109,8 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
      
         if (!eval_data.fechaProgramada) {
             err.fechaProgramada = "La fecha programada es obligatoria";
-        } else {
+        } else if (!isEditing) {
+            // Solo validar que sea futura si estamos creando
             const fecha = new Date(eval_data.fechaProgramada);
             const hoy = new Date();
             hoy.setHours(0, 0, 0, 0);
@@ -186,10 +190,11 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
             err.estado = "El estado debe ser 'pendiente', 'aplicada' o 'finalizada'";
         }
 
-      
-        if (!eval_data.pauta?.id || eval_data.pauta.id === null) {
-            err.pauta = "Debe seleccionar una pauta";
-        }
+        
+        // La pauta es opcional (comentado para hacerla opcional)
+        // if (!eval_data.pauta?.id || eval_data.pauta.id === null) {
+        //     err.pauta = "Debe seleccionar una pauta";
+        // }
 
         return err;
     };
@@ -231,36 +236,68 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
         
         
         const validationErrors = validarEvaluacion(evaluacion);
+        console.log("Errores de validación:", validationErrors);
+        console.log("Datos del formulario:", evaluacion);
 
         if (Object.keys(validationErrors).length > 0) {
             setErrors(validationErrors);
+            console.error("Validación fallida, no se envía");
             return;
         }
 
         setErrors({});
         setIsLoading(true);
-
         try {
             const pautaVal = evaluacion.pauta?.id ?? evaluacion.pauta ?? null;
+            // Convertir pauta a número o null
+            let pautaFinal = null;
+            if (pautaVal !== null && pautaVal !== undefined && pautaVal !== '') {
+                const num = Number(pautaVal);
+                pautaFinal = Number.isFinite(num) ? num : null;
+            }
+
             const payload = {
-                ...evaluacion,
-                pauta: pautaVal !== null && pautaVal !== undefined ? String(pautaVal) : null,
-                codigoRamo: evaluacion.codigoRamo || undefined,
-                ramo_id: evaluacion.ramo_id || undefined,
+                titulo: evaluacion.titulo,
+                fechaProgramada: evaluacion.fechaProgramada,
+                horaInicio: evaluacion.horaInicio,
+                horaFin: evaluacion.horaFin,
+                ponderacion: evaluacion.ponderacion,
+                contenidos: evaluacion.contenidos,
+                estado: evaluacion.estado,
+                pauta: pautaFinal,
+                pautaPublicada: evaluacion.pautaPublicada,
+                puntajeTotal: evaluacion.puntajeTotal,
             };
 
+            // Solo agregar codigoRamo y ramo_id si tienen valor
+            if (evaluacion.codigoRamo) {
+                payload.codigoRamo = evaluacion.codigoRamo;
+            }
+            if (evaluacion.ramo_id) {
+                payload.ramo_id = evaluacion.ramo_id;
+            }
+
+            console.log("Payload a enviar:", payload);
+
             if (evaluacion.id) {
-                await updateEvaluacion(evaluacion.id, payload);
+                console.log("Actualizando evaluación...");
+                const updateResult = await updateEvaluacion(evaluacion.id, payload);
+                console.log("Resultado de actualización:", updateResult);
                 alert("Evaluación actualizada correctamente");
             } else {
-                await createEvaluacion(payload);
+                console.log("Creando nueva evaluación...");
+                const createResult = await createEvaluacion(payload);
+                console.log("Resultado de creación:", createResult);
                 alert("Evaluación creada correctamente");
             }
             setEvaluacion(initialState);
             setErrors({});
             onSaved();
         } catch (error) {
-            setError(error.message || "Error al guardar la evaluación");
+            console.error("Error en handleSubmit:", error);
+            const errorMessage = error?.message || error?.error || "Error al guardar la evaluación";
+            setError(errorMessage);
+            alert("Error: " + errorMessage);
         } finally {
             setIsLoading(false);
         }
@@ -274,6 +311,12 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
             <h2 className="text-xl font-semibold text-gray-800">
                 {evaluacion.id ? "Editar Evaluación" : "Nueva Evaluación"}
             </h2>
+
+            {error && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+                    {error}
+                </div>
+            )}
 
 
             {/* Título */}
@@ -476,31 +519,6 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
                 </select>
                 {hasFieldError("estado") && (
                     <p className="text-red-600 text-sm mt-1">{getFieldError("estado")}</p>
-                )}
-            </div>
-
-            {/* Pauta */}
-            <div>
-                <label className="block mb-1 font-semibold text-gray-700">Pauta: *</label>
-                <select
-                    name="pauta"
-                    value={evaluacion.pauta?.id || ""}
-                    onChange={handleChange}
-                    className={`border p-2 w-full rounded transition ${
-                        hasFieldError("pauta")
-                            ? "border-red-500 bg-red-50"
-                            : "border-gray-300 focus:border-blue-500"
-                    }`}
-                >
-                    <option value="">Seleccione una pauta</option>
-                    {pautas.map(p => (
-                        <option key={p.id} value={p.id}>
-                            {p.criterios || `Pauta ${p.id}`}
-                        </option>
-                    ))}
-                </select>
-                {hasFieldError("pauta") && (
-                    <p className="text-red-600 text-sm mt-1">{getFieldError("pauta")}</p>
                 )}
             </div>
 

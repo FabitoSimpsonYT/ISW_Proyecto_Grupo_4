@@ -78,7 +78,8 @@ export async function deleteRamo(codigo) {
 
 export async function createSeccion(data) {
   try {
-    const response = await axios.post('/ramos/secciones', data);
+    // Se espera que data incluya el campo codigoRamo
+    const response = await axios.post(`/ramos/secciones/${data.codigoRamo}`, data);
     return response.data.data;
   } catch (error) {
     throw error.response?.data || { message: 'Error al crear sección' };
@@ -91,5 +92,14 @@ export async function getSeccionesByRamo(codigoRamo) {
     return response.data.data;
   } catch (error) {
     throw error.response?.data || { message: 'Error al obtener secciones del ramo' };
+  }
+}
+
+export async function getProfesorByRut(rut) {
+  try {
+    const response = await axios.get(`/profile/${rut}`);
+    return response.data.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error al obtener profesor' };
   }
 }
