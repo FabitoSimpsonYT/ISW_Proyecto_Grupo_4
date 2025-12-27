@@ -31,9 +31,8 @@ export const getEventosAlumno = async () => {
   return await api('/eventos/alumno');
 };
 
-// Extra: obtener eventos disponibles para inscripción (slots)
 export const getEventosDisponiblesParaSlot = async () => {
-  return await api('/eventos/disponibles-slots');
+  return await api('/eventos/alumno/disponibles-slots');
 };
 
 // Tomar un slot (alumno)

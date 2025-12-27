@@ -31,11 +31,66 @@ class EventoController {
         sala
       } = req.body;
 
-      const profesorId = req.user.id;
+      // Resolver profesorId desde token, con fallback a búsqueda por RUT si el token viejo no incluye `id`
+      let profesorId = req.user?.id;
+      if (!profesorId) {
+        const rutFromToken = req.user?.rut || req.user?.sub;
+        if (rutFromToken) {
+          try {
+            const userRes = await client.query('SELECT id FROM users WHERE rut = $1 LIMIT 1', [rutFromToken]);
+            if (userRes.rows.length > 0) {
+              profesorId = userRes.rows[0].id;
+            }
+          } catch (errSearchUser) {
+            console.error('Error buscando usuario por rut para profesorId fallback:', errSearchUser);
+          }
+        }
+      }
 
-      if (!nombre || !fechaInicio || !fechaFin || !tipoEvento || !modalidad || !ramoId || !seccionId) {
+      if (!profesorId) {
+        return res.status(400).json({ success: false, message: 'No se pudo determinar el profesor (token inválido).' });
+      }
+
+      // Guardar valor original de ramoId para validaciones previas
+      const ramoIdInput = ramoId;
+      if (!nombre || !fechaInicio || !fechaFin || !tipoEvento || !modalidad || !ramoIdInput || !seccionId) {
         return res.status(400).json({ success: false, message: 'Faltan campos obligatorios' });
       }
+
+      // Resolver ramoId: puede venir como id numérico o como codigo (string). Asegurar que exista en tabla ramos.
+      let ramoIdResolved = null;
+      try {
+        // Si viene numérico, intentar encontrar por id
+        if (!isNaN(Number(ramoId))) {
+          const rres = await client.query('SELECT id FROM ramos WHERE id = $1 LIMIT 1', [Number(ramoId)]);
+          if (rres.rows.length > 0) ramoIdResolved = rres.rows[0].id;
+        }
+
+        // Si no resuelto, intentar buscar por codigo
+        if (!ramoIdResolved) {
+          const rres2 = await client.query('SELECT id FROM ramos WHERE codigo = $1 LIMIT 1', [ramoId]);
+          if (rres2.rows.length > 0) ramoIdResolved = rres2.rows[0].id;
+        }
+      } catch (errFindRamo) {
+        console.error('Error buscando ramo para crear evento:', errFindRamo);
+      }
+
+      if (!ramoIdResolved) {
+        return res.status(400).json({ success: false, message: `Ramo no encontrado: ${ramoIdInput}` });
+      }
+
+      // Validar que la sección exista y pertenezca al ramo
+      try {
+        const sres = await client.query('SELECT id FROM secciones WHERE id = $1 AND ramo_id = $2 LIMIT 1', [Number(seccionId), ramoIdResolved]);
+        if (sres.rows.length === 0) {
+          return res.status(400).json({ success: false, message: `Sección ${seccionId} no pertenece al ramo seleccionado` });
+        }
+      } catch (errCheckSeccion) {
+        console.error('Error validando sección para crear evento:', errCheckSeccion);
+      }
+
+      // Use ramoIdResolved como id final del ramo para inserción
+      const ramoIdFinal = ramoIdResolved;
 
       // Ajustes según tipo de inscripción
       if (tipoInscripcion === 'parejas') {
@@ -47,15 +102,16 @@ class EventoController {
         comentarioFinal = (comentarioFinal ? comentarioFinal + '\n' : '') + `grupo_size:${tamanoGrupo}`;
       }
 
+      // Usar placeholders secuenciales y explícitos para evitar desajustes en el número
       const result = await client.query(
         `INSERT INTO eventos 
         (nombre, descripcion, estado, comentario, fecha_inicio, fecha_fin, modalidad, link_online, 
          duracion_por_alumno, cupo_maximo, cupo_disponible, permite_parejas, sala, 
          tipo_evento_id, profesor_id, ramo_id, seccion_id)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10, $11, $12, $13, $14, $15, $16)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
         RETURNING *`,
         [nombre, descripcion, estado, comentarioFinal, fechaInicio, fechaFin, modalidad, linkOnline,
-         duracionPorAlumno, cupoMaximo, cupoMaximo, permiteParejas, sala, tipoEvento, profesorId, ramoId, seccionId]
+        duracionPorAlumno, cupoMaximo, cupoMaximo, permiteParejas, sala, tipoEvento, profesorId, ramoIdFinal, seccionId]
       );
 
       const evento = result.rows[0];
@@ -72,7 +128,7 @@ class EventoController {
           } else {
             emailsRes = await client.query(
               `SELECT u.email FROM users u JOIN alumnos a ON a.id = u.id JOIN seccion_alumnos sa ON sa.alumno_id = a.id JOIN secciones s ON s.id = sa.seccion_id WHERE s.ramo_id = $1`,
-              [ramoId]
+              [ramoIdFinal]
             );
           }
 
@@ -134,7 +190,8 @@ class EventoController {
       const alumnoId = req.user.id;
 
       const result = await query(
-        `SELECT e.*, t.nombre as tipo_nombre, t.color, r.codigo AS ramo_codigo, r.nombre AS ramo_nombre, s.numero AS seccion_numero
+        `SELECT e.*, t.nombre as tipo_nombre, t.color, r.codigo AS ramo_codigo, r.nombre AS ramo_nombre, s.numero AS seccion_numero,
+                CASE WHEN EXISTS(SELECT 1 FROM slots WHERE evento_id = e.id AND alumno_id = $1 AND disponible = false) THEN true ELSE false END as alumno_inscrito
          FROM eventos e
          JOIN tipos_eventos t ON e.tipo_evento_id = t.id
          LEFT JOIN ramos r ON e.ramo_id = r.id
@@ -145,12 +202,50 @@ class EventoController {
         [alumnoId]
       );
 
+      // Filtrar eventos: 
+      // - Si es tipo 'escrita' o sin tipo_evaluacion: mostrar siempre (inscritos automáticamente)
+      // - Si es tipo 'slots': mostrar solo si alumno_inscrito = true
+      const eventosFiltrados = result.rows.filter(e => {
+        if (e.tipo_evaluacion === 'slots') {
+          return e.alumno_inscrito === true;
+        }
+        return true; // Evaluaciones escritas siempre se muestran
+      });
+
+      res.json({
+        success: true,
+        data: eventosFiltrados
+      });
+    } catch (error) {
+      console.error('Error obteniendo eventos alumno:', error);
+      res.status(500).json({ success: false, message: 'Error interno' });
+    }
+  };
+
+  // Obtener eventos disponibles para inscripción por slots (alumno)
+  obtenerEventosDisponiblesSlots = async (req, res) => {
+    try {
+      const alumnoId = req.user.id;
+
+      const result = await query(
+        `SELECT e.*, t.nombre as tipo_nombre, t.color, r.codigo AS ramo_codigo, r.nombre AS ramo_nombre, s.numero AS seccion_numero,
+                CASE WHEN EXISTS(SELECT 1 FROM slots WHERE evento_id = e.id AND alumno_id = $1) THEN true ELSE false END as alumno_inscrito
+         FROM eventos e
+         JOIN tipos_eventos t ON e.tipo_evento_id = t.id
+         LEFT JOIN ramos r ON e.ramo_id = r.id
+         LEFT JOIN secciones s ON e.seccion_id = s.id
+         JOIN seccion_alumnos sa ON sa.seccion_id = e.seccion_id
+         WHERE sa.alumno_id = $1 AND e.tipo_evaluacion = 'slots' AND NOT EXISTS(SELECT 1 FROM slots WHERE evento_id = e.id AND alumno_id = $1)
+         ORDER BY e.fecha_inicio ASC`,
+        [alumnoId]
+      );
+
       res.json({
         success: true,
         data: result.rows
       });
     } catch (error) {
-      console.error('Error obteniendo eventos alumno:', error);
+      console.error('Error obteniendo eventos disponibles slots:', error);
       res.status(500).json({ success: false, message: 'Error interno' });
     }
   };

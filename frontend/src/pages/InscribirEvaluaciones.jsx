@@ -33,7 +33,14 @@ export default function InscribirEvaluaciones() {
     try {
       // solicitar slots si aplica
       const slotsRes = await getSlotsDisponibles(evento.id);
-      const slots = slotsRes?.data || slotsRes || [];
+      const rawSlots = slotsRes?.data || slotsRes || [];
+      // Normalizar keys para que el modal espere { id, inicio, fin, disponible }
+      const slots = rawSlots.map(s => ({
+        id: s.id || s.slot_id || s.slotId || `${evento.id}-${Math.random().toString(36).slice(2,6)}`,
+        inicio: s.inicio || s.fecha_hora_inicio || s.fechaHoraInicio || s.fecha_inicio,
+        fin: s.fin || s.fecha_hora_fin || s.fechaHoraFin || s.fecha_fin,
+        disponible: s.disponible === undefined ? true : s.disponible
+      }));
       const eventoConSlots = { ...evento, slotsDisponibles: slots };
       setSelectedEvento(eventoConSlots);
       setShowModal(true);
