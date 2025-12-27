@@ -362,7 +362,17 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
             onSaved();
         } catch (error) {
             console.error("Error en handleSubmit:", error);
-            const errorMessage = error?.message || error?.error || "Error al guardar la evaluación";
+            // Extraer el mensaje de error del backend o del objeto de error
+            let errorMessage = "Error al guardar la evaluación";
+            
+            if (error?.message) {
+                errorMessage = error.message;
+            } else if (error?.data?.message) {
+                errorMessage = error.data.message;
+            } else if (typeof error === 'string') {
+                errorMessage = error;
+            }
+            
             setError(errorMessage);
             alert("Error: " + errorMessage);
         } finally {

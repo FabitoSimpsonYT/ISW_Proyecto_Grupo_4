@@ -12,7 +12,9 @@ export async function createEvaluacionIntegradora(codigoRamo, data) {
     return response.data;
   } catch (error) {
     console.error('Error creando evaluación integradora:', error);
-    throw error;
+    const errorData = error.response?.data || { message: "Error al crear evaluación integradora" };
+    const errorObj = new Error(errorData.message || errorData.error || "Error al crear evaluación integradora");
+    throw errorObj;
   }
 }
 
@@ -43,7 +45,9 @@ export async function updateEvaluacionIntegradora(evaluacionId, data) {
     return response.data;
   } catch (error) {
     console.error('Error actualizando evaluación integradora:', error);
-    throw error;
+    const errorData = error.response?.data || { message: "Error al actualizar evaluación integradora" };
+    const errorObj = new Error(errorData.message || errorData.error || "Error al actualizar evaluación integradora");
+    throw errorObj;
   }
 }
 

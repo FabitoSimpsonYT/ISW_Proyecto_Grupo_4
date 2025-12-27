@@ -66,7 +66,9 @@ export async function createEvaluacion(evaluacionData) {
     } catch (error) {
         console.error("Error al crear evaluación:", error);
         console.error("Error response:", error.response?.data);
-        throw error.response?.data || { message: "Error al crear la evaluación" };
+        const errorData = error.response?.data || { message: "Error al crear la evaluación" };
+        const errorObj = new Error(errorData.message || errorData.error || "Error al crear la evaluación");
+        throw errorObj;
     }
 }
 /**
@@ -77,7 +79,9 @@ export async function updateEvaluacion(id, evaluacionData) {
         const response = await axios.patch(`/evaluaciones/${id}`,evaluacionData);
         return response.data;
     } catch (error) {
-        throw error.response?.data || {message : "error al actualizar la evaluacion"};
+        const errorData = error.response?.data || { message: "error al actualizar la evaluacion" };
+        const errorObj = new Error(errorData.message || errorData.error || "error al actualizar la evaluacion");
+        throw errorObj;
     }
     
 }
@@ -89,7 +93,9 @@ export async function deleteEvaluacion(id) {
         const response = await axios.delete(`/evaluaciones/${id}`);
         return response.data;
     } catch (error) {
-        throw error.response?.data || {message: "error al eliminar la evaluacion"};
+        const errorData = error.response?.data || { message: "error al eliminar la evaluacion" };
+        const errorObj = new Error(errorData.message || errorData.error || "error al eliminar la evaluacion");
+        throw errorObj;
     }
     
 }
