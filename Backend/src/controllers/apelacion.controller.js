@@ -538,7 +538,6 @@ if (estado === "cita") {
 
 
 
-
 export const getAllApelaciones = async (req, res) => {
   try {
     const apelacionRepo = AppDataSource.getRepository(Apelacion);

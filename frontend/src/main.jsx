@@ -6,9 +6,16 @@ import VerApelacionCompleta from '@pages/VerApelacionCompleta';
 import Apelaciones from '@pages/apelaciones';
 import MisApelaciones from '@pages/MisApelaciones';
 import MiAgenda from '@pages/MiAgenda';
+import InscribirEvaluaciones from '@pages/InscribirEvaluaciones';
+import MisRamosNotasPage from '@pages/MisRamosNotasPage';
 import MiPerfil from '@pages/MiPerfil';
 import GestionRamosPage from '@pages/GestionRamosPage';
+import GestionSeccionesPage from '@pages/GestionSeccionesPage';
 import GestionUsuariosPage from '@pages/GestionUsuariosPage';
+import EvaluacionPage from '@pages/EvaluacionPage';
+import CrearEditarPautaPage from '@pages/CrearEditarPautaPage';
+import EvaluarPage from '@pages/EvaluarPage';
+import NotificacionesPage from '@pages/NotificacionesPage';
 import Error404 from '@pages/Error404';
 import Root from '@pages/Root';
 import '@styles/styles.css';
@@ -36,12 +43,28 @@ const router = createBrowserRouter([
 
       // MI AGENDA
       { path: '/mi-agenda', element: <MiAgenda /> },
+      { path: '/inscribir-evaluaciones', element: <InscribirEvaluaciones /> },
+      { path: '/mis-ramos-notas', element: <MisRamosNotasPage /> },
+
+      // EVALUACIONES
+      { path: '/evaluaciones', element: <EvaluacionPage /> },
+
+      // PAUTA DE EVALUACIÓN
+      { path: '/evaluacion/:codigoRamo/:idEvaluacion/pauta', element: <CrearEditarPautaPage /> },
+      { path: '/evaluacion/:codigoRamo/:idEvaluacion/pauta/:pautaId', element: <CrearEditarPautaPage /> },
+
+      // EVALUAR ESTUDIANTES
+      { path: '/evaluacion/:codigoRamo/:idEvaluacion/evaluar', element: <EvaluarPage /> },
 
       // MI PERFIL
       { path: '/mi-perfil', element: <MiPerfil /> },
 
+      // NOTIFICACIONES
+      { path: '/notificaciones', element: <NotificacionesPage /> },
+
       // GESTIÓN DE RAMOS (solo admin y jefe de carrera)
       { path: '/ramos', element: <GestionRamosPage /> },
+      { path: '/ramos/:codigoRamo/secciones', element: <GestionSeccionesPage /> },
 
       // GESTIÓN DE USUARIOS (solo admin)
       { path: '/usuarios', element: <GestionUsuariosPage /> }

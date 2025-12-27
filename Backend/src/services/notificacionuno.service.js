@@ -57,7 +57,7 @@ export const notificarAlumnos = async (emails = [], titulo, mensaje, evaluacionI
   }
 };
 
-// Helper para casos en que se crea una evaluación y se desea notificar
+
 export const crearEvaluacionConNotificacion = async (evaluacionRepo, evaluacionData, emailsAlumnos) => {
   try {
     const evaluacion = await evaluacionRepo.save(evaluacionData);

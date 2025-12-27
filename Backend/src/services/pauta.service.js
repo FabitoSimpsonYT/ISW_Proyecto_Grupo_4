@@ -8,6 +8,7 @@ const pautaRepository = AppDataSource.getRepository(Pauta);
 const evaluacionRepository = AppDataSource.getRepository(Evaluacion);
 
 export async function createPautaService(data, evaluacionId) {
+    console.log("createPautaService - evaluacionId:", evaluacionId, "tipo:", typeof evaluacionId);
     let pauta;
     if (evaluacionId) {
         const evaluacion = await evaluacionRepository.findOneBy({id:evaluacionId});
@@ -15,13 +16,21 @@ export async function createPautaService(data, evaluacionId) {
         if(evaluacion.estado !== "pendiente"){
             return {error : "error al agregar una pauta a una evaluacion aplicada "};
         }
-        pauta = pautaRepository.create ({...data, evaluacion});
+        pauta = pautaRepository.create ({...data, evaluacionId});
     } else {
         pauta = pautaRepository.create({...data});
     }
     console.log("Estado de la pauta antes de guardar:", pauta.publicada);
     const savedPauta = await pautaRepository.save(pauta);
     console.log("Estado de la pauta después de guardar:", savedPauta.publicada);
+    
+    // Actualizar idPauta en la evaluación
+    if (evaluacionId) {
+        console.log("Actualizando evaluación", evaluacionId, "con idPauta:", savedPauta.id);
+        const updateResult = await evaluacionRepository.update(evaluacionId, { idPauta: savedPauta.id });
+        console.log("Resultado del update:", updateResult);
+    }
+    
     return savedPauta;
 }
 export async function getPautaByIdService(id, user){
@@ -44,11 +53,15 @@ export async function updatePautaService(id, data, user) {
   });
 
   if (!pauta) return { error: "Pauta no encontrada" };
-  if (user.role !== "profesor") return { error: "No autorizado" };
+  if (user.role !== "profesor" && user.role !== "jefecarrera") return { error: "No autorizado" };
 
-  pauta.publicada = true;
+  // Actualizar los campos que vienen en data
+  pauta.criterios = data.criterios || pauta.criterios;
+  pauta.distribucionPuntaje = data.distribucionPuntaje || pauta.distribucionPuntaje;
+  pauta.publicada = data.publicada !== undefined ? data.publicada : pauta.publicada;
+  
   const updatedPauta = await pautaRepository.save(pauta);
-  console.log("Estado de la pauta después de guardar:", updatedPauta.publicada);
+  console.log("Pauta actualizada:", updatedPauta);
 
   
   try {

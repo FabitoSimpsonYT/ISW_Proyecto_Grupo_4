@@ -81,6 +81,10 @@ export async function getJefeCarreraActual() {
     const response = await axios.get('/admin/jefe-carrera');
     return response.data.data;
   } catch (error) {
+    // Retornar null en lugar de lanzar error si no hay jefe de carrera
+    if (error.response?.status === 404) {
+      return null;
+    }
     throw error.response?.data || { message: 'Error al obtener jefe de carrera actual' };
   }
 }

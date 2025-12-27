@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { createRamo, updateRamo } from "../services/ramos.service.js";
+import { getAllProfesores, getJefeCarreraActual } from "../services/users.service.js";
 
 export default function RamosForm({ ramoEdit, onSaved }) {
   const initialState = {
@@ -12,6 +13,33 @@ export default function RamosForm({ ramoEdit, onSaved }) {
   const [ramo, setRamo] = useState(initialState);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [profesores, setProfesores] = useState([]);
+  const [profSearch, setProfSearch] = useState('');
+  const [showProfList, setShowProfList] = useState(false);
+    useEffect(() => {
+      // Cargar profesores y jefe de carrera al montar el formulario
+      async function fetchProfesoresYJefe() {
+        try {
+          const profs = await getAllProfesores();
+          let lista = profs || [];
+          // Obtener jefe de carrera y agregarlo si existe
+          try {
+            const jefe = await getJefeCarreraActual();
+            if (jefe && jefe.user) {
+              // Evitar duplicados por rut
+              const exists = lista.some(p => (p.user?.rut || p.rut) === jefe.user.rut);
+              if (!exists) {
+                lista = [...lista, { user: jefe.user, especialidad: 'Jefe de Carrera' }];
+              }
+            }
+          } catch {}
+          setProfesores(lista);
+        } catch (e) {
+          setProfesores([]);
+        }
+      }
+      fetchProfesoresYJefe();
+    }, []);
   
   useEffect(() => {
     if (ramoEdit) {
@@ -28,7 +56,34 @@ export default function RamosForm({ ramoEdit, onSaved }) {
   
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setRamo({ ...ramo, [name]: value });
+    if (name === "rutProfesorSearch") {
+      setProfSearch(value);
+      setShowProfList(true);
+      setRamo({ ...ramo, rutProfesor: value });
+    } else {
+      setRamo({ ...ramo, [name]: value });
+    }
+  };
+
+  // Filtrar profesores por nombre completo o RUT
+  const getProfCoincidencias = () => {
+    if (!profSearch.trim()) return [];
+    const search = profSearch.trim().toLowerCase();
+    return profesores.filter((prof) => {
+      const user = prof.user || prof;
+      const nombreCompleto = `${user.nombres} ${user.apellidoPaterno} ${user.apellidoMaterno}`.toLowerCase();
+      return (
+        user.rut.toLowerCase().includes(search) ||
+        nombreCompleto.includes(search)
+      );
+    });
+  };
+
+  const handleSelectProf = (prof) => {
+    const user = prof.user || prof;
+    setRamo({ ...ramo, rutProfesor: user.rut });
+    setProfSearch(`${user.nombres} ${user.apellidoPaterno} ${user.apellidoMaterno}`);
+    setShowProfList(false);
   };
 
   const validateForm = () => {
@@ -44,10 +99,10 @@ export default function RamosForm({ ramoEdit, onSaved }) {
       setError('El código del ramo es obligatorio');
       return false;
     }
-    // Validar formato del código: ABC1234
-    const codigoRegex = /^[A-Z]{3}[0-9]{4}$/;
+    // Validar formato del código: 6 dígitos
+    const codigoRegex = /^[0-9]{6}$/;
     if (!codigoRegex.test(ramo.codigo)) {
-      setError('El código debe tener el formato ABC1234 (3 letras mayúsculas + 4 números)');
+      setError('El código debe contener exactamente 6 números');
       return false;
     }
     return true;
@@ -115,7 +170,7 @@ export default function RamosForm({ ramoEdit, onSaved }) {
           value={ramo.nombre}
           onChange={handleChange}
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="ej: Programación I"
+          placeholder="ej: Derecho Romano"
           required
         />
       </div>
@@ -128,28 +183,48 @@ export default function RamosForm({ ramoEdit, onSaved }) {
           type="text"
           name="codigo"
           value={ramo.codigo}
-          onChange={(e) => handleChange({ ...e, target: { ...e.target, value: e.target.value.toUpperCase() } })}
+          onChange={handleChange}
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
-          placeholder="ej: PRG0001"
-          pattern="[A-Z]{3}[0-9]{4}"
+          placeholder="ej: 620515"
+          pattern="[0-9]{6}"
+          maxLength="6"
           required
         />
-        <p className="text-xs text-gray-500 mt-1">Formato: 3 letras mayúsculas + 4 números</p>
+        <p className="text-xs text-gray-500 mt-1">Formato: 6 dígitos numéricos</p>
       </div>
 
-      <div>
+      <div className="relative">
         <label className="block text-sm font-semibold text-gray-700 mb-2">
-          RUT del Profesor (Opcional):
+          Profesor (buscar por nombre o RUT):
         </label>
         <input
           type="text"
-          name="rutProfesor"
-          value={ramo.rutProfesor}
+          name="rutProfesorSearch"
+          value={profSearch}
           onChange={handleChange}
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="ej: 12345678-9"
+          placeholder="Ej: Juan Pérez o 12345678-9"
+          autoComplete="off"
+          onFocus={() => setShowProfList(true)}
         />
-        <p className="text-xs text-gray-500 mt-1">Formato: 12345678-9 o 1234567-K</p>
+        <input type="hidden" name="rutProfesor" value={ramo.rutProfesor} />
+        <p className="text-xs text-gray-500 mt-1">Selecciona un profesor para asignar el RUT</p>
+        {showProfList && getProfCoincidencias().length > 0 && (
+          <ul className="absolute z-10 bg-white border border-gray-300 rounded-lg w-full mt-1 max-h-48 overflow-y-auto shadow-lg">
+            {getProfCoincidencias().map((prof, idx) => {
+              const user = prof.user || prof;
+              return (
+                <li
+                  key={user.rut}
+                  className="px-4 py-2 cursor-pointer hover:bg-blue-100"
+                  onClick={() => handleSelectProf(prof)}
+                >
+                  <span className="font-mono text-blue-700">{user.rut}</span> — {user.nombres} {user.apellidoPaterno} {user.apellidoMaterno}
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
 
       <button

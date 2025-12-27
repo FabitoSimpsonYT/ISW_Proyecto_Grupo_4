@@ -1,7 +1,7 @@
 import { Outlet, useLocation } from 'react-router-dom';
 import { AuthProvider } from '@context/AuthContext';
 import { NavbarProvider } from '@context/NavbarContext';
-import NavBar from '@components/NavBar';
+import Navbar from '@components/Navbar';
 
 function Root() {
   const location = useLocation();
@@ -12,7 +12,7 @@ function Root() {
   return (
     <AuthProvider>
       <NavbarProvider>
-        {!hideNavBar && <NavBar />}
+        {!hideNavBar && <Navbar />}
         <Outlet />
       </NavbarProvider>
     </AuthProvider>

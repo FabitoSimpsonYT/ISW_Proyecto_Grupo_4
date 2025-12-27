@@ -41,6 +41,10 @@ export const validateRUT = (rut) => {
   if (!rutRegex.test(rut)) return false;
   
   const [num, dv] = rut.split('-');
+  
+  // Validar que no sea RUT de empresa (> 50 millones)
+  if (parseInt(num) > 50000000) return false;
+  
   let suma = 0;
   let multiplicador = 2;
   

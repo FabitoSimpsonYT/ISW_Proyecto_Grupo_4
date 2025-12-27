@@ -14,7 +14,7 @@ const Home = () => {
   const saludo = esFemenino ? '¡Bienvenida!' : '¡Bienvenido!';
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-[#1e3a5f] via-[#2c4a6b] to-[#1e3a5f] flex items-center justify-center p-4 transition-all duration-300 ${isNavbarOpen ? 'ml-64' : 'ml-0'}`}>
+    <div className={`min-h-screen bg-gradient-to-br from-[#1e3a5f] via-[#2c4a6b] to-[#1e3a5f] flex items-center justify-center p-4 transition-all duration-300 ${isNavbarOpen ? 'md:ml-64' : 'md:ml-0'}`}>
       <div className="bg-white rounded-3xl shadow-2xl p-12 max-w-2xl w-full transform transition-all">
         <div className="text-center">
           <h1 className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#1e3a5f] to-[#4a7ba7] mb-4">
