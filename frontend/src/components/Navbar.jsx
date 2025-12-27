@@ -112,7 +112,20 @@ const Navbar = () => {
           
           {user?.role === "profesor" && (
             <button
-              onClick={() => { navigate("/apelaciones-profesor"); setIsOpen(false); }}
+              onClick={() => navigate("/apelaciones-profesor")}
+            className="px-4 py-2 border border-white rounded-lg hover:bg-white hover:text-[#0E2C66] transition font-medium"
+          >
+            Apelaciones
+            </button>
+          )}
+
+
+
+
+          {/* PROFESOR */}
+          {user?.role === "profesor" && (
+            <button
+              onClick={() => navigate("/crear-pauta")}
               className="px-4 py-2 border border-white rounded-lg hover:bg-white hover:text-[#0E2C66] transition font-medium"
             >
               Apelaciones
