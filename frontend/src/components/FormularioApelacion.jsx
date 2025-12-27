@@ -59,6 +59,22 @@ useEffect(() => {
   const requiereCitacion =
     tipo === "inasistencia" && subtipoInasistencia === "evaluacion";
 
+  // variable para ocultar boton de guardar
+
+  const fechaActual = Date.now();
+  const fechaCitacionDate = new Date(fechaCitacion).getTime();
+  const Veinticuatro_Horas = 24 * 60 * 60 * 1000;
+  var puedeGuardar = fechaCitacionDate - fechaActual > Veinticuatro_Horas;
+  if(fechaCitacion === "") puedeGuardar = true;
+  
+  var mensaje_guardar = "No puedes moficiar la apelación porque el plazo ha finalizado.";
+
+  //Si fechaCitacion es Aceptada-Rechazada No puede guardar
+  if(estado === "aceptada" || estado === "rechazada") {
+    puedeGuardar = false;
+    mensaje_guardar = "No puedes editar la apelacion porque la apelación ya fue resuelta.";
+  }
+
   const handleSubmit = (e) => {
     e.preventDefault();
 
@@ -318,13 +334,19 @@ useEffect(() => {
 
       {/* BOTÓN */}
       <div className="flex justify-end pt-6">
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-[#0E2C66] text-white px-8 py-2 rounded-full"
-        >
-          {esAlumno ? "Guardar" : "Guardar Respuesta"}
-        </button>
+        {puedeGuardar ? (
+          <button
+            type="submit"
+            disabled={loading}
+            className="bg-[#0E2C66] text-white px-8 py-2 rounded-full"
+          >
+            {esAlumno ? "Guardar" : "Guardar Respuesta"}
+          </button>
+        ) : (
+          <p className="text-red-600 font-semibold">
+            {mensaje_guardar}
+          </p>
+        )}
       </div>
     </form>
   );
