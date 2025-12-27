@@ -451,9 +451,9 @@ export async function getSeccionesByRamo(codigoRamo) {
     where: { ramo: { codigo: codigoRamo } },
     relations: ["ramo", "alumnos", "alumnos.user"]
   });
-
+  // Si no hay secciones, devolver arreglo vacío (frontend maneja el mensaje)
   if (!secciones || secciones.length === 0) {
-    throw new NotFoundError(`No se encontraron secciones para el ramo ${codigoRamo}`);
+    return [];
   }
 
   return secciones.map(seccion => ({

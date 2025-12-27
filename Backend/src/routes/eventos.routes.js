@@ -12,5 +12,6 @@ router.delete('/:id', profesorMiddleware, EventoController.eliminarEvento);
 router.get('/profesor', profesorMiddleware, EventoController.obtenerEventosProfesor);
 
 router.get('/alumno', EventoController.obtenerEventosAlumno);
+router.get('/alumno/disponibles-slots', EventoController.obtenerEventosDisponiblesSlots);
 
 export default router;

@@ -4,6 +4,8 @@ import CrearEditarPautaPage from './pages/CrearEditarPautaPage.jsx';
 import Login from './pages/Login.jsx';
 import GestionRamosPage from './pages/GestionRamosPage.jsx';
 import EvaluacionPage from './pages/EvaluacionPage.jsx';
+import BloqueoPage from './pages/BloqueoPage.jsx';
+
 function App() {
   return (
     <BrowserRouter>
@@ -15,7 +17,7 @@ function App() {
         <Route path="/pautas" element={<PautaPage />} />
         <Route path="/ramos" element={<GestionRamosPage />} />
         <Route path="/evaluaciones" element={<EvaluacionPage />} />
-
+        <Route path="/bloqueos" element={<BloqueoPage />} />
       </Routes>
     </BrowserRouter>
   );

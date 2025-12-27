@@ -12,6 +12,12 @@ export default function AgendaProfesor() {
   const isJefe = user?.role === 'jefecarrera' || user?.role === 'jefe_carrera';
 
   const [vista, setVista] = useState('calendario'); // 'calendario', 'crear', 'tipos', 'bloqueos', 'slots'
+  const [eventoEnEdicion, setEventoEnEdicion] = useState(null);
+
+  const abrirEdicionEvento = (evento) => {
+    setEventoEnEdicion(evento);
+    setVista('crear');
+  };
 
   return (
     <div className="p-8">
@@ -67,8 +73,8 @@ export default function AgendaProfesor() {
 
       {/* Contenido principal */}
       <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 min-h-screen">
-        {vista === 'calendario' && <CalendarioView />}
-        {vista === 'crear' && <CrearEventoForm onSaved={() => setVista('calendario')} />}
+        {vista === 'calendario' && <CalendarioView onEditarEvento={abrirEdicionEvento} />}
+        {vista === 'crear' && <CrearEventoForm evento={eventoEnEdicion} onSaved={() => { setEventoEnEdicion(null); setVista('calendario'); }} />}
         {vista === 'tipos' && <GestionTiposEventos />}
         {vista === 'slots' && <GestionarSlots />} {/* ← NUEVA VISTA */}
         {vista === 'bloqueos' && isJefe && <BloquearDias />}

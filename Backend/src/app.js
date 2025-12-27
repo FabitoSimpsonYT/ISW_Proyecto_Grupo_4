@@ -15,7 +15,7 @@ import apelacionRoutes from './routes/apelacion.routes.js';
 import ramosRoutes from './routes/ramos.routes.js';
 import evaluacionesRoutes from './routes/evaluaciones.routes.js';
 import path from 'path';
-import bloqueoRoutes from "./bloqueo.routes.js";
+import bloqueoRoutes from "./routes/bloqueo.routes.js";
 
 const app = express();
 
@@ -54,6 +54,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/apelaciones', apelacionRoutes);
 app.use('/api/ramos', ramosRoutes);
 app.use('/api/evaluaciones', evaluacionesRoutes);
+app.use('/api/bloqueo', bloqueoRoutes);
 
 
 // Middlewares finales
