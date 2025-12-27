@@ -54,6 +54,12 @@ export default function MisApelaciones() {
     setEditingId(null);
   };
 
+  const irAEditar = (apelacion) => {
+  if (!puedeEditarApelacion(apelacion)) return;
+  navigate(`/apelaciones/${apelacion.id}/editar`);
+};
+
+
   if (apelaciones === null)
     return (
       <div className={`p-6 bg-[#e9f7fb] min-h-screen transition-all duration-300 flex flex-col items-center justify-center ${isNavbarOpen ? 'ml-64' : 'ml-0'}`}>
@@ -83,15 +89,10 @@ export default function MisApelaciones() {
 
       {/* Título */}
       <div className="bg-[#113C63] text-white px-6 py-4 rounded">
-        <h2 className="text-3xl font-bold">Perfil de Alumno</h2>
+        <h2 className="text-3xl font-bold">Mis Apelaciones</h2>
       </div>
 
 
-      {/* Línea separadora */}
-      <div className="mt-6 bg-white h-4 rounded"></div>
-
-      <h3 className="mt-6 text-xl font-semibold ml-2">Mis apelaciones:</h3>
-      <div className="mt-2 bg-[#d5e8f6] h-3 rounded"></div>
 
       {/* TABLA */}
       <div className="mt-6 bg-white shadow-md rounded-lg overflow-hidden mr-8">
@@ -104,7 +105,8 @@ export default function MisApelaciones() {
               <th className="px-4 py-2 border">Respuesta</th>
               <th className="px-4 py-2 border">Profesor</th>
               <th className="px-4 py-2 border">Fecha Citación</th>
-              <th className="px-4 py-2 border">Acciones</th>
+              <th className="px-2 py-2 border w-20"></th>
+
             </tr>
           </thead>
 
@@ -113,124 +115,112 @@ export default function MisApelaciones() {
               const expanded = expandedRows[index];
               const esEditable = puedeEditarApelacion(a);
               const estadoColor = 
-                a.estado === "aprobada" || a.estado === "citada" ? "text-green-600 font-semibold" :
+                a.estado === "aceptada" || a.estado === "cita" ? "text-green-600 font-semibold" :
                 a.estado === "rechazada" ? "text-red-600 font-semibold" :
                 "text-yellow-600 font-semibold";
               
               return (
-                <tr
-                  key={a.id}
-                  className={`transition ${
-                    index % 2 === 0 ? "bg-[#f4f8ff]" : "bg-white"
-                  } hover:bg-[#dbe7ff]`}
+              <tr
+                key={a.id}
+                 onClick={() =>
+                    navigate(`/apelaciones/${a.id}/editar`)}
+
+                className={`group transition ${
+                  index % 2 === 0 ? "bg-[#f4f8ff]" : "bg-white"
+                } hover:bg-[#dbe7ff]`}
+              >
+                <td className="px-4 py-2 border font-semibold capitalize">
+                  {a.tipo}
+                  {a.subtipoInasistencia && (
+                    <span className="text-xs block text-gray-600">
+                      ({a.subtipoInasistencia === "evaluacion" ? "Reagendar" : "Justificación"})
+                    </span>
+                  )}
+                </td>
+
+                {/* MENSAJE */}
+                <td
+                  className="px-4 py-2 border max-w-[250px] cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleExpand(index);
+                  }}
                 >
-                  <td className="px-4 py-2 border font-semibold capitalize">
-                    {a.tipo}
-                    {a.subtipoInasistencia && (
-                      <span className="text-xs block text-gray-600">
-                        ({a.subtipoInasistencia === "evaluacion" ? "Reagendar" : "Justificación"})
-                      </span>
-                    )}
-                  </td>
+                  <p className={expanded ? "" : "truncate"}>
+                    {a.mensaje}
+                  </p>
+                </td>
 
-                  {/* MENSAJE (Expandible o Editable) */}
-                  <td
-                    className="px-4 py-2 border max-w-[250px]"
-                    onClick={() => toggleExpand(index)}
-                  >
-                    {editingId === a.id ? (
-                      <textarea
-                        value={editMensaje}
-                        onChange={(e) => setEditMensaje(e.target.value)}
-                        className="w-full p-2 border rounded"
-                        rows={3}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    ) : expanded ? (
-                      <p className="cursor-pointer">{a.mensaje}</p>
+                {/* ESTADO */}
+                <td className={`px-4 py-2 border capitalize ${estadoColor}`}>
+                  {a.estado}
+                </td>
+
+                {/* RESPUESTA */}
+                <td
+                  className="px-4 py-2 border max-w-[250px] italic"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleExpand(index);
+                  }}
+                >
+                  {a.respuestaDocente?.trim() ? (
+                    expanded ? (
+                      <p>{a.respuestaDocente}</p>
                     ) : (
-                      <p className="truncate cursor-pointer">{a.mensaje}</p>
-                    )}
-                  </td>
+                      <p className="truncate">{a.respuestaDocente}</p>
+                    )
+                  ) : (
+                    <span className="text-gray-400">Sin respuesta</span>
+                  )}
+                </td>
 
-                  <td className={`px-4 py-2 border capitalize ${estadoColor}`}>
-                    {a.estado}
-                  </td>
+                {/* PROFESOR */}
+                <td className="px-4 py-2 border">
+                  {a.profesor?.email || "—"}
+                </td>
 
-                  {/* RESPUESTA DOCENTE (Expandible) */}
-                  <td
-                    className="px-4 py-2 border max-w-[250px] italic"
-                    onClick={() => toggleExpand(index)}
-                  >
-                    {a.respuestaDocente?.trim() !== "" ? (
-                      expanded ? (
-                        <p className="cursor-pointer">{a.respuestaDocente}</p>
-                      ) : (
-                        <p className="truncate cursor-pointer">{a.respuestaDocente}</p>
-                      )
-                    ) : (
-                      <span className="text-gray-400">Sin respuesta</span>
-                    )}
-                  </td>
+                {/* FECHA */}
+                <td className="px-4 py-2 border">
+                  {a.fechaCitacion ? (
+                    <>
+                      {new Date(a.fechaCitacion).toLocaleString("es-CL", {
+                        dateStyle: "short",
+                        timeStyle: "short",
+                      })}
+                      {esEditable && (
+                        <span className="block text-xs text-green-600 mt-1">
+                          ✓ Editable
+                        </span>
+                      )}
+                      {!esEditable && a.estado === "citada" && (
+                        <span className="block text-xs text-red-600 mt-1">
+                          ⚠️ Menos de 24h
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    "—"
+                  )}
+                </td>
 
-                  {/* CORREO DEL PROFESOR */}
-                  <td className="px-4 py-2 border">
-                    {a.profesor?.email || "—"}
-                  </td>
+                {/* EDITAR */}
+                <td className="px-2 py-2 border text-center">
+                  {esEditable && (
+                    <button
+                      onClick={(e) => {
+                        console.log("CLICK EDITAR", a.id);
+                        navigate(`/apelaciones/${a.id}/editar`);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 text-blue-600 text-xs hover:text-blue-800 transition"
+                      title="Editar apelación"
+                    >
+                      ✎
+                    </button>
+                  )}
+                </td>
+              </tr>
 
-                  {/* FECHA CITACIÓN */}
-                  <td className="px-4 py-2 border">
-                    {a.fechaCitacion ? (
-                      <>
-                        {new Date(a.fechaCitacion).toLocaleString("es-CL", {
-                          dateStyle: "short",
-                          timeStyle: "short",
-                        })}
-                        {esEditable && (
-                          <span className="block text-xs text-green-600 mt-1">
-                            ✓ Editable
-                          </span>
-                        )}
-                        {!esEditable && a.estado === "citada" && (
-                          <span className="block text-xs text-red-600 mt-1">
-                            ⚠️ Menos de 24h
-                          </span>
-                        )}
-                      </>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-
-                  {/* ACCIONES */}
-                  <td className="px-4 py-2 border text-center">
-                    {editingId === a.id ? (
-                      <div className="flex gap-2 justify-center">
-                        <button
-                          onClick={() => handleGuardarEdicion(a.id)}
-                          className="text-green-600 hover:text-green-800 text-sm font-semibold"
-                        >
-                          ✓ Guardar
-                        </button>
-                        <button
-                          onClick={handleCancelarEdicion}
-                          className="text-red-600 hover:text-red-800 text-sm font-semibold"
-                        >
-                          ✕ Cancelar
-                        </button>
-                      </div>
-                    ) : esEditable ? (
-                      <button
-                        onClick={() => handleEditar(a)}
-                        className="text-blue-600 hover:text-blue-800 text-sm font-semibold"
-                      >
-                        ✏️ Editar
-                      </button>
-                    ) : (
-                      <span className="text-gray-400 text-sm">—</span>
-                    )}
-                  </td>
-                </tr>
               );
             })}
           </tbody>

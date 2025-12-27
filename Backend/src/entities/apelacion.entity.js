@@ -26,13 +26,18 @@ export const Apelacion = new EntitySchema({
     },
     estado: {
       type: String,
-      enum: ["pendiente", "aceptada", "rechazada"],
+      enum: ["pendiente", "revisada", "aceptada", "rechazada", "cita"],
       default: "pendiente",
     },
     respuestaDocente: {
       type: String,
       nullable: true,
     },
+    fechaCitacion: {
+      type: "timestamp",
+      nullable: true,
+    },
+
     fechaLimiteEdicion: {
       type: "timestamp",
       nullable: true,
