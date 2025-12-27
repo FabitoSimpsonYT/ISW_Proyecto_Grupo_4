@@ -17,6 +17,8 @@ import apelacionesRoutes from "./apelacion.routes.js";
 import inscripcionesRoutes from "./inscripciones.routes.js";
 import bloqueoRoutes from "./bloqueo.routes.js";
 import slotRoutes from "./slot.routes.js";
+import alumnoPromedioRamoRoutes from "./alumnoPromedioRamo.routes.js";
+import evaluacionIntegradoraRoutes from "./evaluacionIntegradora.routes.js";
 export function routerApi(app) {
   const router = Router();
   app.use("/api", router);
@@ -30,6 +32,7 @@ export function routerApi(app) {
   router.use("/evaluaciones", evaluacionesRoutes);
   router.use("/pauta", pautaRoutes);
   router.use("/pauta-evaluadas", pautaEvaluadaRoutes);
+  router.use("/pauta-evaluadas-integradora", pautaEvaluadaRoutes);
   router.use("/notificaciones", notificacionRoutes);
   router.use("/eventos", eventosRoutes);
   router.use("/tipos-eventos", tipoEventoRoutes);
@@ -39,4 +42,6 @@ export function routerApi(app) {
   router.use("/inscripciones", inscripcionesRoutes);
   router.use("/bloqueos", bloqueoRoutes);
   router.use("/slots", slotRoutes);
+  router.use("/promedios", alumnoPromedioRamoRoutes);
+  router.use("/evaluacion-integradora", evaluacionIntegradoraRoutes);
 }

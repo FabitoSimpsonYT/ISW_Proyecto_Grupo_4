@@ -76,3 +76,53 @@ export async function deletePautaEvaluada(evaluacionId, alumnoRut) {
         throw error.response?.data || { message: "Error al eliminar la pauta evaluada" };
     }
 }
+
+/**
+ * Obtener pauta evaluada integradora por evaluación integradora y alumno
+ * GET /pauta-evaluadas-integradora/:evaluacionIntegradoraId/:alumnoRut
+ */
+export async function getPautaEvaluadaIntegradora(evaluacionIntegradoraId, alumnoRut) {
+    try {
+        const response = await axios.get(`/pauta-evaluadas-integradora/${evaluacionIntegradoraId}/${alumnoRut}`);
+        const pautaEvaluada = response.data?.data?.pautaEvaluada || response.data?.data || null;
+        return pautaEvaluada;
+    } catch (error) {
+        // Si es 404, retorna null (estudiante no evaluado aún)
+        if (error.response?.status === 404) {
+            return null;
+        }
+        throw error.response?.data || { message: "Error al obtener la pauta evaluada integradora" };
+    }
+}
+
+/**
+ * Crear pauta evaluada integradora
+ * POST /pauta-evaluadas-integradora/:evaluacionIntegradoraId/:pautaId
+ */
+export async function createPautaEvaluadaIntegradora(evaluacionIntegradoraId, pautaId, pautaEvaluadaData) {
+    try {
+        const response = await axios.post(`/pauta-evaluadas-integradora/${evaluacionIntegradoraId}/${pautaId}`, pautaEvaluadaData);
+        return response.data?.data?.pautaEvaluada || response.data?.data || response.data;
+    } catch (error) {
+        console.error("Error al crear pauta evaluada integradora:", error);
+        throw error.response?.data || { message: "Error al crear la pauta evaluada integradora" };
+    }
+}
+
+/**
+ * Actualizar pauta evaluada integradora (reevaluación)
+ * PATCH /pauta-evaluadas-integradora/:evaluacionIntegradoraId/:alumnoRut
+ */
+export async function updatePautaEvaluadaIntegradora(evaluacionIntegradoraId, alumnoRut, pautaEvaluadaData) {
+    try {
+        const rut = alumnoRut || getRutFromToken();
+        if (!rut) {
+            throw new Error("No se pudo obtener el RUT del usuario");
+        }
+
+        const response = await axios.patch(`/pauta-evaluadas-integradora/${evaluacionIntegradoraId}/${rut}`, pautaEvaluadaData);
+        return response.data?.data?.pautaEvaluada || response.data?.data || response.data;
+    } catch (error) {
+        throw error.response?.data || { message: "Error al actualizar la pauta evaluada integradora" };
+    }
+}

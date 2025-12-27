@@ -14,8 +14,13 @@ const instance = axios.create({
 instance.interceptors.request.use(
   (config) => {
     const token = cookies.get('jwt-auth', { path: '/' }) || localStorage.getItem('token');
+    console.log('🔍 [root.service] Request a:', config.url);
+    console.log('🔑 [root.service] Token encontrado:', !!token);
     if(token) {
+      console.log('📝 [root.service] Enviando token en header Authorization');
       config.headers.Authorization = `Bearer ${token}`;
+    } else {
+      console.log('❌ [root.service] No hay token disponible');
     }
     return config;
   },

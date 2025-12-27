@@ -3,6 +3,9 @@ import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { getMisRamos, getProfesorByRut } from "../services/ramos.service.js";
 import { getEvaluacionesByCodigoRamo, getPautaEvaluadaByAlumno, getPautaEvaluadaCompleta } from "../services/evaluacion.service.js";
+import { getPromedioFinal } from "../services/alumnoPromedioRamo.service.js";
+import { getEvaluacionIntegradora } from "../services/evaluacionIntegradora.service.js";
+import { getPautaEvaluadaIntegradora } from "../services/pautaEvaluada.service.js";
 
 export default function MisRamosNotasPage() {
   const [ramos, setRamos] = useState([]);
@@ -15,8 +18,12 @@ export default function MisRamosNotasPage() {
   const [isLoadingEvaluaciones, setIsLoadingEvaluaciones] = useState(false);
   const [errorEvaluaciones, setErrorEvaluaciones] = useState("");
   const [notasAlumno, setNotasAlumno] = useState({});
+  const [evaluacionIntegradora, setEvaluacionIntegradora] = useState(null);
+  const [notaIntegradora, setNotaIntegradora] = useState(null);
   const [selectedPauta, setSelectedPauta] = useState(null);
   const [isLoadingPauta, setIsLoadingPauta] = useState(false);
+  const [promedioRamo, setPromedioRamo] = useState(null);
+  const [isLoadingPromedio, setIsLoadingPromedio] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -78,8 +85,12 @@ export default function MisRamosNotasPage() {
   const handleSelectRamo = async (ramo) => {
     setSelectedRamo(ramo);
     setIsLoadingEvaluaciones(true);
+    setIsLoadingPromedio(true);
     setErrorEvaluaciones("");
     setNotasAlumno({});
+    setPromedioRamo(null);
+    setEvaluacionIntegradora(null);
+    setNotaIntegradora(null);
     console.log("Seleccionando ramo:", ramo);
     try {
       const data = await getEvaluacionesByCodigoRamo(ramo.codigo);
@@ -108,12 +119,46 @@ export default function MisRamosNotasPage() {
         console.log("Data no es array:", data);
         setEvaluaciones([]);
       }
+
+      // Cargar evaluación integradora si existe
+      try {
+        const integradora = await getEvaluacionIntegradora(ramo.codigo);
+        if (integradora?.data) {
+          setEvaluacionIntegradora(integradora.data);
+          
+          // Cargar nota de evaluación integradora
+          try {
+            const pautaIntegradora = await getPautaEvaluadaIntegradora(integradora.data.id, user.rut);
+            console.log("Pauta integradora:", pautaIntegradora);
+            if (pautaIntegradora) {
+              setNotaIntegradora(pautaIntegradora.notaFinal || null);
+            }
+          } catch (err) {
+            console.error("Error al cargar pauta integradora:", err);
+            setNotaIntegradora(null);
+          }
+        }
+      } catch (err) {
+        console.error("Error al cargar evaluación integradora:", err);
+        setEvaluacionIntegradora(null);
+      }
+
+      // Cargar promedio del ramo
+      try {
+        const promedio = await getPromedioFinal(ramo.codigo, user.rut);
+        console.log("Promedio cargado:", promedio);
+        setPromedioRamo(promedio.data || promedio);
+      } catch (err) {
+        console.error("Error al cargar promedio:", err);
+        setPromedioRamo(null);
+      }
     } catch (error) {
       console.error("Error al cargar evaluaciones:", error);
       setErrorEvaluaciones(error?.message || "Error al cargar evaluaciones");
       setEvaluaciones([]);
     } finally {
       setIsLoadingEvaluaciones(false);
+      setIsLoadingPromedio(false);
     }
   };
 
@@ -121,16 +166,30 @@ export default function MisRamosNotasPage() {
     setSelectedRamo(null);
     setEvaluaciones([]);
     setNotasAlumno({});
+    setPromedioRamo(null);
+    setEvaluacionIntegradora(null);
+    setNotaIntegradora(null);
   };
 
-  // Ordenar evaluaciones por fechaProgramada (más antiguo al más nuevo)
+  // Ordenar evaluaciones por fechaProgramada (más antiguo al más nuevo) e incluir integradora
   const evaluacionesOrdenadas = useMemo(() => {
-    return [...evaluaciones].sort((a, b) => {
+    const todas = [...evaluaciones];
+    
+    // Agregar la evaluación integradora si existe
+    if (evaluacionIntegradora) {
+      todas.push({
+        ...evaluacionIntegradora,
+        esIntegradora: true,
+        notaFinal: notaIntegradora
+      });
+    }
+    
+    return todas.sort((a, b) => {
       const dateA = new Date(a.fechaProgramada || a.fecha || 0).getTime();
       const dateB = new Date(b.fechaProgramada || b.fecha || 0).getTime();
       return dateA - dateB; // Orden ascendente (más antiguo primero)
     });
-  }, [evaluaciones]);
+  }, [evaluaciones, evaluacionIntegradora, notaIntegradora]);
 
   const handleVerMasPauta = async (evaluacionId) => {
     setIsLoadingPauta(true);
@@ -160,6 +219,54 @@ export default function MisRamosNotasPage() {
       });
     } catch (error) {
       console.error("Error al cargar pauta:", error);
+      setSelectedPauta(null);
+    } finally {
+      setIsLoadingPauta(false);
+    }
+  };
+
+  const handleVerMasPautaIntegradora = async () => {
+    setIsLoadingPauta(true);
+    try {
+      // Recargar la evaluación integradora para obtener datos actualizados
+      const evaluacionActualizada = await getEvaluacionIntegradora(selectedRamo.codigo);
+      let integrador = evaluacionIntegradora;
+      
+      if (evaluacionActualizada?.data) {
+        integrador = evaluacionActualizada.data;
+        setEvaluacionIntegradora(evaluacionActualizada.data);
+      }
+      
+      // Cargar los detalles completos de la pauta evaluada integradora
+      const pautaCompleta = await getPautaEvaluadaIntegradora(integrador.id, user.rut);
+      
+      console.log("Pauta integradora completa cargada:", pautaCompleta);
+      
+      // Actualizar la nota integradora
+      if (pautaCompleta?.notaFinal) {
+        setNotaIntegradora(pautaCompleta.notaFinal);
+      }
+      
+      // Construir tabla de criterios con puntajes
+      let criteriosDesglose = [];
+      if (pautaCompleta?.puntajesObtenidos && pautaCompleta?.idPauta) {
+        // Los puntajes obtenidos vienen en un objeto {criterio: puntaje}
+        criteriosDesglose = Object.entries(pautaCompleta.puntajesObtenidos).map(([criterio, puntajeObtenido]) => ({
+          criterio,
+          puntajeObtenido: parseFloat(puntajeObtenido) || 0
+        }));
+        console.log("Criterios desglose integradora:", criteriosDesglose);
+      }
+      
+      setSelectedPauta({
+        evaluacion: integrador,
+        pautaCompleta,
+        criteriosDesglose,
+        esIntegradora: true,
+        notaFinal: pautaCompleta?.notaFinal || null
+      });
+    } catch (error) {
+      console.error("Error al cargar pauta integradora:", error);
       setSelectedPauta(null);
     } finally {
       setIsLoadingPauta(false);
@@ -329,15 +436,18 @@ export default function MisRamosNotasPage() {
                       </thead>
                       <tbody>
                         {evaluacionesOrdenadas.map((evaluacion) => {
-                          const nota = notasAlumno[evaluacion.id];
+                          const nota = evaluacion.esIntegradora ? notaIntegradora : notasAlumno[evaluacion.id];
                           
                           return (
                             <tr
                               key={evaluacion.id}
-                              className="border-b border-blue-200 hover:bg-blue-50 transition"
+                              className={`border-b border-blue-200 hover:bg-blue-50 transition ${evaluacion.esIntegradora ? 'bg-blue-100 border-l-4 border-l-blue-700' : ''}`}
                             >
                               <td className="px-6 py-4 text-[#143A80] font-medium">
-                                {evaluacion.nombre}
+                                <div className="flex items-center gap-2">
+                                  <span>{evaluacion.nombre || evaluacion.titulo}</span>
+                                  {evaluacion.esIntegradora && <span className="text-xs font-bold text-blue-700 bg-blue-200 px-2 py-1 rounded">INTEGRADORA</span>}
+                                </div>
                               </td>
                               <td className="px-6 py-4 text-[#143A80]/70">
                                 {evaluacion.fechaProgramada
@@ -349,16 +459,23 @@ export default function MisRamosNotasPage() {
                               <td className="px-6 py-4 text-center">
                                 {nota === null || nota === undefined ? (
                                   <span className="text-slate-500">—</span>
-                                ) : parseFloat(nota) < 4.0 ? (
-                                  <span className="font-semibold text-red-600">{parseFloat(nota).toFixed(1)}</span>
                                 ) : (
-                                  <span className="font-semibold text-blue-600">{parseFloat(nota).toFixed(1)}</span>
+                                  <button
+                                    onClick={() => evaluacion.esIntegradora ? handleVerMasPautaIntegradora() : handleVerMasPauta(evaluacion.id)}
+                                    className={`font-semibold px-3 py-1 rounded-lg transition ${
+                                      parseFloat(nota) < 4.0 
+                                        ? 'text-red-600 hover:bg-red-50' 
+                                        : 'text-blue-600 hover:bg-blue-50'
+                                    }`}
+                                  >
+                                    {parseFloat(nota).toFixed(1)}
+                                  </button>
                                 )}
                               </td>
                               <td className="px-6 py-4 text-center">
                                 {nota && (
                                   <button
-                                    onClick={() => handleVerMasPauta(evaluacion.id)}
+                                    onClick={() => evaluacion.esIntegradora ? handleVerMasPautaIntegradora() : handleVerMasPauta(evaluacion.id)}
                                     className="inline-block px-4 py-2 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 transition"
                                   >
                                     Ver más
@@ -373,6 +490,69 @@ export default function MisRamosNotasPage() {
                   </div>
                 )}
               </div>
+
+              {/* Sección de Promedios */}
+              {!isLoadingEvaluaciones && evaluaciones.length > 0 && (
+                <div className="mt-8">
+                  <h3 className="text-xl font-bold text-[#143A80] mb-6">Resumen de Calificaciones</h3>
+                  
+                  {isLoadingPromedio ? (
+                    <div className="rounded-2xl border border-blue-200 bg-blue-50 p-6 text-blue-700">
+                      Cargando promedios…
+                    </div>
+                  ) : promedioRamo ? (
+                    <div className="rounded-2xl bg-[#143A80] p-8 text-white">
+                      <div className="grid grid-cols-3 gap-8">
+                        {/* Promedio Parcial */}
+                        <div className="flex flex-col items-center">
+                          <p className="text-sm font-medium text-blue-100 mb-4">Promedio Parcial</p>
+                          {promedioRamo.promedioParcial !== null && promedioRamo.promedioParcial !== undefined ? (
+                            <div className={`flex items-center justify-center w-20 h-20 rounded-lg font-bold text-white text-3xl ${
+                              promedioRamo.promedioParcial < 4.0 ? 'bg-red-500' : 'bg-green-500'
+                            }`}>
+                              {promedioRamo.promedioParcial.toFixed(1)}
+                            </div>
+                          ) : (
+                            <p className="text-3xl font-bold">—</p>
+                          )}
+                        </div>
+
+                        {/* Evaluación Integradora */}
+                        <div className="flex flex-col items-center">
+                          <p className="text-sm font-medium text-blue-100 mb-4">Evaluación Integradora</p>
+                          {promedioRamo.notaIntegradora !== null && promedioRamo.notaIntegradora !== undefined ? (
+                            <div className={`flex items-center justify-center w-20 h-20 rounded-lg font-bold text-white text-3xl ${
+                              promedioRamo.notaIntegradora < 4.0 ? 'bg-red-500' : 'bg-green-500'
+                            }`}>
+                              {promedioRamo.notaIntegradora.toFixed(1)}
+                            </div>
+                          ) : (
+                            <p className="text-3xl font-bold">—</p>
+                          )}
+                        </div>
+
+                        {/* Promedio Final */}
+                        <div className="flex flex-col items-center">
+                          <p className="text-sm font-medium text-blue-100 mb-4">Promedio Final</p>
+                          {promedioRamo.promedioFinal !== null && promedioRamo.promedioFinal !== undefined ? (
+                            <div className={`flex items-center justify-center w-20 h-20 rounded-lg font-bold text-white text-3xl ${
+                              promedioRamo.promedioFinal < 4.0 ? 'bg-red-500' : 'bg-green-500'
+                            }`}>
+                              {promedioRamo.promedioFinal.toFixed(1)}
+                            </div>
+                          ) : (
+                            <p className="text-3xl font-bold">—</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-blue-200 bg-blue-50 p-6 text-blue-700">
+                      Aún no hay promedio registrado.
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -408,16 +588,36 @@ export default function MisRamosNotasPage() {
                   <div className="bg-blue-50 rounded-lg p-4 space-y-2">
                     <div>
                       <span className="font-semibold text-[#143A80]">Nombre:</span>
-                      <p className="text-[#143A80]/80">{selectedPauta.evaluacion?.nombre}</p>
+                      <p className="text-[#143A80]/80">{selectedPauta.evaluacion?.nombre || selectedPauta.evaluacion?.titulo || "-"}</p>
                     </div>
                     <div>
-                      <span className="font-semibold text-[#143A80]">Fecha:</span>
+                      <span className="font-semibold text-[#143A80]">Tipo:</span>
+                      <p className="text-[#143A80]/80">
+                        {selectedPauta.esIntegradora ? "Evaluación Integradora" : "Evaluación Regular"}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="font-semibold text-[#143A80]">Fecha Programada:</span>
                       <p className="text-[#143A80]/80">
                         {selectedPauta.evaluacion?.fechaProgramada
                           ? new Date(selectedPauta.evaluacion.fechaProgramada).toLocaleDateString("es-CL")
                           : "-"}
                       </p>
                     </div>
+                    {selectedPauta.evaluacion?.fechaCierre && (
+                      <div>
+                        <span className="font-semibold text-[#143A80]">Fecha de Cierre:</span>
+                        <p className="text-[#143A80]/80">
+                          {new Date(selectedPauta.evaluacion.fechaCierre).toLocaleDateString("es-CL")}
+                        </p>
+                      </div>
+                    )}
+                    {selectedPauta.evaluacion?.descripcion && (
+                      <div>
+                        <span className="font-semibold text-[#143A80]">Descripción:</span>
+                        <p className="text-[#143A80]/80">{selectedPauta.evaluacion.descripcion}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -446,7 +646,8 @@ export default function MisRamosNotasPage() {
                       <div className="text-center border-l border-green-200">
                         <p className="text-sm text-[#143A80]/70 mb-2">Nota Final</p>
                         <p className="text-3xl font-bold text-green-700">
-                          {selectedPauta.pautaCompleta?.calificacionFinal || 
+                          {selectedPauta.notaFinal || 
+                           selectedPauta.pautaCompleta?.calificacionFinal || 
                            selectedPauta.pautaCompleta?.nota || "-"}
                         </p>
                       </div>
