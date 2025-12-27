@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { createEvaluacion, updateEvaluacion } from "../services/evaluacion.service.js";
+import { createEvaluacion, updateEvaluacion, getEvaluacionesByCodigoRamo } from "../services/evaluacion.service.js";
 import { createEvaluacionIntegradora, updateEvaluacionIntegradora } from "../services/evaluacionIntegradora.service.js";
 import { getAllPautas } from "../services/pauta.service.js";
 
@@ -98,6 +98,36 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
         }
     }, [evaluacionEdit, ramo]);
 
+
+    /**
+     * Valida que la suma de ponderaciones no exceda 100%
+     */
+    const validarPonderacion = async (codigoRamo, nuevaPonderacion, evaluacionIdActual = null) => {
+        try {
+            if (!codigoRamo || !nuevaPonderacion) return null;
+            
+            const evaluaciones = await getEvaluacionesByCodigoRamo(codigoRamo);
+            
+            // Filtrar evaluaciones integradoras y la evaluación actual (si es update)
+            const evaluacionesNormales = evaluaciones.filter(ev => {
+                const esIntegradora = ev.esIntegradora || ev.evaluacionIntegradoraId;
+                const esActual = evaluacionIdActual && ev.id === evaluacionIdActual;
+                return !esIntegradora && !esActual;
+            });
+            
+            const sumaPonderacionesExistentes = evaluacionesNormales.reduce((sum, ev) => sum + (Number(ev.ponderacion) || 0), 0);
+            const sumaTotalPonderaciones = sumaPonderacionesExistentes + Number(nuevaPonderacion);
+            
+            if (sumaTotalPonderaciones > 100) {
+                return `La suma de ponderaciones no puede exceder 100%. Evaluaciones existentes suman ${sumaPonderacionesExistentes}% + nueva ${nuevaPonderacion}% = ${sumaTotalPonderaciones}%`;
+            }
+            
+            return null;
+        } catch (error) {
+            console.error("Error validando ponderación:", error);
+            return null;
+        }
+    };
     
     const validarEvaluacion = (eval_data) => {
         const err = {};
@@ -257,6 +287,21 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
             return;
         }
 
+        // Validar ponderación si se trata de una evaluación normal
+        if (!isIntegradora && evaluacion.codigoRamo && evaluacion.ponderacion) {
+            const ponderacionError = await validarPonderacion(
+                evaluacion.codigoRamo, 
+                evaluacion.ponderacion,
+                evaluacion.id // pasar el ID si es una actualización
+            );
+            
+            if (ponderacionError) {
+                setError(ponderacionError);
+                setIsLoading(false);
+                return;
+            }
+        }
+
         setErrors({});
         setIsLoading(true);
         try {
@@ -317,7 +362,17 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
             onSaved();
         } catch (error) {
             console.error("Error en handleSubmit:", error);
-            const errorMessage = error?.message || error?.error || "Error al guardar la evaluación";
+            // Extraer el mensaje de error del backend o del objeto de error
+            let errorMessage = "Error al guardar la evaluación";
+            
+            if (error?.message) {
+                errorMessage = error.message;
+            } else if (error?.data?.message) {
+                errorMessage = error.data.message;
+            } else if (typeof error === 'string') {
+                errorMessage = error;
+            }
+            
             setError(errorMessage);
             alert("Error: " + errorMessage);
         } finally {

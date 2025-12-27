@@ -79,6 +79,19 @@ export async function calcularPromedioFinal(alumnoRut, codigoRamo) {
 
     // Calcular promedio parcial
     const sumaPonderaciones = notasAlumno.reduce((sum, item) => sum + item.ponderacion, 0);
+    
+    // Validar que la suma de ponderaciones sea exactamente 100
+    if (sumaPonderaciones !== 100) {
+      return {
+        promedioParcial: null,
+        promedioFinal: null,
+        promedioOficial: null,
+        notaIntegradora: null,
+        estado: "pendiente",
+        error: `La suma de ponderaciones debe ser 100%. Actualmente es ${sumaPonderaciones}%`,
+      };
+    }
+    
     let promedioParcial = 0;
     
     if (sumaPonderaciones > 0) {
