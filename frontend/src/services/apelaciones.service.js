@@ -10,21 +10,32 @@ const authHeaders = () => {
 };
 
 // ---------------------------------------------------------
-// Crear apelación (con archivo, por eso NO se usa JSON)
+// Crear apelación (con archivo)
 // ---------------------------------------------------------
 export const crearApelacion = async (formData) => {
-  try {
-    const res = await fetch(API_URL, {
-      method: "POST",
-      headers: authHeaders(),
-      body: formData, // formData no lleva Content-Type
-    });
+  const res = await fetch(API_URL, {
+    method: "POST",
+    headers: authHeaders(), 
+    body: formData,
+  });
 
-    return await res.json();
-  } catch (err) {
-    console.error("Error creando apelación:", err);
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    data = null;
   }
+
+  if (!res.ok) {
+    const error = new Error(data?.message || "Error al crear apelación");
+    error.status = res.status;
+    error.data = data;
+    throw error;
+  }
+
+  return data;
 };
+
 
 // ---------------------------------------------------------
 // Ver mis apelaciones
@@ -41,6 +52,21 @@ export const getMisApelaciones = async () => {
     console.error("Error obteniendo mis apelaciones:", err);
   }
 };
+
+// ---------------------------------------------------------
+// Editar apelación (alumno)
+// ---------------------------------------------------------
+export const editarApelacion = async (id, formData) => {
+  const res = await fetch(`${API_URL}/${id}/editar`, {
+    method: "PUT",
+    headers: authHeaders(),
+    body: formData,
+  });
+
+  return await res.json();
+};
+
+
 
 // ---------------------------------------------------------
 // Ver apelaciones como profesor
@@ -99,8 +125,10 @@ export const responderApelacion = async (id, data) => {
 // Descargar archivo adjunto
 // ---------------------------------------------------------
 export const descargarArchivo = (id) => {
-  return `${API_URL}/${id}/archivo`; // URL directa para <a href="">
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+  return `${API_URL}/apelaciones/${id}/archivo`;
 };
+
 
 
 

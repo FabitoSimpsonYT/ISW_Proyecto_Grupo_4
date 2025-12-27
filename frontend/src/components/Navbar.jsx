@@ -100,12 +100,26 @@ const Navbar = () => {
             </>
           )}
 
+          {/* APELACIONES */}
+          {user?.role === "alumno" && (
+            <button
+              onClick={() => navigate("/apelaciones/mis")}
           <button
             onClick={() => { navigate("/apelaciones/mis"); setIsOpen(false); }}
             className="px-4 py-2 border border-white rounded-lg hover:bg-white hover:text-[#0E2C66] transition font-medium"
           >
             Apelaciones
-          </button>
+            </button>
+          )}
+          
+          {user?.role === "profesor" && (
+            <button
+              onClick={() => navigate("/apelaciones-profesor")}
+            className="px-4 py-2 border border-white rounded-lg hover:bg-white hover:text-[#0E2C66] transition font-medium"
+          >
+            Apelaciones
+            </button>
+          )}
 
           {(user?.role === "profesor" || user?.role === "jefecarrera") && (
             <button
