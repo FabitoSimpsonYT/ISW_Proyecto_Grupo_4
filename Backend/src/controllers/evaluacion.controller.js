@@ -181,7 +181,7 @@ export async function updateEvaluacion(req, res) {
       return  handleErrorClient(res, 403, "Solo el profesor o jefe de carrera puede modificar evaluaciones");
     }
 
-    const { titulo, fechaProgramada, ponderacion, contenidos, pauta, aplicada, puntajeTotal, pautaPublicada } = req.body;
+    const { titulo, fechaProgramada, ponderacion, contenidos, pauta, aplicada, puntajeTotal, pautaPublicada, estado } = req.body;
 
     
     let wasPublished = false;
@@ -206,6 +206,7 @@ export async function updateEvaluacion(req, res) {
       aplicada,
       puntajeTotal,
       pautaPublicada,
+      estado,
       userId: user.id,
     });
 

@@ -14,6 +14,7 @@ import GestionSeccionesPage from '@pages/GestionSeccionesPage';
 import GestionUsuariosPage from '@pages/GestionUsuariosPage';
 import EvaluacionPage from '@pages/EvaluacionPage';
 import CrearEditarPautaPage from '@pages/CrearEditarPautaPage';
+import CrearIntegradoraPage from '@pages/CrearIntegradoraPage';
 import EvaluarPage from '@pages/EvaluarPage';
 import NotificacionesPage from '@pages/NotificacionesPage';
 import Error404 from '@pages/Error404';
@@ -48,6 +49,7 @@ const router = createBrowserRouter([
 
       // EVALUACIONES
       { path: '/evaluaciones', element: <EvaluacionPage /> },
+      { path: '/evaluacion/:codigoRamo/crear-integradora', element: <CrearIntegradoraPage /> },
 
       // PAUTA DE EVALUACIÓN
       { path: '/evaluacion/:codigoRamo/:idEvaluacion/pauta', element: <CrearEditarPautaPage /> },
@@ -55,6 +57,7 @@ const router = createBrowserRouter([
 
       // EVALUAR ESTUDIANTES
       { path: '/evaluacion/:codigoRamo/:idEvaluacion/evaluar', element: <EvaluarPage /> },
+      { path: '/evaluacion/:codigoRamo/evaluar-integradora/:idEvaluacion', element: <EvaluarPage /> },
 
       // MI PERFIL
       { path: '/mi-perfil', element: <MiPerfil /> },

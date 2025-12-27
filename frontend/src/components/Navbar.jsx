@@ -85,13 +85,6 @@ const Navbar = () => {
               </button>
 
               <button
-                onClick={() => { navigate("/ver-pautas"); setIsOpen(false); }}
-                className="px-4 py-2 border border-white rounded-lg hover:bg-white hover:text-[#0E2C66] transition font-medium"
-              >
-                📄 Ver Pautas
-              </button>
-
-              <button
                 onClick={() => { navigate("/mis-ramos-notas"); setIsOpen(false); }}
                 className="px-4 py-2 border border-white rounded-lg hover:bg-white hover:text-[#0E2C66] transition font-medium"
               >

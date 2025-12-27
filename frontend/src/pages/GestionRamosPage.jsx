@@ -4,6 +4,7 @@ import { Navigate } from "react-router-dom";
 import { useNavbar } from "../context/NavbarContext";
 import RamosForm from "../components/RamosForm.jsx";
 import RamosList from "../components/RamosList.jsx";
+import { createPromedioFinal } from "../services/alumnoPromedioRamo.service.js";
 
 export default function GestionRamosPage() {
   const { user } = useAuth();
@@ -12,6 +13,7 @@ export default function GestionRamosPage() {
   const [reload, setReload] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [loadingPromedios, setLoadingPromedios] = useState(false);
 
   // Verificar permisos: solo admin y jefe de carrera
   if (!user || (user.role !== 'admin' && user.role !== 'jefecarrera')) {

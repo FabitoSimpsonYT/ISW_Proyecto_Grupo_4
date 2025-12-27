@@ -1,9 +1,13 @@
 import { AppDataSource } from "../config/configDb.js";
 import { Evaluacion } from "../entities/evaluaciones.entity.js";
+import { Pauta } from "../entities/pauta.entity.js";
+import { PautaEvaluada } from "../entities/pautaEvaluada.entity.js";
 import { Ramos } from "../entities/ramos.entity.js";
 import { BadRequestError } from "../Handlers/responseHandlers.js";
 
-const evaluacionRepository = AppDataSource.getRepository(Evaluacion); 
+const evaluacionRepository = AppDataSource.getRepository(Evaluacion);
+const pautaRepository = AppDataSource.getRepository(Pauta);
+const pautaEvaluadaRepository = AppDataSource.getRepository(PautaEvaluada); 
 
 function isAlumnoRole(role) {
   return role === "alumno" || role === "estudiante";
@@ -240,10 +244,40 @@ export async function updateEvaluacionService(id, data) {
 }
 
 export async function deleteEvaluacionService(id) {
-  const evaluacion = await evaluacionRepository.findOneBy({ id });
+  try {
+    const evaluacion = await evaluacionRepository.findOneBy({ id });
 
-  if (!evaluacion) return null;
+    if (!evaluacion) return null;
 
-  await evaluacionRepository.remove(evaluacion);
-  return true;
+    // 1. Buscar y eliminar todas las pautas evaluadas asociadas a la evaluación
+    console.log("Buscando pautas evaluadas para evaluación:", id);
+    const pautasEvaluadas = await pautaEvaluadaRepository.find({
+      where: { evaluacionId: id },
+    });
+    
+    if (pautasEvaluadas && pautasEvaluadas.length > 0) {
+      console.log("Eliminando", pautasEvaluadas.length, "pautas evaluadas");
+      await pautaEvaluadaRepository.remove(pautasEvaluadas);
+    }
+
+    // 2. Buscar y eliminar la pauta asociada a la evaluación
+    if (evaluacion.idPauta) {
+      console.log("Buscando pauta asociada a evaluación:", evaluacion.idPauta);
+      const pauta = await pautaRepository.findOneBy({ id: evaluacion.idPauta });
+      
+      if (pauta) {
+        console.log("Eliminando pauta con ID:", pauta.id);
+        await pautaRepository.remove(pauta);
+      }
+    }
+
+    // 3. Eliminar la evaluación
+    console.log("Eliminando evaluación con ID:", id);
+    await evaluacionRepository.remove(evaluacion);
+    
+    return true;
+  } catch (error) {
+    console.error("Error al eliminar evaluación:", error);
+    throw error;
+  }
 }

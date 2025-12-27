@@ -1,12 +1,15 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { createPauta, updatePauta, getPautaById } from "../services/pauta.service.js";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { createPauta, updatePauta, getPautaById, createPautaIntegradora, getPautaIntegradora, updatePautaIntegradora } from "../services/pauta.service.js";
 import { getEvaluacionById } from "../services/evaluacion.service.js";
+import { getEvaluacionIntegradora } from "../services/evaluacionIntegradora.service.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
 export default function CrearEditarPautaPage() {
     let { codigoRamo, idEvaluacion, pautaId } = useParams();
-    console.log("Parámetros recibidos:", { codigoRamo, idEvaluacion, pautaId });
+    const location = useLocation();
+    const isNew = new URLSearchParams(location.search).get('new') === 'true';
+    console.log("Parámetros recibidos:", { codigoRamo, idEvaluacion, pautaId, isNew });
     const navigate = useNavigate();
     const { user } = useAuth();
 
@@ -20,6 +23,7 @@ export default function CrearEditarPautaPage() {
 
     const [pauta, setPauta] = useState(initialState);
     const [evaluacionData, setEvaluacionData] = useState(null);
+    const [evaluacionId, setEvaluacionId] = useState(null); // Para guardar el ID de evaluación integradora
     const [error, setError] = useState('');
     const [errors, setErrors] = useState({});
     const [isLoading, setIsLoading] = useState(false);
@@ -29,7 +33,52 @@ export default function CrearEditarPautaPage() {
     useEffect(() => {
         const loadData = async () => {
             try {
-                // Cargar datos de la evaluación
+                // Si isNew=true, cargar la evaluación integradora específica
+                if (isNew && codigoRamo) {
+                    console.log("Creando nueva pauta para integradora de ramo:", codigoRamo);
+                    try {
+                        // Obtener evaluación integradora con datos correctos
+                        const integradoRes = await getEvaluacionIntegradora(codigoRamo);
+                        const integradoData = integradoRes?.data;
+                        console.log("Evaluación integradora cargada:", integradoData);
+                        setEvaluacionId(integradoData?.id); // Guardar el ID de la evaluación integradora
+                        setEvaluacionData({
+                            id: integradoData?.id,
+                            titulo: integradoData?.titulo || "Evaluación Integradora",
+                            puntajeTotal: integradoData?.puntajeTotal || 100,
+                            fechaProgramada: integradoData?.fechaProgramada || new Date().toISOString().split('T')[0],
+                        });
+                        
+                        // Intentar cargar la pauta integradora si ya existe
+                        try {
+                            const pautaData = await getPautaIntegradora(integradoData?.id);
+                            console.log("Pauta integradora cargada:", pautaData);
+                            setPauta({
+                                ...pautaData,
+                                criteriosPuntaje: pautaData.distribucionPuntaje
+                                    ? Object.entries(pautaData.distribucionPuntaje).map(([nombre, puntaje]) => ({ nombre, puntaje }))
+                                    : [{ nombre: '', puntaje: 0 }],
+                            });
+                        } catch (err) {
+                            // No existe pauta aún, usar initialState
+                            console.log("No existe pauta integradora aún");
+                            setPauta(initialState);
+                        }
+                    } catch (err) {
+                        console.error("Error al obtener evaluación integradora:", err);
+                        // Fallback si hay error
+                        setEvaluacionData({
+                            titulo: "Evaluación Integradora",
+                            puntajeTotal: 100,
+                            fechaProgramada: new Date().toISOString().split('T')[0],
+                        });
+                        setPauta(initialState);
+                    }
+                    setPageLoading(false);
+                    return;
+                }
+
+                // Cargar datos de evaluación para evaluaciones normales
                 if (codigoRamo && idEvaluacion) {
                     const evalData = await getEvaluacionById(codigoRamo, idEvaluacion);
                     console.log("Evaluación cargada:", evalData);
@@ -70,7 +119,7 @@ export default function CrearEditarPautaPage() {
             }
         };
         loadData();
-    }, [codigoRamo, idEvaluacion, pautaId]);
+    }, [codigoRamo, idEvaluacion, pautaId, isNew]);
 
     // Validaciones
     const validarPauta = (pauta_data) => {
@@ -152,13 +201,25 @@ export default function CrearEditarPautaPage() {
 
         try {
             if (pauta.id) {
-                await updatePauta(pauta.id, pautaToSend);
+                // Si es integradora (evaluacionId existe sin idEvaluacion en params), actualizar con updatePautaIntegradora
+                if (isNew && evaluacionId && !idEvaluacion) {
+                    await updatePautaIntegradora(evaluacionId, pautaToSend);
+                } else {
+                    // Es normal: usar updatePauta con id de pauta
+                    await updatePauta(pauta.id, pautaToSend);
+                }
                 alert('Pauta actualizada correctamente');
             } else {
-                await createPauta(pautaToSend, idEvaluacion);
+                // Si es integradora (evaluacionId existe), usar createPautaIntegradora
+                if (isNew && evaluacionId) {
+                    await createPautaIntegradora(pautaToSend, evaluacionId);
+                } else {
+                    // Es normal: usar createPauta con idEvaluacion
+                    await createPauta(pautaToSend, idEvaluacion || null);
+                }
                 alert('Pauta creada correctamente');
             }
-            if (idEvaluacion) {
+            if (idEvaluacion || evaluacionId) {
                 navigate(`/evaluaciones`);
             } else {
                 navigate(`/pautas`);
@@ -218,184 +279,205 @@ export default function CrearEditarPautaPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
-            <div className="p-4 md:p-8 w-full max-w-3xl">
-                <div className="space-y-6">
-                    {/* Header */}
-                    <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border-l-4 border-indigo-600">
-                        <button
-                            onClick={() => navigate(-1)}
-                            className="mb-4 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition"
-                        >
-                            ← Volver
-                        </button>
-                        <h1 className="text-4xl font-bold text-gray-800 mb-2">
-                            {pauta.id ? 'Editar Pauta' : 'Crear Pauta'}
-                        </h1>
-                        <p className="text-gray-600 mb-6">
-                            Define los criterios y la distribución de puntajes para la evaluación.
+        <div className="min-h-screen bg-[#e9f7fb] p-4 md:p-8">
+            <div className="mx-auto w-full max-w-6xl">
+                {/* Header */}
+                <div className="mb-8">
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="mb-4 text-blue-700 hover:text-blue-900 transition font-medium"
+                    >
+                        ← Volver
+                    </button>
+                    <h1 className="text-4xl font-bold text-[#113C63]">
+                        {pauta.id ? 'Editar Pauta' : 'Crear Pauta'}
+                    </h1>
+                    {evaluacionData && (
+                        <div className="mt-2">
+                            <p className="text-sm text-blue-600">
+                                <strong>Evaluación:</strong> {evaluacionData.titulo}
+                            </p>
+                            <p className="text-sm text-blue-600">
+                                <strong>Puntaje Total:</strong> {evaluacionData.puntajeTotal || 100}
+                            </p>
+                        </div>
+                    )}
+                </div>
+
+                {/* Formulario */}
+                <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-lg overflow-hidden">
+                    {/* Encabezado del Formulario */}
+                    <div className="bg-[#113C63] px-6 md:px-8 py-6">
+                        <h2 className="text-2xl font-bold text-white mb-2">
+                            {pauta.id ? 'Editar' : 'Nueva'} Pauta de Evaluación
+                        </h2>
+                        <p className="text-blue-100 text-sm">
+                            Define los criterios y la distribución de puntajes
                         </p>
-                        {evaluacionData && (
-                            <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-200">
-                                <p className="text-sm text-gray-700">
-                                    <span className="font-semibold text-indigo-700">Evaluación:</span> {evaluacionData.titulo}
-                                </p>
-                                <p className="text-sm text-gray-700 mt-2">
-                                    <span className="font-semibold text-indigo-700">Puntaje Total:</span> {evaluacionData.puntajeTotal || 100}
-                                </p>
-                                {evaluacionData.fechaProgramada && (
-                                    <p className="text-sm text-gray-700 mt-2">
-                                        <span className="font-semibold text-indigo-700">Fecha:</span> {evaluacionData.fechaProgramada}
-                                    </p>
-                                )}
-                            </div>
-                        )}
                     </div>
 
-                    {/* Formulario */}
-                    <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-lg p-6 md:p-8 space-y-6">
+                    {/* Contenido */}
+                    <div className="p-6 md:p-8 space-y-6">
                         {error && (
-                            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
-                                <p className="text-red-600 font-medium">{error}</p>
+                            <div className="rounded-lg border-l-4 border-red-500 bg-red-100 px-4 py-3">
+                                <p className="text-red-700 font-medium">{error}</p>
                             </div>
                         )}
 
                         {/* Criterios */}
-                        <div className="space-y-3">
-                            <label className="block text-sm font-semibold text-gray-800">Criterios de evaluación *</label>
+                        <div>
+                            <label className="block text-sm font-bold text-[#113C63] mb-3">
+                                Criterios de evaluación *
+                            </label>
                             <textarea
                                 name="criterios"
                                 value={pauta.criterios}
                                 onChange={handleChange}
-                                className={`w-full rounded-xl border bg-white p-4 text-gray-800 shadow-sm outline-none focus:ring-4 min-h-[140px] transition ${
+                                className={`w-full rounded border p-4 text-gray-800 outline-none focus:ring-2 transition min-h-[100px] ${
                                     hasFieldError("criterios")
-                                        ? "border-red-500 bg-red-50 focus:ring-red-300"
-                                        : "border-gray-300 focus:ring-indigo-300"
+                                        ? "border-red-500 bg-red-50 focus:ring-red-400"
+                                        : "border-gray-300 bg-white focus:ring-blue-400"
                                 }`}
-                                placeholder="Describe los criterios de evaluación que se van a usar..."
+                                placeholder="Describe los criterios de evaluación..."
                             />
                             {hasFieldError("criterios") && (
-                                <p className="text-red-600 text-sm">{getFieldError("criterios")}</p>
+                                <p className="text-red-600 text-sm mt-2">{getFieldError("criterios")}</p>
                             )}
-                            <p className="text-xs text-gray-500">Mínimo 10 caracteres. Puedes usar saltos de línea para separar criterios.</p>
+                            <p className="text-xs text-gray-500 mt-2">Mínimo 10 caracteres</p>
                         </div>
 
-                        {/* Distribución de Puntajes Dinámica */}
-                        <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 p-6 space-y-5">
-                            <div className="flex items-start justify-between gap-4">
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-800">Criterios y puntajes *</label>
-                                    <p className="text-sm text-gray-600 mt-1">
-                                        El total debe sumar exactamente <span className="font-bold">{puntajeTotalEval}</span> puntos.
-                                    </p>
-                                </div>
-                                <div>
-                                    <span
-                                        className={`inline-flex items-center rounded-full px-4 py-2 text-sm font-bold border ${
-                                            totalOk
-                                                ? 'bg-green-50 text-green-700 border-green-200'
-                                                : 'bg-red-50 text-red-700 border-red-200'
-                                        }`}
-                                    >
-                                        <span className="font-bold">{totalPuntaje}</span>/{puntajeTotalEval}
-                                    </span>
-                                </div>
+                        {/* Distribución de Puntajes */}
+                        <div>
+                            <div className="flex items-center justify-between mb-4">
+                                <label className="block text-sm font-bold text-[#113C63]">
+                                    Criterios y puntajes *
+                                </label>
+                                <span
+                                    className={`px-3 py-1 rounded text-sm font-bold ${
+                                        totalOk
+                                            ? 'bg-green-100 text-green-800'
+                                            : 'bg-red-100 text-red-800'
+                                    }`}
+                                >
+                                    {totalPuntaje}/{puntajeTotalEval}
+                                </span>
                             </div>
 
                             {hasFieldError("puntajeTotal") && (
-                                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
-                                    <p className="text-red-600 text-sm font-medium">{getFieldError("puntajeTotal")}</p>
+                                <div className="rounded border-l-4 border-red-500 bg-red-100 px-4 py-3 mb-4">
+                                    <p className="text-red-700 text-sm font-medium">{getFieldError("puntajeTotal")}</p>
                                 </div>
                             )}
 
-                            <div className="space-y-3">
+                            <div className="space-y-3 border rounded-lg p-4 bg-gray-50">
                                 {pauta.criteriosPuntaje.map((c, idx) => (
-                                    <div key={idx} className="flex flex-col sm:flex-row items-center gap-2">
-                                        <input
-                                            type="text"
-                                            name={`criteriosPuntaje.nombre.${idx}`}
-                                            value={c.nombre}
-                                            onChange={handleChange}
-                                            placeholder={`Nombre del criterio #${idx + 1}`}
-                                            className={`w-full sm:w-1/2 rounded-xl border bg-white p-3 text-gray-800 shadow-sm outline-none focus:ring-4 transition ${
-                                                hasFieldError(`criterio_nombre_${idx}`)
-                                                    ? "border-red-500 bg-red-50 focus:ring-red-300"
-                                                    : "border-gray-200 focus:ring-purple-300"
-                                            }`}
-                                        />
-                                        <input
-                                            type="number"
-                                            name={`criteriosPuntaje.puntaje.${idx}`}
-                                            value={c.puntaje}
-                                            onChange={handleChange}
-                                            min="0"
-                                            max="100"
-                                            inputMode="numeric"
-                                            placeholder="Puntaje"
-                                            className={`w-28 rounded-xl border bg-white p-3 text-gray-800 shadow-sm outline-none focus:ring-4 transition ${
-                                                hasFieldError(`criterio_puntaje_${idx}`)
-                                                    ? "border-red-500 bg-red-50 focus:ring-red-300"
-                                                    : "border-gray-200 focus:ring-purple-300"
-                                            }`}
-                                        />
-                                        <span className="text-sm text-gray-600">pts</span>
+                                    <div key={idx} className="flex flex-col md:flex-row items-end gap-3">
+                                        <div className="flex-1 w-full md:w-auto">
+                                            <label className="text-xs text-gray-600 font-semibold block mb-1">
+                                                Criterio #{idx + 1}
+                                            </label>
+                                            <input
+                                                type="text"
+                                                name={`criteriosPuntaje.nombre.${idx}`}
+                                                value={c.nombre}
+                                                onChange={handleChange}
+                                                placeholder="Nombre del criterio"
+                                                className={`w-full rounded border p-3 text-gray-800 outline-none focus:ring-2 transition ${
+                                                    hasFieldError(`criterio_nombre_${idx}`)
+                                                        ? "border-red-500 bg-red-50 focus:ring-red-400"
+                                                        : "border-gray-300 bg-white focus:ring-blue-400"
+                                                }`}
+                                            />
+                                            {hasFieldError(`criterio_nombre_${idx}`) && (
+                                                <p className="text-red-600 text-xs mt-1">{getFieldError(`criterio_nombre_${idx}`)}</p>
+                                            )}
+                                        </div>
+                                        <div className="w-32">
+                                            <label className="text-xs text-gray-600 font-semibold block mb-1">
+                                                Puntaje
+                                            </label>
+                                            <input
+                                                type="number"
+                                                name={`criteriosPuntaje.puntaje.${idx}`}
+                                                value={c.puntaje}
+                                                onChange={handleChange}
+                                                min="0"
+                                                max="100"
+                                                placeholder="0"
+                                                className={`w-full rounded border p-3 text-gray-800 outline-none focus:ring-2 transition ${
+                                                    hasFieldError(`criterio_puntaje_${idx}`)
+                                                        ? "border-red-500 bg-red-50 focus:ring-red-400"
+                                                        : "border-gray-300 bg-white focus:ring-blue-400"
+                                                }`}
+                                            />
+                                            {hasFieldError(`criterio_puntaje_${idx}`) && (
+                                                <p className="text-red-600 text-xs mt-1">{getFieldError(`criterio_puntaje_${idx}`)}</p>
+                                            )}
+                                        </div>
+                                        <span className="text-sm text-gray-600 font-medium hidden md:inline">pts</span>
                                         {pauta.criteriosPuntaje.length > 1 && (
-                                            <button type="button" onClick={() => handleRemoveCriterio(idx)} className="ml-2 px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200">-</button>
-                                        )}
-                                        {hasFieldError(`criterio_nombre_${idx}`) && (
-                                            <p className="text-red-600 text-xs mt-1">{getFieldError(`criterio_nombre_${idx}`)}</p>
-                                        )}
-                                        {hasFieldError(`criterio_puntaje_${idx}`) && (
-                                            <p className="text-red-600 text-xs mt-1">{getFieldError(`criterio_puntaje_${idx}`)}</p>
+                                            <button 
+                                                type="button" 
+                                                onClick={() => handleRemoveCriterio(idx)} 
+                                                className="w-full md:w-auto px-4 py-3 rounded bg-red-500 hover:bg-red-600 text-white font-semibold text-sm transition"
+                                            >
+                                                Eliminar
+                                            </button>
                                         )}
                                     </div>
                                 ))}
-                                <button type="button" onClick={handleAddCriterio} className="mt-2 px-4 py-2 rounded bg-blue-100 text-blue-700 hover:bg-blue-200">+ Agregar criterio</button>
+                                <button 
+                                    type="button" 
+                                    onClick={handleAddCriterio} 
+                                    className="w-full px-4 py-3 mt-4 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition"
+                                >
+                                    + Agregar criterio
+                                </button>
                             </div>
                         </div>
 
                         {/* Publicar Pauta */}
-                        <div className="flex items-center gap-3 p-5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 transition">
-                            <input
-                                type="checkbox"
-                                id="publicada"
-                                name="publicada"
-                                checked={pauta.publicada}
-                                onChange={handleChange}
-                                className="h-5 w-5 cursor-pointer rounded border-gray-300"
-                            />
-                            <div className="flex-1">
-                                <label htmlFor="publicada" className="text-sm font-semibold text-gray-800 cursor-pointer">
+                        <div className="border rounded-lg p-4 bg-blue-50 border-blue-200">
+                            <label className="flex items-center cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    name="publicada"
+                                    checked={pauta.publicada}
+                                    onChange={handleChange}
+                                    className="h-5 w-5 cursor-pointer rounded border-blue-300"
+                                />
+                                <span className="ml-3 font-semibold text-[#113C63]">
                                     Publicar pauta
-                                </label>
-                                <p className="text-xs text-gray-600 mt-1">Los estudiantes podrán ver esta pauta una vez publicada.</p>
-                            </div>
+                                </span>
+                            </label>
+                            <p className="text-xs text-gray-600 mt-2 ml-8">
+                                Los estudiantes podrán ver esta pauta una vez publicada
+                            </p>
                         </div>
+                    </div>
 
-                        {/* Botones de Acción */}
-                        <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-200">
-                            <button
-                                type="button"
-                                onClick={() => navigate(-1)}
-                                className="px-6 py-3 rounded-lg border border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-50 transition-all focus:outline-none focus:ring-2 focus:ring-gray-300"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={isLoading || !totalOk}
-                                className={`font-semibold py-3 px-8 rounded-lg transition-all focus:outline-none focus:ring-2 ${
-                                    isLoading || !totalOk
-                                        ? "bg-gray-300 cursor-not-allowed text-gray-500"
-                                        : "bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white focus:ring-indigo-300"
-                                }`}
-                                title={!totalOk ? 'La suma de puntajes debe ser 100' : undefined}
-                            >
-                                {isLoading ? "Guardando..." : (pauta.id ? 'Guardar cambios' : 'Crear pauta')}
-                            </button>
-                        </div>
-                    </form>
-                </div>
+                    {/* Botones */}
+                    <div className="bg-gray-50 px-6 md:px-8 py-4 border-t border-gray-200 flex justify-end gap-3">
+                        <button
+                            type="button"
+                            onClick={() => navigate(-1)}
+                            className="px-6 py-2 rounded border border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-100 transition"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={isLoading || !totalOk}
+                            className={`px-6 py-2 rounded font-semibold text-white transition ${
+                                isLoading || !totalOk
+                                    ? "bg-gray-400 cursor-not-allowed"
+                                    : "bg-[#143A80] hover:bg-[#0f2d5f]"
+                            }`}
+                        >
+                            {isLoading ? "Guardando..." : (pauta.id ? 'Guardar cambios' : 'Crear pauta')}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     );

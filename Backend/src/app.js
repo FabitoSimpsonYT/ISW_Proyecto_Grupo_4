@@ -14,6 +14,7 @@ import profileRoutes from './routes/profile.routes.js';
 import apelacionRoutes from './routes/apelacion.routes.js';
 import ramosRoutes from './routes/ramos.routes.js';
 import evaluacionesRoutes from './routes/evaluaciones.routes.js';
+import evaluacionIntegradoraRoutes from './routes/evaluacionIntegradora.routes.js';
 import path from 'path';
 import bloqueoRoutes from "./bloqueo.routes.js";
 
@@ -54,6 +55,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/apelaciones', apelacionRoutes);
 app.use('/api/ramos', ramosRoutes);
 app.use('/api/evaluaciones', evaluacionesRoutes);
+app.use('/api/evaluacion-integradora', evaluacionIntegradoraRoutes);
 
 
 // Middlewares finales
