@@ -6,8 +6,6 @@ import { useNavbar } from "../context/NavbarContext";
 export default function MisApelaciones() {
   const [apelaciones, setApelaciones] = useState(null);
   const [expandedRows, setExpandedRows] = useState({});
-  const [editingId, setEditingId] = useState(null);
-  const [editMensaje, setEditMensaje] = useState("");
   const { isNavbarOpen } = useNavbar();
   const navigate = useNavigate();
 
@@ -37,27 +35,6 @@ export default function MisApelaciones() {
     return horasRestantes >= 24;
   };
 
-  const handleEditar = (apelacion) => {
-    setEditingId(apelacion.id);
-    setEditMensaje(apelacion.mensaje);
-  };
-
-  const handleCancelarEdicion = () => {
-    setEditingId(null);
-    setEditMensaje("");
-  };
-
-  const handleGuardarEdicion = async (id) => {
-    // Aquí llamarías al servicio para actualizar
-    console.log("Guardar edición:", id, editMensaje);
-    // TODO: implementar servicio de actualización
-    setEditingId(null);
-  };
-
-  const irAEditar = (apelacion) => {
-  if (!puedeEditarApelacion(apelacion)) return;
-  navigate(`/apelaciones/${apelacion.id}/editar`);
-};
 
 
   if (apelaciones === null)
@@ -87,14 +64,10 @@ export default function MisApelaciones() {
   return (
     <div className={`p-6 bg-[#e9f7fb] min-h-screen transition-all duration-300 ${isNavbarOpen ? 'ml-64' : 'ml-0'}`}>
 
-      {/* Título */}
       <div className="bg-[#113C63] text-white px-6 py-4 rounded">
         <h2 className="text-3xl font-bold">Mis Apelaciones</h2>
       </div>
 
-
-
-      {/* TABLA */}
       <div className="mt-6 bg-white shadow-md rounded-lg overflow-hidden mr-8">
         <table className="w-full text-left border-collapse">
           <thead>
@@ -138,7 +111,6 @@ export default function MisApelaciones() {
                   )}
                 </td>
 
-                {/* MENSAJE */}
                 <td
                   className="px-4 py-2 border max-w-[250px] cursor-pointer"
                   onClick={(e) => {
@@ -151,12 +123,10 @@ export default function MisApelaciones() {
                   </p>
                 </td>
 
-                {/* ESTADO */}
                 <td className={`px-4 py-2 border capitalize ${estadoColor}`}>
                   {a.estado}
                 </td>
 
-                {/* RESPUESTA */}
                 <td
                   className="px-4 py-2 border max-w-[250px] italic"
                   onClick={(e) => {
@@ -175,12 +145,10 @@ export default function MisApelaciones() {
                   )}
                 </td>
 
-                {/* PROFESOR */}
                 <td className="px-4 py-2 border">
                   {a.profesor?.email || "—"}
                 </td>
 
-                {/* FECHA */}
                 <td className="px-4 py-2 border">
                   {a.fechaCitacion ? (
                     <>
@@ -204,7 +172,6 @@ export default function MisApelaciones() {
                   )}
                 </td>
 
-                {/* EDITAR */}
                 <td className="px-2 py-2 border text-center">
                   {esEditable && (
                     <button
@@ -227,7 +194,6 @@ export default function MisApelaciones() {
         </table>
       </div>
 
-      {/* BOTÓN DE CREACIÓN */}
       <div className="flex justify-center mt-6">
         <button
           onClick={() => navigate("/apelaciones")}

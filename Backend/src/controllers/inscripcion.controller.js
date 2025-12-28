@@ -1,7 +1,7 @@
 // Backend/src/controllers/InscripcionController.js
-const InscripcionService = require('../services/inscripcionService');
-const EventoService = require('../services/eventoService');
-const NotificacionService = require('../services/notificacionService');
+import InscripcionService from '../services/inscripcionService.js';
+import EventoService from '../services/eventoService.js';
+import NotificacionService from '../services/notificacionService.js';
 
 class InscripcionController {
   constructor() {
@@ -209,4 +209,4 @@ class InscripcionController {
   };
 }
 
-module.exports = InscripcionController;
+export default InscripcionController;

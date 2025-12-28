@@ -1,10 +1,106 @@
 import { AppDataSource } from "../config/configDb.js";
+import { Brackets, In } from "typeorm";
 import { Notificacion } from "../entities/notificacionuno.entity.js";
 import { User } from "../entities/user.entity.js";
-import { In } from "typeorm";
+import { Alumno } from "../entities/alumno.entity.js";
+import { Evaluacion } from "../entities/evaluaciones.entity.js";
 
 const notificacionRepo = AppDataSource.getRepository(Notificacion);
 const userRepo = AppDataSource.getRepository(User);
+const alumnoRepo = AppDataSource.getRepository(Alumno);
+const evaluacionRepo = AppDataSource.getRepository(Evaluacion);
+
+const backfillNotificacionesEvaluacionesPublicadasParaAlumno = async (usuarioId, notificacionesExistentes = []) => {
+  const user = await userRepo.findOne({ where: { id: usuarioId } });
+  if (!user || user.role !== "alumno") {
+    console.log("backfillNotificaciones: omitido (no es alumno)", { usuarioId, role: user?.role });
+    return { created: 0 };
+  }
+
+  const alumno = await alumnoRepo.findOne({
+    where: { id: usuarioId },
+    relations: ["secciones", "secciones.ramo"],
+  });
+
+  if (!alumno) {
+    console.log("backfillNotificaciones: no existe Alumno para usuarioId", usuarioId);
+    return { created: 0 };
+  }
+
+  const ramoIds = (alumno?.secciones || [])
+    .map((s) => s?.ramo?.id)
+    .map((id) => Number(id))
+    .filter((id) => Number.isFinite(id));
+
+  const ramoCodigos = (alumno?.secciones || [])
+    .map((s) => s?.ramo?.codigo)
+    .filter(Boolean)
+    .map((c) => String(c).trim())
+    .filter((c) => c.length > 0);
+
+
+  // Nota: actualmente el backend permite que un alumno vea TODAS las evaluaciones publicadas
+  // (ver getAllEvaluacionesService en evaluacion.service.js). Si el alumno no tiene ramos/secciones,
+  // igual generamos notificaciones desde todas las evaluaciones publicadas.
+  const shouldUseAllPublished = ramoIds.length === 0 && ramoCodigos.length === 0;
+  if (shouldUseAllPublished) {
+    console.log("backfillNotificaciones: alumno sin ramos -> usando todas las evaluaciones publicadas", {
+      usuarioId,
+    });
+  }
+
+  const qb = evaluacionRepo.createQueryBuilder("e").where("e.pautaPublicada = :pub", { pub: true });
+
+  if (!shouldUseAllPublished) {
+    qb.andWhere(
+      new Brackets((q) => {
+        let hasAny = false;
+        if (ramoIds.length > 0) {
+          q.where("e.ramo_id IN (:...ramoIds)", { ramoIds });
+          hasAny = true;
+        }
+        if (ramoCodigos.length > 0) {
+          if (hasAny) q.orWhere("e.codigoRamo IN (:...ramoCodigos)", { ramoCodigos });
+          else q.where("e.codigoRamo IN (:...ramoCodigos)", { ramoCodigos });
+        }
+      })
+    );
+  }
+
+  const evaluacionesPublicadas = await qb
+    .orderBy("e.created_at", "DESC")
+    .getMany();
+
+  console.log("backfillNotificaciones: evaluaciones publicadas encontradas", {
+    usuarioId,
+    count: evaluacionesPublicadas?.length ?? 0,
+  });
+
+  if (!evaluacionesPublicadas?.length) return { created: 0 };
+
+  const existentesEvalIds = new Set(
+    (notificacionesExistentes || [])
+      .map((n) => n?.evaluacion?.id)
+      .filter((id) => Number.isInteger(id))
+  );
+
+  const nuevas = evaluacionesPublicadas
+    .filter((ev) => !existentesEvalIds.has(ev.id))
+    .map((ev) =>
+      notificacionRepo.create({
+        titulo: "Evaluación publicada",
+        mensaje: `Se publicó la evaluación: "${ev.titulo}". Ya puedes revisarla.`,
+        evaluacion: { id: ev.id },
+        usuario: { id: usuarioId },
+      })
+    );
+
+  if (nuevas.length === 0) return { created: 0 };
+
+  await notificacionRepo.save(nuevas);
+  console.log("backfillNotificaciones: notificaciones insertadas", { usuarioId, created: nuevas.length });
+  return { created: nuevas.length };
+};
 
 /**
  * Crea notificaciones para un listado de emails de alumnos.
@@ -23,9 +119,6 @@ export const notificarAlumnos = async (emails = [], titulo, mensaje, evaluacionI
     const normalized = emails
       .filter(Boolean)
       .map((e) => String(e).trim().toLowerCase());
-
-    console.log("notificarAlumnos - Emails recibidos:", emails);
-    console.log("notificarAlumnos - Emails normalizados:", normalized);
 
 
     const alumnos = await userRepo.find({
@@ -57,7 +150,7 @@ export const notificarAlumnos = async (emails = [], titulo, mensaje, evaluacionI
   }
 };
 
-// Helper para casos en que se crea una evaluación y se desea notificar
+
 export const crearEvaluacionConNotificacion = async (evaluacionRepo, evaluacionData, emailsAlumnos) => {
   try {
     const evaluacion = await evaluacionRepo.save(evaluacionData);
@@ -75,11 +168,26 @@ export const notificarEvaluacionYPauta = async (evaluacionId, pautaId, emailsAlu
  
 export const obtenerNotificacionesPorUsuario = async (usuarioId) => {
   console.log("obtenerNotificacionesPorUsuario - buscando para usuarioId:", usuarioId);
-  return await notificacionRepo.find({
+  let notificaciones = await notificacionRepo.find({
     where: { usuario: { id: usuarioId } },
     relations: ["evaluacion"],
     order: { fechaEnvio: "DESC" },
   });
+
+  try {
+    const { created } = await backfillNotificacionesEvaluacionesPublicadasParaAlumno(usuarioId, notificaciones);
+    if (created > 0) {
+      notificaciones = await notificacionRepo.find({
+        where: { usuario: { id: usuarioId } },
+        relations: ["evaluacion"],
+        order: { fechaEnvio: "DESC" },
+      });
+    }
+  } catch (e) {
+    console.warn("obtenerNotificacionesPorUsuario - backfill omitido por error:", e?.message || e);
+  }
+
+  return notificaciones;
 };
 
 export const marcarNotificacionComoLeida = async (id) => {

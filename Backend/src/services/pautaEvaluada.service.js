@@ -1,11 +1,16 @@
 import { AppDataSource } from "../config/configDb.js";
 import { PautaEvaluada } from "../entities/pautaEvaluada.entity.js";
+import { PautaEvaluadaIntegradora } from "../entities/pautaEvaluadaIntegradora.entity.js";
 import { Evaluacion } from "../entities/evaluaciones.entity.js";
+import { EvaluacionIntegradora } from "../entities/evaluacionIntegradora.entity.js";
 import { Pauta } from "../entities/pauta.entity.js";
 import { Alumno } from "../entities/alumno.entity.js";
+import { guardarPromedioFinal } from "./alumnoPromedioRamo.service.js";
 
 const pautaEvaluadaRepository = AppDataSource.getRepository(PautaEvaluada);
+const pautaEvaluadaIntegradoraRepository = AppDataSource.getRepository(PautaEvaluadaIntegradora);
 const evaluacionRepository = AppDataSource.getRepository(Evaluacion);
+const evaluacionIntegradoraRepository = AppDataSource.getRepository(EvaluacionIntegradora);
 const pautaRepository = AppDataSource.getRepository(Pauta);
 const alumnoRepository = AppDataSource.getRepository(Alumno);
 
@@ -76,6 +81,21 @@ function calcNotaFinal(distribucionPuntaje, puntajesObtenidos) {
 }
 
 export async function createPautaEvaluadaService(evaluacionId, pautaId, alumnoRut, data, user) {
+  // Obtener evaluación con su ramo
+  let evaluacion = null;
+  try {
+    evaluacion = await evaluacionRepository
+      .createQueryBuilder("e")
+      .leftJoinAndSelect("e.ramo", "ramo")
+      .leftJoinAndSelect("e.pauta", "pauta")
+      .where("e.id = :evaluacionId", { evaluacionId })
+      .getOne();
+      
+    if (!evaluacion) return { error: "Evaluación no encontrada" };
+  } catch (err) {
+    console.error("Error al obtener evaluación:", err);
+  }
+
   // Obtener pauta desde pautaId en params
   let pauta = null;
   if (pautaId) {
@@ -83,12 +103,6 @@ export async function createPautaEvaluadaService(evaluacionId, pautaId, alumnoRu
     if (!pauta) return { error: "Pauta no encontrada" };
   } else {
     // Si no hay pautaId, intentar obtener pauta de la evaluación (compatibilidad hacia atrás)
-    const evaluacion = await evaluacionRepository
-      .createQueryBuilder("e")
-      .leftJoinAndSelect("e.pauta", "pauta")
-      .where("e.id = :evaluacionId", { evaluacionId })
-      .getOne();
-      
     if (!evaluacion) return { error: "Evaluación no encontrada" };
     if (!evaluacion.pauta) return { error: "La evaluación no tiene una pauta definida" };
     
@@ -125,6 +139,10 @@ export async function createPautaEvaluadaService(evaluacionId, pautaId, alumnoRu
     observaciones: data.observaciones || null,
     retroalimentacion: [],
     creadaPor: user?.id || null,
+    alumnoRut: alumnoRut,
+    codigoRamo: data.codigoRamo || null,
+    idEvaluacion: data.idEvaluacion || evaluacionId,
+    idPauta: data.idPauta || pauta.id,
     evaluacion: { id: evaluacionId },
     pauta: { id: pauta.id },
     alumno: { id: alumno.id },
@@ -133,8 +151,19 @@ export async function createPautaEvaluadaService(evaluacionId, pautaId, alumnoRu
   const saved = await pautaEvaluadaRepository.save(pautaEval);
   await updateEvaluacionPromedio(evaluacionId);
 
+  // Guardar promedio final del alumno en el ramo (si evaluacion tiene ramo)
+  if (evaluacion && evaluacion.ramo && evaluacion.ramo.codigo) {
+    try {
+      await guardarPromedioFinal(alumnoRut, evaluacion.ramo.codigo);
+    } catch (err) {
+      console.error("Error al guardar promedio final:", err);
+      // No falla la calificación si hay error en promedio
+    }
+  }
+
   return saved;
 }
+
 
 export async function getPautaEvaluadaService(evaluacionId, alumnoRut) {
   const pauta = await pautaEvaluadaRepository
@@ -149,6 +178,28 @@ export async function getPautaEvaluadaService(evaluacionId, alumnoRut) {
 
   if (!pauta) return { error: "Pauta evaluada no encontrada" };
   return pauta;
+}
+
+export async function getPautasEvaluadasByEvaluacionService(evaluacionId) {
+  try {
+    const pautas = await pautaEvaluadaRepository
+      .createQueryBuilder("pe")
+      .leftJoinAndSelect("pe.alumno", "a")
+      .leftJoinAndSelect("a.user", "u")
+      .leftJoinAndSelect("pe.evaluacion", "e")
+      .leftJoinAndSelect("pe.pauta", "p")
+      .where("pe.evaluacion_id = :evaluacionId", { evaluacionId })
+      .getMany();
+
+    if (!pautas || pautas.length === 0) {
+      return { error: "No hay pautas evaluadas para esta evaluación" };
+    }
+
+    return pautas;
+  } catch (error) {
+    console.error("Error al obtener pautas evaluadas:", error);
+    return { error: "Error al obtener pautas evaluadas" };
+  }
 }
 
 async function updateEvaluacionPromedio(evaluacionId) {
@@ -231,6 +282,20 @@ export async function updatePautaEvaluadaService(evaluacionId, alumnoRut, data, 
     pauta.observaciones = data.observaciones;
   }
 
+  // Actualizar campos identificadores si se proporcionan (aunque normalmente no cambien)
+  if (data.alumnoRut !== undefined) {
+    pauta.alumnoRut = data.alumnoRut;
+  }
+  if (data.idPauta !== undefined) {
+    pauta.idPauta = data.idPauta;
+  }
+  if (data.idEvaluacion !== undefined) {
+    pauta.idEvaluacion = data.idEvaluacion;
+  }
+  if (data.codigoRamo !== undefined) {
+    pauta.codigoRamo = data.codigoRamo;
+  }
+
   // Recalcular la nota automáticamente basándose en los puntajes actuales
   const distribucion = pauta.pauta?.distribucionPuntaje || {};
   const puntajesActuales = pauta.puntajesObtenidos || {};
@@ -265,4 +330,130 @@ export async function deletePautaEvaluadaService(evaluacionId, alumnoRut, user) 
   await updateEvaluacionPromedio(evaluacionId);
 
   return { message: "Pauta evaluada eliminada exitosamente" };
+}
+
+// ========== INTEGRADORA ==========
+
+export async function createPautaEvaluadaIntegradoraService(evaluacionIntegradoraId, pautaId, alumnoRut, data, user) {
+  // Obtener evaluación integradora
+  let evaluacionIntegradora = null;
+  try {
+    evaluacionIntegradora = await evaluacionIntegradoraRepository.findOneBy({ id: parseInt(evaluacionIntegradoraId) });
+    
+    if (!evaluacionIntegradora) return { error: "Evaluación integradora no encontrada" };
+  } catch (err) {
+    console.error("Error al obtener evaluación integradora:", err);
+  }
+
+  // Obtener pauta desde pautaId en params
+  let pauta = null;
+  if (pautaId) {
+    pauta = await pautaRepository.findOneBy({ id: parseInt(pautaId) });
+    if (!pauta) return { error: "Pauta no encontrada" };
+  } else {
+    return { error: "Se debe proporcionar una pauta para la evaluación integradora" };
+  }
+
+  // Obtener alumno a través de la relación con User (que tiene el rut)
+  const alumno = await alumnoRepository
+    .createQueryBuilder("a")
+    .leftJoinAndSelect("a.user", "u")
+    .where("u.rut = :rut", { rut: alumnoRut })
+    .getOne();
+    
+  if (!alumno) return { error: "Alumno no encontrado" };
+
+  const existing = await pautaEvaluadaIntegradoraRepository
+    .createQueryBuilder("pei")
+    .where("pei.evaluacionIntegradoraId = :evaluacionIntegradoraId", { evaluacionIntegradoraId })
+    .andWhere("pei.alumnoRut = :alumnoRut", { alumnoRut })
+    .getOne();
+    
+  if (existing) return { error: "Ya existe una pauta evaluada para este alumno en la evaluación integradora" };
+
+  const distribucion = pauta.distribucionPuntaje || {};
+  const puntajes = data.puntajes_obtenidos || {};
+
+  const nota = calcNotaFinal(distribucion, puntajes);
+
+  const pautaEval = pautaEvaluadaIntegradoraRepository.create({
+    puntajesObtenidos: puntajes,
+    notaFinal: nota,
+    observaciones: data.observaciones || null,
+    alumnoRut: alumnoRut,
+    pautaId: parseInt(pautaId),
+    evaluacionIntegradoraId: parseInt(evaluacionIntegradoraId),
+    evaluacionIntegradora: { id: parseInt(evaluacionIntegradoraId) },
+    pauta: { id: pauta.id },
+    alumno: { rut: alumnoRut },
+  });
+
+  const saved = await pautaEvaluadaIntegradoraRepository.save(pautaEval);
+
+  return saved;
+}
+
+export async function getPautaEvaluadaIntegradoraService(evaluacionIntegradoraId, alumnoRut) {
+  const pauta = await pautaEvaluadaIntegradoraRepository
+    .createQueryBuilder("pei")
+    .leftJoinAndSelect("pei.evaluacionIntegradora", "ei")
+    .leftJoinAndSelect("pei.pauta", "p")
+    .where("pei.evaluacionIntegradoraId = :evaluacionIntegradoraId", { evaluacionIntegradoraId })
+    .andWhere("pei.alumnoRut = :alumnoRut", { alumnoRut })
+    .getOne();
+
+  if (!pauta) return { error: "Pauta evaluada integradora no encontrada" };
+  return pauta;
+}
+
+export async function updatePautaEvaluadaIntegradoraService(evaluacionIntegradoraId, alumnoRut, data, user) {
+  // Buscar la pautaEvaluada integradora por evaluacionIntegradoraId y alumnoRut
+  const pauta = await pautaEvaluadaIntegradoraRepository
+    .createQueryBuilder("pei")
+    .leftJoinAndSelect("pei.pauta", "p")
+    .where("pei.evaluacionIntegradoraId = :evaluacionIntegradoraId", { evaluacionIntegradoraId })
+    .andWhere("pei.alumnoRut = :alumnoRut", { alumnoRut })
+    .getOne();
+
+  if (!pauta) return { error: "Pauta evaluada integradora no encontrada" };
+
+  // Actualizar puntajes si se proporcionan
+  if (data.puntajes_obtenidos) {
+    pauta.puntajesObtenidos = data.puntajes_obtenidos;
+  }
+
+  // Actualizar observaciones si se proporcionan
+  if (data.observaciones !== undefined) {
+    pauta.observaciones = data.observaciones;
+  }
+
+  // Recalcular la nota automáticamente basándose en los puntajes actuales
+  const distribucion = pauta.pauta?.distribucionPuntaje || {};
+  const puntajesActuales = pauta.puntajesObtenidos || {};
+  const notaCalculada = calcNotaFinal(distribucion, puntajesActuales);
+  pauta.notaFinal = notaCalculada;
+
+  const saved = await pautaEvaluadaIntegradoraRepository.save(pauta);
+
+  return saved;
+}
+
+export async function deletePautaEvaluadaIntegradoraService(evaluacionIntegradoraId, alumnoRut, user) {
+  // Buscar la pautaEvaluada integradora por evaluacionIntegradoraId y alumnoRut
+  const pauta = await pautaEvaluadaIntegradoraRepository
+    .createQueryBuilder("pei")
+    .where("pei.evaluacionIntegradoraId = :evaluacionIntegradoraId", { evaluacionIntegradoraId })
+    .andWhere("pei.alumnoRut = :alumnoRut", { alumnoRut })
+    .getOne();
+
+  if (!pauta) return { error: "Pauta evaluada integradora no encontrada" };
+
+  // No verificar permisos de creador para integradora (permitir eliminación por admin o profesor)
+  if (user.role !== "admin" && user.role !== "profesor" && user.role !== "jefecarrera") {
+    return { error: "No tienes permiso para eliminar esta pauta evaluada integradora" };
+  }
+
+  await pautaEvaluadaIntegradoraRepository.remove(pauta);
+
+  return { message: "Pauta evaluada integradora eliminada exitosamente" };
 }

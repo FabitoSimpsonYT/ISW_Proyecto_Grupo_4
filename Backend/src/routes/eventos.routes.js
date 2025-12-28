@@ -1,65 +1,17 @@
-// Backend/src/routes/evento.routes.js
-const express = require('express');
-const router = express.Router();
-const EventoController = require('../controllers/eventoController');
-const { authMiddleware, profesorMiddleware, jefeCarreraMiddleware } = require('../middleware/auth');
+import { Router } from 'express';
+import { authMiddleware, profesorMiddleware } from '../middleware/auth.js';
+import EventoController from '../controllers/evento.controller.js';
 
-const eventoController = new EventoController();
+const router = Router();
 
-// Rutas para profesores
-router.post(
-  '/',
-  authMiddleware,
-  profesorMiddleware,
-  eventoController.crearEvento
-);
+router.use(authMiddleware);
 
-router.put(
-  '/:id',
-  authMiddleware,
-  profesorMiddleware,
-  eventoController.actualizarEvento
-);
+router.post('/', profesorMiddleware, EventoController.crearEvento);
+router.patch('/:id', profesorMiddleware, EventoController.actualizarEvento);
+router.delete('/:id', profesorMiddleware, EventoController.eliminarEvento);
+router.get('/profesor', profesorMiddleware, EventoController.obtenerEventosProfesor);
 
-router.delete(
-  '/:id',
-  authMiddleware,
-  profesorMiddleware,
-  eventoController.eliminarEvento
-);
+router.get('/alumno', EventoController.obtenerEventosAlumno);
+router.get('/alumno/disponibles-slots', EventoController.obtenerEventosDisponiblesSlots);
 
-router.get(
-  '/profesor/mis-eventos',
-  authMiddleware,
-  profesorMiddleware,
-  eventoController.obtenerEventosProfesor
-);
-
-// Rutas para alumnos
-router.get(
-  '/disponibles',
-  authMiddleware,
-  eventoController.obtenerEventosDisponibles
-);
-
-router.get(
-  '/:id',
-  authMiddleware,
-  eventoController.obtenerEvento
-);
-
-// Rutas para días feriados (Jefe de Carrera)
-router.post(
-  '/feriados',
-  authMiddleware,
-  jefeCarreraMiddleware,
-  eventoController.agregarDiaFeriado
-);
-
-router.get(
-  '/feriados/lista',
-  authMiddleware,
-  eventoController.obtenerDiasFeriados
-);
-
-module.exports = router;
+export default router;

@@ -1,27 +1,51 @@
 import { AppDataSource } from "../config/configDb.js";
 import { Pauta } from "../entities/pauta.entity.js";
 import { Evaluacion } from "../entities/evaluaciones.entity.js";
+import { EvaluacionIntegradora } from "../entities/evaluacionIntegradora.entity.js";
 import { notificarAlumnos } from "./notificacionuno.service.js";
 import { Ramos } from "../entities/ramos.entity.js";
 
 const pautaRepository = AppDataSource.getRepository(Pauta);
 const evaluacionRepository = AppDataSource.getRepository(Evaluacion);
+const evaluacionIntegradoraRepository = AppDataSource.getRepository(EvaluacionIntegradora);
 
-export async function createPautaService(data, evaluacionId) {
+export async function createPautaService(data, evaluacionId, evaluacionIntegradoraId) {
+    console.log("createPautaService - evaluacionId:", evaluacionId, "evaluacionIntegradoraId:", evaluacionIntegradoraId);
+    
     let pauta;
-    if (evaluacionId) {
-        const evaluacion = await evaluacionRepository.findOneBy({id:evaluacionId});
+    
+    if (evaluacionIntegradoraId) {
+        // Para evaluación integradora, no validar estado (la integradora no tiene estado)
+        pauta = pautaRepository.create({...data, evaluacionIntegradoraId});
+    } else if (evaluacionId) {
+        const evaluacion = await evaluacionRepository.findOneBy({id: evaluacionId});
         if (!evaluacion) return {error: "evaluacion no encontrada"};
         if(evaluacion.estado !== "pendiente"){
-            return {error : "error al agregar una pauta a una evaluacion aplicada "};
+            return {error: "error al agregar una pauta a una evaluacion aplicada"};
         }
-        pauta = pautaRepository.create ({...data, evaluacion});
+        pauta = pautaRepository.create({...data, evaluacionId});
     } else {
-        pauta = pautaRepository.create({...data});
+        return {error: "Debe enviar evaluacionId o evaluacionIntegradoraId"};
     }
+    
     console.log("Estado de la pauta antes de guardar:", pauta.publicada);
     const savedPauta = await pautaRepository.save(pauta);
     console.log("Estado de la pauta después de guardar:", savedPauta.publicada);
+    
+    // Actualizar idPauta en la evaluación
+    if (evaluacionId) {
+        console.log("Actualizando evaluación", evaluacionId, "con idPauta:", savedPauta.id);
+        const updateResult = await evaluacionRepository.update(evaluacionId, { idPauta: savedPauta.id });
+        console.log("Resultado del update:", updateResult);
+    }
+    
+    // Actualizar idPauta en la evaluacionIntegradora
+    if (evaluacionIntegradoraId) {
+        console.log("Actualizando evaluación integradora", evaluacionIntegradoraId, "con idPauta:", savedPauta.id);
+        const updateResult = await evaluacionIntegradoraRepository.update(evaluacionIntegradoraId, { idPauta: savedPauta.id });
+        console.log("Resultado del update en integradora:", updateResult);
+    }
+    
     return savedPauta;
 }
 export async function getPautaByIdService(id, user){
@@ -44,11 +68,15 @@ export async function updatePautaService(id, data, user) {
   });
 
   if (!pauta) return { error: "Pauta no encontrada" };
-  if (user.role !== "profesor") return { error: "No autorizado" };
+  if (user.role !== "profesor" && user.role !== "jefecarrera") return { error: "No autorizado" };
 
-  pauta.publicada = true;
+  // Actualizar los campos que vienen en data
+  pauta.criterios = data.criterios || pauta.criterios;
+  pauta.distribucionPuntaje = data.distribucionPuntaje || pauta.distribucionPuntaje;
+  pauta.publicada = data.publicada !== undefined ? data.publicada : pauta.publicada;
+  
   const updatedPauta = await pautaRepository.save(pauta);
-  console.log("Estado de la pauta después de guardar:", updatedPauta.publicada);
+  console.log("Pauta actualizada:", updatedPauta);
 
   
   try {
@@ -114,4 +142,51 @@ export async function getAllPautasService(user) {
     return pautas.filter(p => p.publicada === true);
   }
   return pautas;
+}
+
+export async function getPautaIntegradoraService(evaluacionIntegradoraId, user) {
+  const pauta = await pautaRepository.findOne({
+    where: { evaluacionIntegradoraId },
+    relations: ["evaluacion"],
+  });
+  if (!pauta) return {error: "pauta integradora no encontrada"};
+
+  if(user.role === "estudiante" && !pauta.publicada){
+    return {error: "la pauta no ha sido publicada"};
+  }
+  return pauta;
+}
+
+export async function updatePautaIntegradoraService(evaluacionIntegradoraId, data, user) {
+  const pauta = await pautaRepository.findOne({
+    where: { evaluacionIntegradoraId },
+    relations: ["evaluacion"],
+  });
+
+  if (!pauta) return { error: "Pauta integradora no encontrada" };
+  if (user.role !== "profesor" && user.role !== "jefecarrera") return { error: "No autorizado" };
+
+  // Actualizar los campos que vienen en data
+  pauta.criterios = data.criterios || pauta.criterios;
+  pauta.distribucionPuntaje = data.distribucionPuntaje || pauta.distribucionPuntaje;
+  pauta.publicada = data.publicada !== undefined ? data.publicada : pauta.publicada;
+  
+  const updatedPauta = await pautaRepository.save(pauta);
+  console.log("Pauta integradora actualizada:", updatedPauta);
+
+  return updatedPauta;
+}
+
+export async function deletePautaIntegradoraService(evaluacionIntegradoraId, user) {
+  const pauta = await pautaRepository.findOne({
+    where: { evaluacionIntegradoraId },
+  });
+
+  if (!pauta) return { error: "Pauta integradora no encontrada" };
+  if (user.role !== "profesor" && user.role !== "jefecarrera") return { error: "No autorizado" };
+
+  await pautaRepository.remove(pauta);
+  console.log("Pauta integradora eliminada:", pauta.id);
+
+  return { success: true, message: "Pauta integradora eliminada" };
 }

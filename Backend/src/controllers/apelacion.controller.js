@@ -1,10 +1,10 @@
-import { arch } from "os";
+
 import { AppDataSource } from "../config/configDb.js";
 import { Apelacion } from "../entities/apelacion.entity.js";
 import { User } from "../entities/user.entity.js";
 import path from "path";
-import { fileURLToPath } from "url";
 import { renameUploadedFile } from "../services/archivo.service.js";
+import { PautaEvaluada } from "../entities/pautaEvaluada.entity.js";
 import fs from "fs";
 
 
@@ -15,7 +15,7 @@ export const createApelacion = async (req, res) => {
     const apelacionRepo = AppDataSource.getRepository(Apelacion);
     const userRepo = AppDataSource.getRepository(User);
 
-    const { tipo, mensaje, profesorCorreo } = req.body;
+    const { tipo, mensaje, profesorCorreo, pautaEvaluadaId } = req.body;
     const alumnoId = req.user?.id || req.user?.sub;
     const file = req.file; 
 
@@ -40,13 +40,38 @@ export const createApelacion = async (req, res) => {
       return res.status(400).json({ message: "Profesor no válido o no encontrado" });
     }
 
+    if (tipo === "evaluacion") {
+      if (!pautaEvaluadaId) {
+        return res.status(400).json({
+          message: "Debe seleccionar una evaluación para apelar",
+        });
+      }
+    }
+      const pautaRepo = AppDataSource.getRepository(PautaEvaluada);
+    let pauta = null;
+
+    if (tipo === "evaluacion") {
+      pauta = await pautaRepo.findOne({
+        where: { 
+          id: pautaEvaluadaId, 
+          alumno: { id: alumnoId } 
+        },
+      });
+
+      if (!pauta || pauta.notaFinal === null) {
+        return res.status(400).json({
+          message: "No existe una nota válida para apelar",
+        });
+      }
+    }
+
     let archivo = null;
 
     if (req.file) {
       archivo = renameUploadedFile(
-        req.file,              
-        `AP-${alumnoId}`,        
-        Date.now()              
+        req.file,
+        `AP-${alumnoId}`,
+        Date.now()
       );
     }
 
@@ -55,9 +80,10 @@ export const createApelacion = async (req, res) => {
       mensaje,
       estado: "pendiente",
       puedeEditar: true,
-      archivo: file ? file.filename : null,        
+      archivo: file ? file.filename : null,
       alumno,
       profesor,
+      pautaEvaluada: tipo === "evaluacion" ? pauta : null,
     });
 
     await apelacionRepo.save(apelacion);
@@ -81,6 +107,12 @@ export const createApelacion = async (req, res) => {
       fechaCreacion: apelacion.fechaCreacion,
       fechaLimiteEdicion: apelacion.fechaLimiteEdicion,
       puedeEditar,
+      pautaEvaluada: apelacion.tipo === "evaluacion" && apelacion.pautaEvaluada
+        ? {
+            id: apelacion.pautaEvaluada.id,
+            notaFinal: apelacion.pautaEvaluada.notaFinal,
+          }
+        : null,
       profesor: {
         nombre: profesor.nombre,
         email: profesor.email,
@@ -92,12 +124,11 @@ export const createApelacion = async (req, res) => {
       data: apelacionLimpia,
     });
 
-  } catch (error) {
-    console.error("Error al crear apelación:", error);
-    res.status(500).json({ message: "Error interno al crear apelación" });
-  }
-};
-
+      } catch (error) {
+        console.error("Error al crear apelación:", error);
+        res.status(500).json({ message: "Error interno al crear apelación" });
+      }
+    };
 
 
 
@@ -116,6 +147,12 @@ export const subirArchivo = async (req, res) => {
 
     const apelacion = await repo.findOneBy({ id: idApelacion });
     if (!apelacion) return res.status(404).json({ mensaje: "Apelación no encontrada" });
+
+        if (apelacion.tipo === "evaluacion") {
+      return res.status(400).json({
+        mensaje: "No se permite subir archivos en apelaciones por evaluación",
+      });
+    }
 
     apelacion.archivo = rutaArchivo;
     await repo.save(apelacion);
@@ -143,11 +180,9 @@ export const descargarArchivo = async (req, res) => {
       return res.status(404).json({ mensaje: "Archivo no encontrado" });
     }
 
-    // Ruta correcta
     const uploadsDir = path.resolve("src/uploads");
     const filePath = path.join(uploadsDir, apelacion.archivo);
 
-    // Verificación física del archivo
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ mensaje: "El archivo no existe en el servidor" });
     }
@@ -162,8 +197,6 @@ export const descargarArchivo = async (req, res) => {
 
 
 
-
-
 export const getMisApelaciones = async (req, res) => {
   try {
     const alumnoId = req.user.id;
@@ -171,7 +204,7 @@ export const getMisApelaciones = async (req, res) => {
 
     const apelaciones = await apelacionRepo.find({
       where: { alumno: { id: alumnoId } },
-      relations: ["profesor", "alumno"],
+      relations: ["profesor", "alumno", "pautaEvaluada"],
       order: { id: "DESC" },
     });
 
@@ -194,6 +227,13 @@ export const getMisApelaciones = async (req, res) => {
         fechaCreacion: a.fechaCreacion,
         fechaLimiteEdicion: a.fechaLimiteEdicion,
         puedeEditar,
+
+        pautaEvaluada: a.tipo === "evaluacion" && a.pautaEvaluada
+          ? {
+              id: a.pautaEvaluada.id,
+              notaFinal: a.pautaEvaluada.notaFinal,
+            }
+          : null,
         profesor: a.profesor
           ? {
               nombre: a.profesor.nombre,
@@ -224,7 +264,7 @@ export const getApelacionPorId = async (req, res) => {
     const apelacionRepo = AppDataSource.getRepository(Apelacion);
     const apelacion = await apelacionRepo.findOne({
       where: { id },
-      relations: ["profesor", "alumno"],
+      relations: ["profesor", "alumno", "pautaEvaluada"],
     });
 
     if (!apelacion) return res.status(404).json({ message: "Apelación no encontrada." });
@@ -265,7 +305,7 @@ export const getApelacionesDelProfesor = async (req, res) => {
 
     const apelaciones = await apelacionRepo.find({
       where: { profesor: { id: profesorId } },
-      relations: ["profesor", "alumno"],
+      relations: ["profesor", "alumno", "pautaEvaluada"],
       order: { createdAt: "DESC" },
     });
 
@@ -288,6 +328,12 @@ export const getApelacionesDelProfesor = async (req, res) => {
       fechaLimiteEdicion: a.fechaLimiteEdicion,
       creadoEl: a.createdAt,
       actualizadoEl: a.updatedAt,
+      pautaEvaluada:a.pautaEvaluada ? {
+        id: a.pautaEvaluada.id,
+        notaFinal: a.pautaEvaluada.notaFinal,
+        codigoRamo: a.pautaEvaluada.codigoRamo,
+      }
+    : null,
       alumno: a.alumno ? {
         id: a.alumno.id,
         nombre: `${a.alumno.nombres} ${a.alumno.apellidoPaterno} ${a.alumno.apellidoMaterno}`,
@@ -312,10 +358,10 @@ export const getApelacionesDelProfesor = async (req, res) => {
 export const editarApelacionAlumno = async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const { mensaje, profesorEmail, removeArchivo } = req.body;
+    const { mensaje, profesorEmail, removeArchivo, pautaEvaluadaId } = req.body;
     const nuevoArchivo = req.file?.filename;
 
-    if (!mensaje && !nuevoArchivo && !profesorEmail && removeArchivo !== "true") {
+    if (!mensaje && !nuevoArchivo && !profesorEmail && removeArchivo !== "true" && pautaEvaluadaId === undefined) {
       return res.status(400).json({
         message: "Debe enviar al menos un campo para editar.",
       });
@@ -326,7 +372,7 @@ export const editarApelacionAlumno = async (req, res) => {
 
     const apelacion = await apelacionRepo.findOne({
       where: { id },
-      relations: ["alumno", "profesor"],
+      relations: ["alumno", "profesor", "pautaEvaluada"],
     });
 
     if (!apelacion) {
@@ -356,6 +402,31 @@ export const editarApelacionAlumno = async (req, res) => {
         message: "La apelación no se puede editar en este estado.",
       });
     }
+
+    if (pautaEvaluadaId !== undefined) {
+  if (apelacion.tipo !== "evaluacion") {
+    return res.status(400).json({
+      message: "Esta apelación no es por evaluación.",
+    });
+  }
+
+  const pautaRepo = AppDataSource.getRepository(PautaEvaluada);
+
+  const nuevaPauta = await pautaRepo.findOne({
+    where: {
+      id: pautaEvaluadaId,
+      alumno: { id: apelacion.alumno.id },
+    },
+  });
+
+  if (!nuevaPauta || nuevaPauta.notaFinal === null) {
+    return res.status(400).json({
+      message: "La pauta seleccionada no es válida para apelar.",
+    });
+  }
+
+  apelacion.pautaEvaluada = nuevaPauta;
+}
 
     if (!apelacion.puedeEditar) {
       return res.status(400).json({
@@ -411,10 +482,6 @@ export const editarApelacionAlumno = async (req, res) => {
     return res.status(500).json({ message: "Error interno del servidor" });
   }
 };
-
-
-
-
 
 
 
@@ -537,8 +604,6 @@ if (estado === "cita") {
 
 
 
-
-
 export const getAllApelaciones = async (req, res) => {
   try {
     const apelacionRepo = AppDataSource.getRepository(Apelacion);
@@ -603,7 +668,6 @@ export const deleteApelacion = async (req, res) => {
       return res.status(404).json({ message: "Apelación no encontrada." });
     }
 
-    // 🔒 VALIDACIÓN DE NEGOCIO
     if (apelacion.estado !== "pendiente") {
       return res.status(403).json({
         message: "Solo se pueden eliminar apelaciones en estado pendiente.",
@@ -649,7 +713,6 @@ export async function getApelacionesPorEstado(req, res) {
       relations: ["alumno", "profesor"],
       order: { createdAt: "DESC" },
     });
-
     const apelacionesFiltradas = apelaciones.map((apelacion) => {
       const { alumno, profesor, ...resto } = apelacion;
 
@@ -675,12 +738,10 @@ export async function getApelacionesPorEstado(req, res) {
           : null,
       };
     });
-
     return res.status(200).json({
       message: `Apelaciones con estado "${estado}" encontradas`,
       data: apelacionesFiltradas,
     });
-
   } catch (error) {
     console.error("Error al obtener apelaciones por estado:", error);
     return res.status(500).json({
@@ -689,3 +750,42 @@ export async function getApelacionesPorEstado(req, res) {
   }
 }
 
+
+
+export const getEvaluacionesDisponibles = async (req, res) => {
+  try {
+    const alumnoId = req.user?.id || req.user?.sub;
+
+    if (!alumnoId) {
+      return res.status(401).json({ message: "Usuario no autenticado" });
+    }
+
+    const pautaRepo = AppDataSource.getRepository(PautaEvaluada);
+
+    const pautas = await pautaRepo.find({
+      where: {
+        alumno: { id: alumnoId },
+      },
+      order: { id: "DESC" },
+    });
+
+    const disponibles = pautas
+      .filter(p => p.notaFinal !== null)
+      .map(p => ({
+        id: p.id,
+        codigoRamo: p.codigoRamo,
+        notaFinal: p.notaFinal,
+      }));
+
+    return res.status(200).json({
+      message: "Evaluaciones disponibles para apelación",
+      data: disponibles,
+    });
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Error interno al obtener evaluaciones",
+    });
+  }
+};

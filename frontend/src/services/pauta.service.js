@@ -6,9 +6,10 @@ import axios from "./root.service.js";
 export async function getAllPautas(){
       try {
         const response = await axios.get('/pauta');
-        return response.data;
+        return Array.isArray(response.data) ? response.data : (response.data?.data || []);
       } catch (error) {
-        throw error.response?.data || {message: 'Error al obtener las pautas'};
+        console.error('Error al obtener las pautas:', error);
+        return [];
       }
 }
 /**
@@ -17,7 +18,7 @@ export async function getAllPautas(){
 export async function getPautaById(id) {
    try {
     const response = await axios.get(`/pauta/${id}`);
-    return response.data;
+    return response.data?.data?.pauta || response.data;
    } catch (error) {
       throw error.response?.data || {message: 'Error al obtener la pauta'};
    }
@@ -27,12 +28,38 @@ export async function getPautaById(id) {
 /**
  * Crear pauta 
  */
-export async function createPauta(pautaData) {
+export async function createPauta(pautaData, evaluacionId) {
   try {
-    const response = await axios.post('/pauta', pautaData);
-    return response.data;
+    const url = evaluacionId ? `/pauta/${evaluacionId}` : '/pauta';
+    const response = await axios.post(url, pautaData);
+    return response.data?.data?.pauta || response.data;
   } catch (error) {
     throw error.response?.data || {message:'Error al crear la pauta'};
+  }
+}
+
+/**
+ * Crear pauta para evaluación integradora
+ */
+export async function createPautaIntegradora(pautaData, evaluacionIntegradoraId) {
+  try {
+    const url = `/pauta/integradora/${evaluacionIntegradoraId}`;
+    const response = await axios.post(url, pautaData);
+    return response.data?.data?.pauta || response.data;
+  } catch (error) {
+    throw error.response?.data || {message:'Error al crear la pauta integradora'};
+  }
+}
+
+/**
+ * Obtener pauta integradora por evaluacionIntegradoraId
+ */
+export async function getPautaIntegradora(evaluacionIntegradoraId) {
+  try {
+    const response = await axios.get(`/pauta/integradora/${evaluacionIntegradoraId}`);
+    return response.data?.data?.pauta || response.data;
+  } catch (error) {
+    throw error.response?.data || {message: 'Error al obtener la pauta integradora'};
   }
 }
 
@@ -49,6 +76,18 @@ export async function updatePauta(id, pautaData) {
 }
 
 /**
+ * Actualizar pauta integradora
+ */
+export async function updatePautaIntegradora(evaluacionIntegradoraId, pautaData) {
+  try {
+    const response = await axios.patch(`/pauta/integradora/${evaluacionIntegradoraId}`, pautaData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || {message: 'Error al actualizar la pauta integradora'};
+  }
+}
+
+/**
  * Eliminar pauta
  */
 export async function deletePauta(id) {
@@ -57,5 +96,17 @@ export async function deletePauta(id) {
     return response.data;
   } catch (error) {
     throw error.response?.data || {message:'Error al eliminar la pauta'};
+  }
+}
+
+/**
+ * Eliminar pauta integradora
+ */
+export async function deletePautaIntegradora(evaluacionIntegradoraId) {
+  try {
+    const response = await axios.delete(`/pauta/integradora/${evaluacionIntegradoraId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || {message: 'Error al eliminar la pauta integradora'};
   }
 }

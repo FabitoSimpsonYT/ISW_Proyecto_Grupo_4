@@ -8,13 +8,18 @@ import adminRoutes from "./admin.routes.js";
 import evaluacionesRoutes from "./evaluaciones.routes.js";
 import pautaRoutes from "./pauta.routes.js";
 import pautaEvaluadaRoutes from "./pautaEvaluada.routes.js";
-import notificacionRoutes from "./notificacion.routes.js";
-import eventsRoutes from "./events.routes.js";
+import notificacionRoutes from "./notificacionuno.routes.js";
+import eventosRoutes from "./eventos.routes.js";
+import tipoEventoRoutes from "./tipoEvento.routes.js";
 import bookingRoutes from "./booking.routes.js";
 import agendamientosRoutes from "./agendamientos.routes.js";
 import apelacionesRoutes from "./apelacion.routes.js";
 import inscripcionesRoutes from "./inscripciones.routes.js";
-
+import bloqueoRoutes from "./bloqueo.routes.js";
+import slotRoutes from "./slot.routes.js";
+import devRoutes from "./dev.routes.js";
+import alumnoPromedioRamoRoutes from "./alumnoPromedioRamo.routes.js";
+import evaluacionIntegradoraRoutes from "./evaluacionIntegradora.routes.js";
 export function routerApi(app) {
   const router = Router();
   app.use("/api", router);
@@ -28,10 +33,18 @@ export function routerApi(app) {
   router.use("/evaluaciones", evaluacionesRoutes);
   router.use("/pauta", pautaRoutes);
   router.use("/pauta-evaluadas", pautaEvaluadaRoutes);
+  router.use("/pauta-evaluadas-integradora", pautaEvaluadaRoutes);
   router.use("/notificaciones", notificacionRoutes);
-  router.use("/events", eventsRoutes);
+  router.use("/eventos", eventosRoutes);
+  router.use("/tipos-eventos", tipoEventoRoutes);
   router.use("/bookings", bookingRoutes);
   router.use("/agendamientos", agendamientosRoutes);
   router.use("/apelaciones", apelacionesRoutes);
   router.use("/inscripciones", inscripcionesRoutes);
+  router.use("/bloqueos", bloqueoRoutes);
+  router.use("/slots", slotRoutes);
+  // Rutas de desarrollo solo disponibles en entorno development
+  router.use("/dev", devRoutes);
+  router.use("/promedios", alumnoPromedioRamoRoutes);
+  router.use("/evaluacion-integradora", evaluacionIntegradoraRoutes);
 }

@@ -32,6 +32,23 @@ export const PautaEvaluada = new EntitySchema({
       type: "int",
       nullable: true,
     },
+    alumnoRut: {
+      type: "varchar",
+      nullable: false,
+    },
+    idEvaluacion: {
+      type: "int",
+      nullable: false,
+    },
+    codigoRamo: {
+      type: "varchar",
+      length: 20,
+      nullable: true,
+    },
+    idPauta: {
+      type: "int",
+      nullable: true,
+    },
     created_at: {
       type: "timestamp",
       createDate: true,

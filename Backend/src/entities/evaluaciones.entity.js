@@ -13,6 +13,11 @@ export const Evaluacion = new EntitySchema({
             type:"varchar",
             length:255,
         },
+        codigoRamo: {
+            type: "varchar",
+            length: 20,
+            nullable: true,
+        },
         fechaProgramada:{
             type:"date",
             nullable: true,
@@ -55,6 +60,10 @@ export const Evaluacion = new EntitySchema({
             type: "int",
             nullable: false,
             default: 0,
+        },
+        idPauta: {
+            type: "int",
+            nullable: true,
         },
         created_at: {
             type: "timestamp",

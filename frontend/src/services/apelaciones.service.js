@@ -9,9 +9,7 @@ const authHeaders = () => {
   };
 };
 
-// ---------------------------------------------------------
-// Crear apelación (con archivo)
-// ---------------------------------------------------------
+
 export const crearApelacion = async (formData) => {
   const res = await fetch(API_URL, {
     method: "POST",
@@ -37,9 +35,7 @@ export const crearApelacion = async (formData) => {
 };
 
 
-// ---------------------------------------------------------
-// Ver mis apelaciones
-// ---------------------------------------------------------
+
 export const getMisApelaciones = async () => {
   try {
     const res = await fetch(`${API_URL}/mis-apelaciones`, {
@@ -53,9 +49,7 @@ export const getMisApelaciones = async () => {
   }
 };
 
-// ---------------------------------------------------------
-// Editar apelación (alumno)
-// ---------------------------------------------------------
+
 export const editarApelacion = async (id, formData) => {
   const res = await fetch(`${API_URL}/${id}/editar`, {
     method: "PUT",
@@ -67,10 +61,27 @@ export const editarApelacion = async (id, formData) => {
 };
 
 
+export const getEvaluacionesDisponibles = async () => {
+  try {
+    const res = await fetch(`${API_URL}/EvaluacionDisponible`, {
+      method: "GET",
+      headers: authHeaders(),
+    });
 
-// ---------------------------------------------------------
-// Ver apelaciones como profesor
-// ---------------------------------------------------------
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data?.message || "Error al obtener evaluaciones disponibles");
+    }
+
+    return await res.json();
+  } catch (err) {
+    console.error("Error obteniendo evaluaciones disponibles:", err);
+    return { data: [] };
+  }
+};
+
+
+
 export const getApelacionesProfesor = async () => {
   try {
     const res = await fetch(`${API_URL}/apelacionesProfesor`, {
@@ -84,9 +95,8 @@ export const getApelacionesProfesor = async () => {
   }
 };
 
-// ---------------------------------------------------------
-// Obtener apelación por ID
-// ---------------------------------------------------------
+
+
 export const getApelacionById = async (id) => {
   try {
     const res = await fetch(`${API_URL}/${id}`, {
@@ -100,9 +110,6 @@ export const getApelacionById = async (id) => {
   }
 };
 
-// ---------------------------------------------------------
-// Profesor responde apelación
-// ---------------------------------------------------------
 export const responderApelacion = async (id, data) => {
   try {
     const res = await fetch(`${API_URL}/${id}`, {
@@ -121,9 +128,6 @@ export const responderApelacion = async (id, data) => {
 };
 
 
-// ---------------------------------------------------------
-// Descargar archivo adjunto
-// ---------------------------------------------------------
 export const descargarArchivo = (id) => {
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
   return `${API_URL}/apelaciones/${id}/archivo`;
@@ -132,9 +136,6 @@ export const descargarArchivo = (id) => {
 
 
 
-// ---------------------------------------------------------
-// Eliminar apelación (profesor)
-// ---------------------------------------------------------
 export const eliminarApelacion = async (id) => {
   try {
     const res = await fetch(`${API_URL}/${id}`, {
