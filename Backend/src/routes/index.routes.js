@@ -20,6 +20,11 @@ import slotRoutes from "./slot.routes.js";
 import devRoutes from "./dev.routes.js";
 import alumnoPromedioRamoRoutes from "./alumnoPromedioRamo.routes.js";
 import evaluacionIntegradoraRoutes from "./evaluacionIntegradora.routes.js";
+import retroalimentacionRoutes from "./retroalimentacion.routes.js";
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import retroalimentacionHandler from "../websocket/retroalimentacionHandler.js";
+
 export function routerApi(app) {
   const router = Router();
   app.use("/api", router);
@@ -47,4 +52,26 @@ export function routerApi(app) {
   router.use("/dev", devRoutes);
   router.use("/promedios", alumnoPromedioRamoRoutes);
   router.use("/evaluacion-integradora", evaluacionIntegradoraRoutes);
+  router.use("/retroalimentacion", retroalimentacionRoutes);
 }
+
+export function configureSocketIO(app) {
+  const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+  
+  const httpServer = createServer(app);
+  const io = new Server(httpServer, {
+    cors: {
+      origin: FRONTEND_URL,
+      credentials: true
+    }
+  });
+
+  // Almacenar io en app
+  app.set('io', io);
+
+  // Inicializar handler de retroalimentación
+  retroalimentacionHandler.initialize(io);
+
+  return httpServer;
+}
+

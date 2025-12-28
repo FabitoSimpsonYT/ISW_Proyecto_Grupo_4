@@ -10,13 +10,17 @@ import{
     getPautaIntegradora,
     updatePautaIntegradora,
     deletePautaIntegradora,
+    getPautaByEvaluacion,
+    getPautaByEvaluacionIntegradora,
 } from "../controllers/pauta.controller.js";
 
 const router = Router();
 // Listar todas las pautas (si es alumno, solo publicadas)
 router.get("/", authMiddleware, getAllPautas);
 
-router.get("/:id", authMiddleware, getPautaById);
+// Rutas específicas PRIMERO (antes de la ruta genérica /:id)
+router.get("/by-evaluacion/:evaluacionId", authMiddleware, getPautaByEvaluacion);
+router.get("/by-evaluacion-integradora/:evaluacionIntegradoraId", authMiddleware, getPautaByEvaluacionIntegradora);
 
 // Rutas para pautas de evaluaciones normales
 router.post("/", authMiddleware, createPauta);
@@ -28,6 +32,8 @@ router.get("/integradora/:evaluacionIntegradoraId", authMiddleware, getPautaInte
 router.patch("/integradora/:evaluacionIntegradoraId", authMiddleware, updatePautaIntegradora);
 router.delete("/integradora/:evaluacionIntegradoraId", authMiddleware, deletePautaIntegradora);
 
+// Ruta genérica al final
+router.get("/:id", authMiddleware, getPautaById);
 router.patch("/:id", authMiddleware, updatePauta);
 router.delete("/:id", authMiddleware, deletePauta);
 

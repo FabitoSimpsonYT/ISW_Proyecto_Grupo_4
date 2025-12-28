@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import cookies from 'js-cookie';
+import socketService from '../services/socket.service';
 
 const AuthContext = createContext();
 
@@ -15,7 +16,11 @@ export const AuthProvider = ({ children }) => {
       try {
         const decoded = jwtDecode(token);
         if (decoded.exp * 1000 > Date.now()) {
-          setUser(JSON.parse(storedUser));
+          const userData = JSON.parse(storedUser);
+          setUser(userData);
+          
+          // Conectar socket con el usuario autenticado
+          socketService.connect(token, userData);
         } else {
           cookies.remove('jwt-auth');
           sessionStorage.removeItem('usuario');

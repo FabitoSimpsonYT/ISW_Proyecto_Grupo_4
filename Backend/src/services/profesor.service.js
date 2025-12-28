@@ -77,6 +77,20 @@ export async function getProfesorById(id) {
   return profesor;
 }
 
+export async function getProfesorByRut(rut) {
+  const profesor = await profesorRepository.findOne({
+    where: { user: { rut } },
+    relations: ["user"]
+  });
+
+  if (!profesor) {
+    throw new NotFoundError("Profesor no encontrado");
+  }
+
+  delete profesor.user.password;
+  return profesor;
+}
+
 
 
 export async function updateProfesor(id, profesorData) {

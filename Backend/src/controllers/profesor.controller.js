@@ -4,6 +4,7 @@ import {
     createProfesor,
     getAllProfesores,
     getProfesorById,
+    getProfesorByRut,
     updateProfesor,
     deleteProfesor
 } from "../services/profesor.service.js";
@@ -28,7 +29,7 @@ export async function getProfesorByIdHandler(req, res) {
         const userId = req.user.id;
         let id;
 
-        if (userRole === "admin" && req.params.id) {
+        if (req.params.id) {
             id = req.params.id;
         } else {
             id = userId;
@@ -49,6 +50,24 @@ export async function getProfesorByIdHandler(req, res) {
             return res.status(404).json({ message: error.message });
         }
         console.error("Error al obtener profesor", error);
+        res.status(500).json({ message: "Error al obtener profesor." });
+    }
+}
+
+export async function getProfesorByRutHandler(req, res) {
+    try {
+        const { rut } = req.params;
+        const profesor = await getProfesorByRut(rut);
+
+        res.status(200).json({ 
+            message: "Profesor encontrado", 
+            data: profesor 
+        });
+    } catch (error) {
+        if (error instanceof NotFoundError) {
+            return res.status(404).json({ message: error.message });
+        }
+        console.error("Error al obtener profesor por RUT", error);
         res.status(500).json({ message: "Error al obtener profesor." });
     }
 }

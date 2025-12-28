@@ -1,0 +1,140 @@
+/* NotificacionRetroalimentacion.css */
+
+.notificacion-retroalimentacion {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: white;
+  border-left: 4px solid #1e5a8e;
+  border-radius: 8px;
+  padding: 16px;
+  max-width: 380px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  gap: 12px;
+  cursor: pointer;
+  animation: slideInRight 0.3s ease;
+  z-index: 2000;
+  transition: all 0.3s ease;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(400px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.notificacion-retroalimentacion:hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+}
+
+.notificacion-retroalimentacion.profesor {
+  border-left-color: #d32f2f;
+}
+
+.notificacion-retroalimentacion.alumno {
+  border-left-color: #1e5a8e;
+}
+
+.notificacion-icono {
+  font-size: 24px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notificacion-contenido {
+  flex: 1;
+  min-width: 0;
+}
+
+.notificacion-titulo {
+  margin: 0 0 6px 0;
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+}
+
+.notificacion-evaluacion {
+  margin: 0 0 4px 0;
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+}
+
+.notificacion-ramo {
+  margin: 0;
+  font-size: 12px;
+  color: #999;
+}
+
+.notificacion-cerrar {
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: color 0.2s;
+}
+
+.notificacion-cerrar:hover {
+  color: #333;
+}
+
+/* Animación de salida */
+@keyframes slideOutRight {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(400px);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .notificacion-retroalimentacion {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .notificacion-retroalimentacion {
+    padding: 12px;
+  }
+
+  .notificacion-icono {
+    font-size: 20px;
+  }
+
+  .notificacion-titulo {
+    font-size: 13px;
+  }
+
+  .notificacion-evaluacion {
+    font-size: 12px;
+  }
+
+  .notificacion-ramo {
+    font-size: 11px;
+  }
+}

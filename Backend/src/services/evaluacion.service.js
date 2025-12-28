@@ -22,6 +22,7 @@ export async function getAllEvaluacionesService(user) {
     return await evaluacionRepository.find({
       where: { pautaPublicada: true },
       select: [
+        "id",
         "titulo",
         "fechaProgramada",
         "horaInicio",
@@ -30,6 +31,7 @@ export async function getAllEvaluacionesService(user) {
         "estado",
         "aplicada",
         "pautaPublicada",
+        "idPauta",
       ],
       order: { fechaProgramada: "DESC" },
     });
@@ -57,6 +59,7 @@ export async function getEvaluacionByIdService(id, user){
     if (!evaluacion) return null;
     if (!evaluacion.pautaPublicada) return null;
     return {
+      id: evaluacion.id,
       titulo: evaluacion.titulo,
       fechaProgramada: evaluacion.fechaProgramada,
       horaInicio: evaluacion.horaInicio,
@@ -65,6 +68,7 @@ export async function getEvaluacionByIdService(id, user){
       aplicada: evaluacion.aplicada,
       estado: evaluacion.estado,
       pautaPublicada: evaluacion.pautaPublicada,
+      idPauta: evaluacion.idPauta,
     };
   }
 
@@ -100,6 +104,7 @@ export async function getEvaluacionesByCodigoRamoService(codigoRamo, user) {
       aplicada: evaluacion.aplicada,
       estado: evaluacion.estado,
       pautaPublicada: evaluacion.pautaPublicada,
+      idPauta: evaluacion.idPauta,
     }));
   }
 

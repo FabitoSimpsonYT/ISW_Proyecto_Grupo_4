@@ -45,7 +45,7 @@ router.get("/alumnos",
 
 // Obtener alumnos inscritos en una sección
 router.get("/alumnos/:codigoRamo/:numero", 
-  checkRole(["profesor", "jefecarrera", "admin"]),
+  checkRole(["profesor", "jefecarrera", "admin", "alumno"]),
   getAlumnosBySeccion
 );
 
