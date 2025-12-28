@@ -67,6 +67,25 @@ export const editarApelacion = async (id, formData) => {
 };
 
 
+export const getEvaluacionesDisponibles = async () => {
+  try {
+    const res = await fetch(`${API_URL}/EvaluacionDisponible`, {
+      method: "GET",
+      headers: authHeaders(),
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data?.message || "Error al obtener evaluaciones disponibles");
+    }
+
+    return await res.json();
+  } catch (err) {
+    console.error("Error obteniendo evaluaciones disponibles:", err);
+    return { data: [] }; // devuelvo un arreglo vacío si falla
+  }
+};
+
 
 // ---------------------------------------------------------
 // Ver apelaciones como profesor

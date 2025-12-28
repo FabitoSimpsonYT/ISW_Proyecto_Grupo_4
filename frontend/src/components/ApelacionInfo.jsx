@@ -5,7 +5,6 @@ export default function ApelacionInfo({ apelacion }) {
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
-  // URL REAL al archivo vía endpoint seguro
   const fileUrl = apelacion.archivo
     ? `${API_URL}/api/apelaciones/${apelacion.id}/archivo`
     : null;
@@ -16,14 +15,6 @@ export default function ApelacionInfo({ apelacion }) {
 
   return (
     <div>
-      <p><strong>Enviado por:</strong> {apelacion.alumno?.email}</p>
-      <p><strong>Tipo:</strong> {apelacion.tipo}</p>
-      <p><strong>Estado actual:</strong> {apelacion.estado}</p>
-
-      <hr className="my-4" />
-
-      <p className="text-lg font-semibold">Mensaje del alumno:</p>
-      <p className="bg-[#f2f7ff] p-4 rounded border mt-2">{apelacion.mensaje}</p>
 
       {/* ARCHIVO ADJUNTO */}
       {fileUrl && (

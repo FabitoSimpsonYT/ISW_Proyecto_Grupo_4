@@ -17,6 +17,7 @@ import apelacionesRoutes from "./apelacion.routes.js";
 import inscripcionesRoutes from "./inscripciones.routes.js";
 import bloqueoRoutes from "./bloqueo.routes.js";
 import slotRoutes from "./slot.routes.js";
+import devRoutes from "./dev.routes.js";
 import alumnoPromedioRamoRoutes from "./alumnoPromedioRamo.routes.js";
 import evaluacionIntegradoraRoutes from "./evaluacionIntegradora.routes.js";
 import retroalimentacionRoutes from "./retroalimentacion.routes.js";
@@ -47,6 +48,8 @@ export function routerApi(app) {
   router.use("/inscripciones", inscripcionesRoutes);
   router.use("/bloqueos", bloqueoRoutes);
   router.use("/slots", slotRoutes);
+  // Rutas de desarrollo solo disponibles en entorno development
+  router.use("/dev", devRoutes);
   router.use("/promedios", alumnoPromedioRamoRoutes);
   router.use("/evaluacion-integradora", evaluacionIntegradoraRoutes);
   router.use("/retroalimentacion", retroalimentacionRoutes);

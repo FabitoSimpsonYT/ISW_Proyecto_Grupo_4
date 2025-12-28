@@ -116,6 +116,9 @@ export default function CalendarioAlumno() {
 
   useEffect(() => {
     cargarDatos();
+    const recargar = () => { cargarDatos(); };
+    window.addEventListener('bloqueosUpdated', recargar);
+    return () => window.removeEventListener('bloqueosUpdated', recargar);
   }, []);
 
   const mostrarEventosDelDia = (dia) => {

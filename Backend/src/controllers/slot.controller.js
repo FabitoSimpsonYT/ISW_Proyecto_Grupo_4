@@ -179,18 +179,51 @@ export const inscribirSlot = async (req, res) => {
 
     if (!alumnoId) return res.status(401).json({ success: false, message: 'No autorizado' });
 
-    const slotRes = await client.query('SELECT * FROM slots WHERE id = $1', [slotId]);
-    if (slotRes.rows.length === 0) return res.status(404).json({ success: false, message: 'Slot no encontrado' });
+    await client.query('BEGIN');
+
+    // Lock the slot row to avoid race conditions
+    const slotRes = await client.query('SELECT * FROM slots WHERE id = $1 FOR UPDATE', [slotId]);
+    if (slotRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Slot no encontrado' });
+    }
     const slot = slotRes.rows[0];
 
-    if (!slot.disponible) return res.status(400).json({ success: false, message: 'Slot no disponible' });
-    // assign
+    if (!slot.disponible) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ success: false, message: 'Slot no disponible' });
+    }
+
+    // Verificar que el alumno no esté ya inscrito en otro slot de la misma evaluación/evento
+    const existeInscrito = await client.query(
+      `SELECT 1 FROM slots WHERE evento_id = $1 AND alumno_id = $2 LIMIT 1`,
+      [slot.evento_id, alumnoId]
+    );
+    if (existeInscrito.rows.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ success: false, message: 'Ya estás inscrito(a) en un slot de esta evaluación' });
+    }
+
     const result = await client.query(
       `UPDATE slots SET alumno_id = $1, disponible = false WHERE id = $2 RETURNING *`,
       [alumnoId, slotId]
     );
-    return res.json({ success: true, message: 'Inscrito en el slot correctamente', data: result.rows[0] });
+
+    await client.query('COMMIT');
+
+    const assigned = result.rows[0];
+
+    return res.json({
+      success: true,
+      message: 'Inscripción aceptada',
+      data: {
+        slot: assigned,
+        horario: { inicio: assigned.fecha_hora_inicio, fin: assigned.fecha_hora_fin },
+        evento_id: assigned.evento_id
+      }
+    });
   } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (e) {}
     console.error('Error inscribirSlot:', error);
     return res.status(500).json({ success: false, message: error.message });
   } finally {

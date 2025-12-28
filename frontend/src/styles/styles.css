@@ -14,7 +14,7 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #d5e8f6 0%, #e9f7fb 100%);
   min-height: 100vh;
 }
 
@@ -40,7 +40,7 @@ body {
 
 .profile-button {
   padding: 12px 30px;
-  background: #667eea;
+  background: #d5e8f6;
   color: white;
   border: none;
   border-radius: 5px;
@@ -51,7 +51,7 @@ body {
 }
 
 .profile-button:hover {
-  background: #5568d3;
+  background: #e9f7fb;
 }
 
 .profile-data {
@@ -80,7 +80,7 @@ body {
 
 .error-container h1 {
   font-size: 6rem;
-  color: #667eea;
+  color: #e9f7fb;
   margin-bottom: 20px;
 }
 
@@ -97,7 +97,7 @@ body {
 .btn-home {
   display: inline-block;
   padding: 12px 30px;
-  background: #667eea;
+  background: #e9f7fb;
   color: white;
   text-decoration: none;
   border-radius: 5px;
@@ -105,5 +105,5 @@ body {
 }
 
 .btn-home:hover {
-  background: #5568d3;
+  background: #e9f7fb;
 }

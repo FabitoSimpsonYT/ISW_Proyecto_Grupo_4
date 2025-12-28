@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
-import { useRef } from "react";
-
+import { useState, useEffect, useRef } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { getEvaluacionesDisponibles } from "../services/apelaciones.service";
 
 export default function FormularioApelacion({
   modo,
@@ -14,6 +14,7 @@ export default function FormularioApelacion({
   const esProfesor = modo === "responder";
   const fileInputRef = useRef(null);
 
+  const navigate = useNavigate();
 
   const [profesorCorreo, setProfesorCorreo] = useState("");
   const [tipo, setTipo] = useState("");
@@ -21,67 +22,116 @@ export default function FormularioApelacion({
   const [mensaje, setMensaje] = useState("");
   const [archivo, setArchivo] = useState(null);
   const [archivoExistente, setArchivoExistente] = useState(null);
-
   const [removeArchivo, setRemoveArchivo] = useState(false);
+
+  const [evaluaciones, setEvaluaciones] = useState([]);
+  const [pautaSeleccionada, setPautaSeleccionada] = useState("");
 
   const [estado, setEstado] = useState("");
   const [respuestaDocente, setRespuestaDocente] = useState("");
   const [fechaCitacion, setFechaCitacion] = useState("");
 
   const [apelacionCreada, setApelacionCreada] = useState(false);
+  const rutaCancelar = esProfesor ? "/apelaciones-profesor" : "/apelaciones/mis";
+
 
   const apelacionResuelta =
-  esProfesor &&
-  (apelacionInicial?.estado === "aceptada" ||
-   apelacionInicial?.estado === "rechazada");
+    esProfesor &&
+    (apelacionInicial?.estado === "aceptada" ||
+      apelacionInicial?.estado === "rechazada");
 
-
+  // Inicializar campos desde apelacionInicial
+// 1️⃣ Inicializar campos desde apelacionInicial
 useEffect(() => {
   if (!apelacionInicial) return;
+
+    console.log(
+    "pautaEvaluada en apelacionInicial:",
+    apelacionInicial.pautaEvaluada
+  );
 
   setProfesorCorreo(apelacionInicial.profesor?.email || "");
   setTipo(apelacionInicial.tipo || "");
   setSubtipoInasistencia(apelacionInicial.subtipoInasistencia || "");
   setMensaje(apelacionInicial.mensaje || "");
-
   setEstado(apelacionInicial.estado || "");
   setRespuestaDocente(apelacionInicial.respuestaDocente || "");
-
+  setArchivoExistente(apelacionInicial.archivo || null);
   if (apelacionInicial.fechaCitacion) {
     setFechaCitacion(apelacionInicial.fechaCitacion.slice(0, 16));
   }
-
-  setArchivoExistente(apelacionInicial.archivo || null);
-  setRemoveArchivo(false); 
+  setRemoveArchivo(false);
 }, [apelacionInicial]);
+
+   useEffect(() => {
+  if (tipo === "evaluacion" && (esCrear || esEditar)) {
+    getEvaluacionesDisponibles()
+      .then((res) => {
+        let evs = res.data || [];
+
+        if (
+          esEditar &&
+          apelacionInicial?.pautaEvaluada &&
+          !evs.some(ev => ev.id === apelacionInicial.pautaEvaluada.id)
+        ) {
+          evs = [
+            apelacionInicial.pautaEvaluada,
+            ...evs,
+          ];
+        }
+
+        setEvaluaciones(evs);
+      })
+      .catch((err) =>
+        console.error("Error cargando evaluaciones:", err)
+      );
+  }
+}, [tipo, esCrear, esEditar, apelacionInicial]);
+
+
+    useEffect(() => {
+  if (
+    esEditar &&
+    apelacionInicial?.pautaEvaluada?.id &&
+    evaluaciones.length > 0
+  ) {
+    setPautaSeleccionada(
+      String(apelacionInicial.pautaEvaluada.id)
+    );
+  }
+}, [esEditar, apelacionInicial, evaluaciones]);
+
 
 
   const requiereCitacion =
     tipo === "inasistencia" && subtipoInasistencia === "evaluacion";
 
-  // variable para ocultar boton de guardar
-
   const fechaActual = Date.now();
   const fechaCitacionDate = new Date(fechaCitacion).getTime();
   const Veinticuatro_Horas = 24 * 60 * 60 * 1000;
-  var puedeGuardar = fechaCitacionDate - fechaActual > Veinticuatro_Horas;
-  if(fechaCitacion === "") puedeGuardar = true;
-  
-  var mensaje_guardar = "No puedes moficiar la apelación porque el plazo ha finalizado.";
+  let puedeGuardar = fechaCitacionDate - fechaActual > Veinticuatro_Horas;
+  if (fechaCitacion === "") puedeGuardar = true;
 
-  //Si fechaCitacion es Aceptada-Rechazada No puede guardar
-  if(estado === "aceptada" || estado === "rechazada") {
+  let mensaje_guardar =
+    "No puedes moficiar la apelación porque el plazo ha finalizado.";
+
+  if (estado === "aceptada" || estado === "rechazada") {
     puedeGuardar = false;
-    mensaje_guardar = "No puedes editar la apelacion porque la apelación ya fue resuelta.";
+    mensaje_guardar =
+      "No puedes editar la apelacion porque la apelación ya fue resuelta.";
   }
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // ================== ALUMNO ==================
     if (esAlumno) {
       if (!mensaje.trim()) {
         alert("El mensaje es obligatorio.");
+        return;
+      }
+
+      if (tipo === "evaluacion" && !pautaSeleccionada) {
+        alert("Debes seleccionar la evaluación por la que estás apelando.");
         return;
       }
 
@@ -92,12 +142,16 @@ useEffect(() => {
         if (tipo === "inasistencia" && subtipoInasistencia) {
           formData.append("subtipoInasistencia", subtipoInasistencia);
         }
+      } if (tipo === "evaluacion") {
+          formData.append("pautaEvaluadaId", pautaSeleccionada);
       }
 
       formData.append("mensaje", mensaje.trim());
       formData.append("profesorCorreo", profesorCorreo.trim());
 
-      if (archivo) formData.append("archivo", archivo);
+      if (archivo && tipo !== "evaluacion") {
+        formData.append("archivo", archivo);
+      }
 
       onSubmit(formData);
 
@@ -105,7 +159,6 @@ useEffect(() => {
       return;
     }
 
-    // ================== PROFESOR ==================
     if (esProfesor) {
       if (!estado) {
         alert("Debes seleccionar un estado.");
@@ -132,7 +185,6 @@ useEffect(() => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-
       {/* CORREO PROFESOR */}
       <div className="border-b border-gray-200 pb-4">
         <label className="block text-sm font-semibold text-gray-600 mb-2">
@@ -183,6 +235,44 @@ useEffect(() => {
         </div>
       )}
 
+      {/* SELECCIONAR EVALUACIÓN */}
+      {tipo === "evaluacion" && (esCrear || esEditar) && (
+        <div className="border-b border-gray-200 pb-4">
+          <label className="block text-sm font-semibold text-gray-600 mb-2">
+            Selecciona la evaluación a apelar
+          </label>
+          <select
+            className="w-full p-3 rounded-lg border border-gray-300 bg-gray-50"
+            value={pautaSeleccionada}
+            onChange={(e) => setPautaSeleccionada(e.target.value)}
+          >
+            <option value="">-- Selecciona --</option>
+            {evaluaciones.map((ev) => (
+              <option key={ev.id} value={String(ev.id)}>
+                {ev.codigoRamo} - Nota: {ev.notaFinal}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* EVALUACIÓN (SOLO LECTURA PARA PROFESOR) */}
+      {tipo === "evaluacion" && esProfesor && apelacionInicial?.pautaEvaluada && (
+        <div className="border-b border-gray-200 pb-4">
+          <label className="block text-sm font-semibold text-gray-600 mb-2">
+            Evaluación apelada
+          </label>
+
+          <input
+            type="text"
+            disabled
+            className="w-full p-3 rounded-lg border border-gray-300 bg-gray-100 text-gray-700 cursor-not-allowed"
+            value={`${apelacionInicial.pautaEvaluada.codigoRamo} - Nota: ${apelacionInicial.pautaEvaluada.notaFinal}`}
+          />
+        </div>
+      )}
+
+
       {/* MENSAJE ALUMNO */}
       <div className="border-b border-gray-200 pb-4">
         <label className="block text-sm font-semibold text-gray-600 mb-2">
@@ -197,13 +287,12 @@ useEffect(() => {
       </div>
 
       {/* ARCHIVO */}
-      {esAlumno && (
+      {esAlumno && tipo !== "evaluacion" && (
         <div className="pb-4 space-y-2">
           <label className="block text-sm font-semibold text-gray-600">
             Archivo adjunto
           </label>
 
-          {/* INPUT FILE OCULTO */}
           <input
             type="file"
             ref={fileInputRef}
@@ -211,7 +300,6 @@ useEffect(() => {
             onChange={(e) => setArchivo(e.target.files[0])}
           />
 
-          {/* ARCHIVO EXISTENTE */}
           {archivoExistente && !archivo && !removeArchivo && (
             <div
               className="bg-blue-50 border border-blue-200 text-blue-700 text-sm p-3 rounded space-y-2 cursor-pointer hover:bg-blue-100 transition"
@@ -238,7 +326,6 @@ useEffect(() => {
             </div>
           )}
 
-          {/* AVISO DE ELIMINACIÓN */}
           {removeArchivo && (
             <div className="bg-red-50 border border-red-200 text-red-700 text-sm p-3 rounded">
               ⚠️ El archivo será eliminado al guardar.
@@ -252,7 +339,6 @@ useEffect(() => {
             </div>
           )}
 
-          {/* SUBIR ARCHIVO NUEVO (CUANDO NO HAY EXISTENTE) */}
           {!archivoExistente && !removeArchivo && (
             <div
               className="border border-dashed border-gray-300 text-gray-600 text-sm p-3 rounded cursor-pointer hover:bg-gray-50"
@@ -262,14 +348,12 @@ useEffect(() => {
             </div>
           )}
 
-          {/* AVISO DE REEMPLAZO */}
           {archivo && archivoExistente && (
             <p className="text-xs text-orange-600">
               ⚠️ El archivo actual será reemplazado.
             </p>
           )}
 
-          {/* ARCHIVO SELECCIONADO */}
           {archivo && (
             <p className="text-xs text-green-700">
               Archivo seleccionado: <strong>{archivo.name}</strong>
@@ -278,12 +362,9 @@ useEffect(() => {
         </div>
       )}
 
-
-
-      {/* ================== ESTADO Y RESPUESTA PROFESOR ================== */}
+      {/* PROFESOR */}
       {esProfesor && (
         <>
-          {/* ESTADO */}
           <div className="border-b border-gray-200 pb-4">
             <label className="block text-sm font-semibold text-gray-600 mb-2">
               Estado
@@ -302,7 +383,6 @@ useEffect(() => {
             </select>
           </div>
 
-          {/* RESPUESTA DOCENTE */}
           <div className="border-b border-gray-200 pb-4">
             <label className="block text-sm font-semibold text-gray-600 mb-2">
               Respuesta del Docente
@@ -315,7 +395,6 @@ useEffect(() => {
             />
           </div>
 
-          {/* FECHA DE CITACIÓN */}
           {estado === "cita" && (
             <div className="border-b border-gray-200 pb-4">
               <label className="block text-sm font-semibold text-gray-600 mb-2">
@@ -331,9 +410,7 @@ useEffect(() => {
           )}
         </>
       )}
-
-      {/* BOTÓN */}
-      <div className="flex justify-end pt-6">
+      <div className="flex items-center justify-between">
         {puedeGuardar ? (
           <button
             type="submit"
@@ -343,9 +420,7 @@ useEffect(() => {
             {esAlumno ? "Guardar" : "Guardar Respuesta"}
           </button>
         ) : (
-          <p className="text-red-600 font-semibold">
-            {mensaje_guardar}
-          </p>
+          <p className="text-red-600 font-semibold">{mensaje_guardar}</p>
         )}
       </div>
     </form>
