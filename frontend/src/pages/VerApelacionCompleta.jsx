@@ -70,12 +70,9 @@ export default function VerApelacionCompleta() {
         </div>
 
         {/* CARD */}
-        <div className="bg-white rounded-b-2xl shadow-xl p-8 space-y-8">
+        <div className="bg-white rounded-b-2xl shadow-xl p-8 space-y">
           {/* INFO */}
           <section>
-            <h2 className="text-xl font-semibold mb-4">
-              Información de la apelación
-            </h2>
             <ApelacionInfo apelacion={apelacion} />
           </section>
 

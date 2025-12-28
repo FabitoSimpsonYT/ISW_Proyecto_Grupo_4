@@ -2,13 +2,14 @@ import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { isAlumno, isProfesor, isAdmin } from "../middleware/authorization.middleware.js";
 import { validateRequest } from "../middleware/validation.middleware.js";
-import { createApelacion, getApelacionPorId, getMisApelaciones, deleteApelacion, getAllApelaciones, descargarArchivo, getApelacionesDelProfesor, updateEstadoApelacion, getApelacionesPorEstado, editarApelacionAlumno} from "../controllers/apelacion.controller.js";
+import { createApelacion, getApelacionPorId, getMisApelaciones, deleteApelacion, getAllApelaciones, descargarArchivo, getApelacionesDelProfesor, updateEstadoApelacion, getApelacionesPorEstado, editarApelacionAlumno, getEvaluacionesDisponibles} from "../controllers/apelacion.controller.js";
 import { createApelacionValidation, updateEstadoValidation } from "../validations/apelacion.validation.js";
 import { uploadSingleFile, handleFileUploadErrors } from "../middleware/subirArchivo.middleware.js";
 
 const router = Router();
 
 router.post( "/", authMiddleware, isAlumno, uploadSingleFile("archivo"), handleFileUploadErrors, validateRequest(createApelacionValidation), createApelacion);
+router.get("/EvaluacionDisponible", authMiddleware, isAlumno, getEvaluacionesDisponibles);
 
 router.get("/estado/:estado", authMiddleware, (req, res, next) => {
   const role = req.user?.role;

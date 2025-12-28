@@ -6,8 +6,6 @@ import { useNavbar } from "../context/NavbarContext";
 export default function MisApelaciones() {
   const [apelaciones, setApelaciones] = useState(null);
   const [expandedRows, setExpandedRows] = useState({});
-  const [editingId, setEditingId] = useState(null);
-  const [editMensaje, setEditMensaje] = useState("");
   const { isNavbarOpen } = useNavbar();
   const navigate = useNavigate();
 
@@ -37,27 +35,6 @@ export default function MisApelaciones() {
     return horasRestantes >= 24;
   };
 
-  const handleEditar = (apelacion) => {
-    setEditingId(apelacion.id);
-    setEditMensaje(apelacion.mensaje);
-  };
-
-  const handleCancelarEdicion = () => {
-    setEditingId(null);
-    setEditMensaje("");
-  };
-
-  const handleGuardarEdicion = async (id) => {
-    // Aquí llamarías al servicio para actualizar
-    console.log("Guardar edición:", id, editMensaje);
-    // TODO: implementar servicio de actualización
-    setEditingId(null);
-  };
-
-  const irAEditar = (apelacion) => {
-  if (!puedeEditarApelacion(apelacion)) return;
-  navigate(`/apelaciones/${apelacion.id}/editar`);
-};
 
 
   if (apelaciones === null)

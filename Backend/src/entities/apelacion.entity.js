@@ -1,6 +1,7 @@
 "use strict";
 import { EntitySchema } from "typeorm";
 import { User } from "./user.entity.js";
+import { PautaEvaluada } from "./pautaEvaluada.entity.js";
 
 export const Apelacion = new EntitySchema({
   name: "Apelacion",
@@ -70,6 +71,13 @@ export const Apelacion = new EntitySchema({
       joinColumn: { name: "profesorId" },
       eager: true,
       nullable: false,
+    },
+    pautaEvaluada: {
+      type: "many-to-one",
+      target: PautaEvaluada,
+      joinColumn: { name: "pautaEvaluadaId" },
+      nullable: true,
+      onDelete: "SET NULL",
     },
   },
 });
