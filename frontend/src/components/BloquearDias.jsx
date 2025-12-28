@@ -1,41 +1,6 @@
 import { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
-
-// Simulación de servicios
-const getBloqueos = async () => {
-  return {
-    data: [
-      {
-        id: 1,
-        fecha_inicio: '2025-02-01',
-        fecha_fin: '2025-02-07',
-        razon: 'Semana de receso',
-        created_by: 1,
-        creador: { nombres: 'María', apellidoPaterno: 'González' },
-        created_at: '2025-01-01T10:00:00'
-      }
-    ]
-  };
-};
-
-const crearBloqueo = async (data) => {
-  console.log('Creando bloqueo:', data);
-  await new Promise(resolve => setTimeout(resolve, 500));
-  return { 
-    success: true, 
-    data: { 
-      id: Date.now(), 
-      ...data,
-      created_at: new Date().toISOString()
-    } 
-  };
-};
-
-const eliminarBloqueo = async (id) => {
-  console.log('Eliminando bloqueo:', id);
-  await new Promise(resolve => setTimeout(resolve, 500));
-  return { success: true };
-};
+import { getBloqueos, crearBloqueo, eliminarBloqueo } from '../services/bloqueo.service.js';
 
 export default function BloquearDias() {
   const [bloqueos, setBloqueos] = useState([]);
@@ -108,10 +73,16 @@ export default function BloquearDias() {
 
     if (!result.isConfirmed) return;
 
+    // Transformar a snake_case para el backend
+    const payload = {
+      fecha_inicio: formData.fechaInicio,
+      fecha_fin: formData.fechaFin,
+      razon: formData.razon
+    };
+
     try {
       setLoading(true);
-      await crearBloqueo(formData);
-      
+      await crearBloqueo(payload);
       Swal.fire({
         title: '¡Bloqueo creado!',
         html: `
@@ -128,6 +99,7 @@ export default function BloquearDias() {
       setFormData({ fechaInicio: '', fechaFin: '', razon: '' });
       setModoEdicion(false);
       cargarBloqueos();
+      window.dispatchEvent(new Event('bloqueosUpdated'));
     } catch (err) {
       Swal.fire('Error', err.message || 'No se pudo crear el bloqueo', 'error');
     } finally {
@@ -166,6 +138,7 @@ export default function BloquearDias() {
       
       Swal.fire('¡Eliminado!', 'El bloqueo ha sido removido', 'success');
       cargarBloqueos();
+      window.dispatchEvent(new Event('bloqueosUpdated'));
     } catch (err) {
       Swal.fire('Error', err.message || 'No se pudo eliminar el bloqueo', 'error');
     } finally {
@@ -173,8 +146,12 @@ export default function BloquearDias() {
     }
   };
 
+  // Formatea fechas robustamente, acepta Date o string
   const formatearFecha = (fecha) => {
-    return new Date(fecha + 'T00:00:00').toLocaleDateString('es-CL', {
+    if (!fecha) return '';
+    let d = fecha instanceof Date ? fecha : new Date(fecha);
+    if (isNaN(d)) return '';
+    return d.toLocaleDateString('es-CL', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
@@ -182,9 +159,12 @@ export default function BloquearDias() {
     });
   };
 
+  // Calcula días entre dos fechas, robusto
   const getDiasBloqueo = (inicio, fin) => {
-    const start = new Date(inicio + 'T00:00:00');
-    const end = new Date(fin + 'T00:00:00');
+    if (!inicio || !fin) return 0;
+    let start = inicio instanceof Date ? inicio : new Date(inicio);
+    let end = fin instanceof Date ? fin : new Date(fin);
+    if (isNaN(start) || isNaN(end)) return 0;
     const diff = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
     return diff;
   };

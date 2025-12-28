@@ -17,6 +17,7 @@ import apelacionesRoutes from "./apelacion.routes.js";
 import inscripcionesRoutes from "./inscripciones.routes.js";
 import bloqueoRoutes from "./bloqueo.routes.js";
 import slotRoutes from "./slot.routes.js";
+import devRoutes from "./dev.routes.js";
 export function routerApi(app) {
   const router = Router();
   app.use("/api", router);
@@ -39,4 +40,6 @@ export function routerApi(app) {
   router.use("/inscripciones", inscripcionesRoutes);
   router.use("/bloqueos", bloqueoRoutes);
   router.use("/slots", slotRoutes);
+  // Rutas de desarrollo solo disponibles en entorno development
+  router.use("/dev", devRoutes);
 }

@@ -188,6 +188,7 @@ class EventoController {
   obtenerEventosAlumno = async (req, res) => {
     try {
       const alumnoId = req.user.id;
+      const alumnoRut = req.user?.rut || null;
 
       const result = await query(
         `SELECT e.*, t.nombre as tipo_nombre, t.color, r.codigo AS ramo_codigo, r.nombre AS ramo_nombre, s.numero AS seccion_numero,
@@ -197,19 +198,19 @@ class EventoController {
          LEFT JOIN ramos r ON e.ramo_id = r.id
          LEFT JOIN secciones s ON e.seccion_id = s.id
          JOIN seccion_alumnos sa ON sa.seccion_id = e.seccion_id
-         WHERE sa.alumno_id = $1
+         WHERE (sa.alumno_id = $1 OR EXISTS(SELECT 1 FROM users u WHERE u.rut = $2 AND u.id = sa.alumno_id))
          ORDER BY e.fecha_inicio ASC`,
-        [alumnoId]
+        [alumnoId, alumnoRut]
       );
 
-      // Filtrar eventos: 
-      // - Si es tipo 'escrita' o sin tipo_evaluacion: mostrar siempre (inscritos automáticamente)
-      // - Si es tipo 'slots': mostrar solo si alumno_inscrito = true
+      // Filtrar eventos:
+      // - Si el evento tiene `duracion_por_alumno` (evaluación por slots): mostrar solo si alumno_inscrito = true
+      // - En caso contrario (evaluación escrita/u otro): mostrar siempre
       const eventosFiltrados = result.rows.filter(e => {
-        if (e.tipo_evaluacion === 'slots') {
+        if (e.duracion_por_alumno && Number(e.duracion_por_alumno) > 0) {
           return e.alumno_inscrito === true;
         }
-        return true; // Evaluaciones escritas siempre se muestran
+        return true;
       });
 
       res.json({
@@ -226,7 +227,26 @@ class EventoController {
   obtenerEventosDisponiblesSlots = async (req, res) => {
     try {
       const alumnoId = req.user.id;
+      const alumnoRut = req.user?.rut || null;
 
+      const isDev = process.env.NODE_ENV === 'development';
+
+      // En development permitimos ver evaluaciones por slots aunque el alumno no esté en la sección
+      if (isDev) {
+        const q = `SELECT e.*, t.nombre as tipo_nombre, t.color, r.codigo AS ramo_codigo, r.nombre AS ramo_nombre, s.numero AS seccion_numero,
+                    CASE WHEN EXISTS(SELECT 1 FROM slots WHERE evento_id = e.id AND alumno_id = $1) THEN true ELSE false END as alumno_inscrito
+                   FROM eventos e
+                   JOIN tipos_eventos t ON e.tipo_evento_id = t.id
+                   LEFT JOIN ramos r ON e.ramo_id = r.id
+                   LEFT JOIN secciones s ON e.seccion_id = s.id
+                   WHERE e.duracion_por_alumno IS NOT NULL AND e.duracion_por_alumno > 0 AND NOT EXISTS(SELECT 1 FROM slots WHERE evento_id = e.id AND alumno_id = $1)
+                   ORDER BY e.fecha_inicio ASC`;
+
+        const result = await query(q, [alumnoId]);
+        return res.json({ success: true, data: result.rows, note: 'development bypass: mostrando eventos por slots sin validar sección' });
+      }
+
+      // Modo normal: mostrar solo eventos por slots pertenecientes a las secciones del alumno
       const result = await query(
         `SELECT e.*, t.nombre as tipo_nombre, t.color, r.codigo AS ramo_codigo, r.nombre AS ramo_nombre, s.numero AS seccion_numero,
                 CASE WHEN EXISTS(SELECT 1 FROM slots WHERE evento_id = e.id AND alumno_id = $1) THEN true ELSE false END as alumno_inscrito
@@ -235,9 +255,9 @@ class EventoController {
          LEFT JOIN ramos r ON e.ramo_id = r.id
          LEFT JOIN secciones s ON e.seccion_id = s.id
          JOIN seccion_alumnos sa ON sa.seccion_id = e.seccion_id
-         WHERE sa.alumno_id = $1 AND e.tipo_evaluacion = 'slots' AND NOT EXISTS(SELECT 1 FROM slots WHERE evento_id = e.id AND alumno_id = $1)
+         WHERE (sa.alumno_id = $1 OR EXISTS(SELECT 1 FROM users u WHERE u.rut = $2 AND u.id = sa.alumno_id)) AND e.duracion_por_alumno IS NOT NULL AND e.duracion_por_alumno > 0 AND NOT EXISTS(SELECT 1 FROM slots WHERE evento_id = e.id AND alumno_id = $1)
          ORDER BY e.fecha_inicio ASC`,
-        [alumnoId]
+        [alumnoId, alumnoRut]
       );
 
       res.json({

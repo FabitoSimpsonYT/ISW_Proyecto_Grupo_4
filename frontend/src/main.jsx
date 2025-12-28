@@ -18,6 +18,7 @@ import EvaluarPage from '@pages/EvaluarPage';
 import NotificacionesPage from '@pages/NotificacionesPage';
 import Error404 from '@pages/Error404';
 import Root from '@pages/Root';
+import BloqueoPage from '@pages/BloqueoPage';
 import '@styles/styles.css';
 import ApelacionesProfesor from './pages/ApelacionesProfesor';
 import EditarApelacion from './pages/EditarApelacion';
@@ -44,6 +45,7 @@ const router = createBrowserRouter([
       // MI AGENDA
       { path: '/mi-agenda', element: <MiAgenda /> },
       { path: '/inscribir-evaluaciones', element: <InscribirEvaluaciones /> },
+      { path: '/bloqueos', element: <BloqueoPage /> },
       { path: '/mis-ramos-notas', element: <MisRamosNotasPage /> },
 
       // EVALUACIONES
