@@ -97,11 +97,34 @@ export async function createEvaluacion(req, res) {
       return res.status(400).json({message: error.message});
     }
 
+    // Validar que la suma de ponderaciones no exceda 100
+    const { codigoRamo, ponderacion } = req.body;
+    if (codigoRamo && ponderacion) {
+      try {
+        const { AppDataSource } = await import("../config/configDb.js");
+        const { Evaluacion } = await import("../entities/evaluaciones.entity.js");
+        const evaluacionRepo = AppDataSource.getRepository(Evaluacion);
+        
+        // Obtener todas las evaluaciones del ramo (excluyendo integradoras)
+        const evaluacionesExistentes = await evaluacionRepo.find({
+          where: { codigoRamo }
+        });
+        
+        const sumaPonderaciones = evaluacionesExistentes.reduce((sum, ev) => sum + (ev.ponderacion || 0), 0) + ponderacion;
+        
+        if (sumaPonderaciones > 100) {
+          return handleErrorClient(res, 400, `La suma de ponderaciones no puede exceder 100%. Actualmente sería ${sumaPonderaciones}%`);
+        }
+      } catch (e) {
+        console.error("Error al validar ponderaciones:", e);
+      }
+    }
+
     if (user.role !== "profesor" && user.role !== "jefecarrera") {
       return handleErrorClient(res, 403, "Solo el profesor o jefe de carrera puede crear evaluaciones");
     }
 
-    const { titulo, fechaProgramada, horaInicio, horaFin, ponderacion, contenidos, ramo_id, codigoRamo, puntajeTotal, pautaPublicada } = req.body;
+    const { titulo, fechaProgramada, horaInicio, horaFin, contenidos, ramo_id, puntajeTotal, pautaPublicada } = req.body;
 
     console.log("Creando evaluación con datos:", {
       titulo, fechaProgramada, horaInicio, horaFin, ponderacion, contenidos, ramo_id, codigoRamo, puntajeTotal
@@ -181,8 +204,39 @@ export async function updateEvaluacion(req, res) {
       return  handleErrorClient(res, 403, "Solo el profesor o jefe de carrera puede modificar evaluaciones");
     }
 
-    const { titulo, fechaProgramada, ponderacion, contenidos, pauta, aplicada, puntajeTotal, pautaPublicada } = req.body;
+    const { titulo, fechaProgramada, ponderacion, contenidos, pauta, aplicada, puntajeTotal, pautaPublicada, estado } = req.body;
 
+    // Validar que la suma de ponderaciones no exceda 100 si se está actualizando la ponderación
+    if (ponderacion) {
+      try {
+        const { AppDataSource } = await import("../config/configDb.js");
+        const { Evaluacion } = await import("../entities/evaluaciones.entity.js");
+        const evaluacionRepo = AppDataSource.getRepository(Evaluacion);
+        
+        // Obtener la evaluación actual para conocer su codigoRamo y ponderación actual
+        const evaluacionActual = await evaluacionRepo.findOne({ where: { id: Number(id) } });
+        if (evaluacionActual) {
+          const codigoRamo = evaluacionActual.codigoRamo;
+          
+          // Obtener todas las evaluaciones del ramo (excluyendo la actual)
+          const evaluacionesExistentes = await evaluacionRepo.find({
+            where: { codigoRamo }
+          });
+          
+          const sumaPonderacionesOtras = evaluacionesExistentes
+            .filter(ev => ev.id !== Number(id))
+            .reduce((sum, ev) => sum + (ev.ponderacion || 0), 0);
+          
+          const sumaPonderaciones = sumaPonderacionesOtras + ponderacion;
+          
+          if (sumaPonderaciones > 100) {
+            return handleErrorClient(res, 400, `La suma de ponderaciones no puede exceder 100%. Actualmente sería ${sumaPonderaciones}%`);
+          }
+        }
+      } catch (e) {
+        console.error("Error al validar ponderaciones en update:", e);
+      }
+    }
     
     let wasPublished = false;
     let ramoIdForNotif = null;
@@ -206,6 +260,7 @@ export async function updateEvaluacion(req, res) {
       aplicada,
       puntajeTotal,
       pautaPublicada,
+      estado,
       userId: user.id,
     });
 

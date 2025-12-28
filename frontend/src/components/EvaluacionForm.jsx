@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { createEvaluacion, updateEvaluacion } from "../services/evaluacion.service.js";
+import { createEvaluacion, updateEvaluacion, getEvaluacionesByCodigoRamo } from "../services/evaluacion.service.js";
+import { createEvaluacionIntegradora, updateEvaluacionIntegradora } from "../services/evaluacionIntegradora.service.js";
 import { getAllPautas } from "../services/pauta.service.js";
 
-export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamoFields = false }) {
+export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamoFields = false, isIntegradora = false }) {
     const initialState = {
         titulo: "",
         fechaProgramada: "",
@@ -57,6 +58,7 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
 
     useEffect(() => {
         if (evaluacionEdit) {
+            console.log("Editando evaluación:", evaluacionEdit);
             const next = {
                 ...initialState,
                 ...evaluacionEdit,
@@ -79,19 +81,53 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
             next.ramo_id = ramoId ? String(ramoId) : "";
             next.codigoRamo = codigoRamo ? String(codigoRamo) : "";
 
+            console.log("Estado actualizado:", next);
             setEvaluacion(next);
+            setErrors({});
             return;
         }
 
         if (ramo) {
+            console.log("Nueva evaluación para ramo:", ramo);
             setEvaluacion({
                 ...initialState,
                 ramo_id: ramo?.id ? String(ramo.id) : "",
                 codigoRamo: ramo?.codigo ? String(ramo.codigo) : "",
             });
+            setErrors({});
         }
     }, [evaluacionEdit, ramo]);
 
+
+    /**
+     * Valida que la suma de ponderaciones no exceda 100%
+     */
+    const validarPonderacion = async (codigoRamo, nuevaPonderacion, evaluacionIdActual = null) => {
+        try {
+            if (!codigoRamo || !nuevaPonderacion) return null;
+            
+            const evaluaciones = await getEvaluacionesByCodigoRamo(codigoRamo);
+            
+            // Filtrar evaluaciones integradoras y la evaluación actual (si es update)
+            const evaluacionesNormales = evaluaciones.filter(ev => {
+                const esIntegradora = ev.esIntegradora || ev.evaluacionIntegradoraId;
+                const esActual = evaluacionIdActual && ev.id === evaluacionIdActual;
+                return !esIntegradora && !esActual;
+            });
+            
+            const sumaPonderacionesExistentes = evaluacionesNormales.reduce((sum, ev) => sum + (Number(ev.ponderacion) || 0), 0);
+            const sumaTotalPonderaciones = sumaPonderacionesExistentes + Number(nuevaPonderacion);
+            
+            if (sumaTotalPonderaciones > 100) {
+                return `La suma de ponderaciones no puede exceder 100%. Evaluaciones existentes suman ${sumaPonderacionesExistentes}% + nueva ${nuevaPonderacion}% = ${sumaTotalPonderaciones}%`;
+            }
+            
+            return null;
+        } catch (error) {
+            console.error("Error validando ponderación:", error);
+            return null;
+        }
+    };
     
     const validarEvaluacion = (eval_data) => {
         const err = {};
@@ -147,7 +183,9 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
 
       
         if (eval_data.ponderacion === "" || eval_data.ponderacion === null) {
-            err.ponderacion = "La ponderación es obligatoria";
+            if (!isEditing) {
+                err.ponderacion = "La ponderación es obligatoria";
+            }
         } else if (isNaN(eval_data.ponderacion)) {
             err.ponderacion = "La ponderación debe ser un número";
         } else if (eval_data.ponderacion < 0) {
@@ -158,7 +196,9 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
 
        
         if (!eval_data.contenidos || eval_data.contenidos.trim() === "") {
-            err.contenidos = "El campo contenido es obligatorio";
+            if (!isEditing) {
+                err.contenidos = "El campo contenido es obligatorio";
+            }
         } else if (eval_data.contenidos.trim().length < 10) {
             err.contenidos = "El contenido debe tener al menos 10 caracteres";
         }
@@ -175,7 +215,9 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
 
         
         if (eval_data.puntajeTotal === "" || eval_data.puntajeTotal === null) {
-            err.puntajeTotal = "El puntaje total es obligatorio";
+            if (!isEditing) {
+                err.puntajeTotal = "El puntaje total es obligatorio";
+            }
         } else if (isNaN(eval_data.puntajeTotal)) {
             err.puntajeTotal = "El puntaje total debe ser un número entero";
         } else if (!Number.isInteger(Number(eval_data.puntajeTotal))) {
@@ -245,6 +287,21 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
             return;
         }
 
+        // Validar ponderación si se trata de una evaluación normal
+        if (!isIntegradora && evaluacion.codigoRamo && evaluacion.ponderacion) {
+            const ponderacionError = await validarPonderacion(
+                evaluacion.codigoRamo, 
+                evaluacion.ponderacion,
+                evaluacion.id // pasar el ID si es una actualización
+            );
+            
+            if (ponderacionError) {
+                setError(ponderacionError);
+                setIsLoading(false);
+                return;
+            }
+        }
+
         setErrors({});
         setIsLoading(true);
         try {
@@ -281,12 +338,22 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
 
             if (evaluacion.id) {
                 console.log("Actualizando evaluación...");
-                const updateResult = await updateEvaluacion(evaluacion.id, payload);
+                let updateResult;
+                if (isIntegradora) {
+                    updateResult = await updateEvaluacionIntegradora(evaluacion.id, payload);
+                } else {
+                    updateResult = await updateEvaluacion(evaluacion.id, payload);
+                }
                 console.log("Resultado de actualización:", updateResult);
                 alert("Evaluación actualizada correctamente");
             } else {
                 console.log("Creando nueva evaluación...");
-                const createResult = await createEvaluacion(payload);
+                let createResult;
+                if (isIntegradora) {
+                    createResult = await createEvaluacionIntegradora(ramo?.codigo, payload);
+                } else {
+                    createResult = await createEvaluacion(payload);
+                }
                 console.log("Resultado de creación:", createResult);
                 alert("Evaluación creada correctamente");
             }
@@ -295,7 +362,17 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
             onSaved();
         } catch (error) {
             console.error("Error en handleSubmit:", error);
-            const errorMessage = error?.message || error?.error || "Error al guardar la evaluación";
+            // Extraer el mensaje de error del backend o del objeto de error
+            let errorMessage = "Error al guardar la evaluación";
+            
+            if (error?.message) {
+                errorMessage = error.message;
+            } else if (error?.data?.message) {
+                errorMessage = error.data.message;
+            } else if (typeof error === 'string') {
+                errorMessage = error;
+            }
+            
             setError(errorMessage);
             alert("Error: " + errorMessage);
         } finally {
