@@ -12,6 +12,7 @@ export default function Apelaciones() {
   const [errorMensaje, setErrorMensaje] = useState("");
 
   const handleCrear = async (formData) => {
+    // 🔹 limpiar mensajes anteriores
     setApelacionCreada(false);
     setErrorMensaje("");
 
@@ -47,6 +48,7 @@ export default function Apelaciones() {
     >
       <div className="max-w-4xl mx-auto">
 
+        {/* ENCABEZADO */}
         <div className="bg-gradient-to-r from-[#0E2C66] to-[#1a3f8f] text-white px-8 py-6 rounded-t-2xl shadow-lg">
           <h1 className="text-3xl font-bold">Crear Apelación</h1>
           <p className="text-white/80 mt-1">
@@ -54,11 +56,13 @@ export default function Apelaciones() {
           </p>
         </div>
 
+        {/* CARD */}
         <div className="bg-white rounded-b-2xl shadow-xl p-8">
           <FormularioApelacion
             modo="crear"
             onSubmit={handleCrear}
           />
+        {/* ✅ MENSAJE ÉXITO */}
         {apelacionCreada && (
           <div className="mt-6 bg-green-50 border border-green-200 rounded-xl p-4">
             <p className="text-green-700 font-semibold">
@@ -70,6 +74,7 @@ export default function Apelaciones() {
           </div>
         )}
 
+        {/* ❌ MENSAJE ERROR */}
         {errorMensaje && (
           <div className="mt-6 bg-red-50 border border-red-200 rounded-xl p-4">
             <p className="text-red-700 font-semibold">

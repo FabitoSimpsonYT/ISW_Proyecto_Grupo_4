@@ -12,7 +12,9 @@ export default function ApelacionesProfesor() {
   const { isNavbarOpen } = useNavbar();
   const navigate = useNavigate();
 
-
+  /* ===============================
+     CARGAR APELACIONES
+  =============================== */
   useEffect(() => {
     const cargarApelaciones = async () => {
       try {
@@ -28,7 +30,9 @@ export default function ApelacionesProfesor() {
     cargarApelaciones();
   }, []);
 
-
+  /* ===============================
+     ELIMINAR (pendiente / revisada)
+  =============================== */
   const handleEliminar = async (id) => {
     const confirmar = window.confirm(
       "¿Estás seguro de que deseas eliminar esta apelación?"
@@ -53,12 +57,13 @@ export default function ApelacionesProfesor() {
         isNavbarOpen ? "ml-64" : "ml-0"
       }`}
     >
-
+      {/* TÍTULO */}
       <div className="bg-[#113C63] text-white px-6 py-4 rounded">
         <h2 className="text-3xl font-bold">Bandeja de entrada</h2>
       </div>
 
 
+      {/* TABLA */}
       <div className="mt-6 bg-white shadow-md rounded-lg overflow-hidden mr-8 ml-2">
         <table className="w-full text-left border-collapse">
           <thead>
@@ -110,7 +115,7 @@ export default function ApelacionesProfesor() {
                     index % 2 === 0 ? "bg-[#f4f8ff]" : "bg-white"
                   } hover:bg-[#dbe7ff]`}
                 >
-
+                  {/* TIPO */}
                   <td className="px-4 py-2 border capitalize">
                     {apel.tipo}
                     {apel.subtipoInasistencia && (
@@ -124,11 +129,12 @@ export default function ApelacionesProfesor() {
                     )}
                   </td>
 
-
+                  {/* MENSAJE */}
                   <td className="px-4 py-2 border truncate max-w-[220px]">
                     {apel.mensaje}
                   </td>
 
+                  {/* ESTADO */}
                   <td className={`px-4 py-2 border capitalize ${estadoColor}`}>
                     {estado === "aceptada" && "Aprobada"}
                     {estado === "rechazada" && "Rechazada"}
@@ -143,10 +149,12 @@ export default function ApelacionesProfesor() {
                     )}
                   </td>
 
+                  {/* ALUMNO */}
                   <td className="px-4 py-2 border">
                     {apel.alumno?.email || "Desconocido"}
                   </td>
 
+                  {/* FECHA CREACIÓN */}
                   <td className="px-4 py-2 border">
                     {new Date(apel.creadoEl).toLocaleString("es-CL", {
                       dateStyle: "short",
@@ -161,6 +169,7 @@ export default function ApelacionesProfesor() {
                       })
                     ) : "—"}
                   </td>
+                  {/* CITACIÓN */}
                   <td className="px-4 py-2 border">
                     {apel.fechaCitacion ? (
                       new Date(apel.fechaCitacion).toLocaleString("es-CL", {
@@ -176,6 +185,7 @@ export default function ApelacionesProfesor() {
                     )}
                   </td>
 
+                  {/* ELIMINAR */}
                   <td className="px-2 py-2 border text-center">
                     {puedeEliminar && (
                       <button

@@ -16,12 +16,14 @@ export default function ApelacionInfo({ apelacion }) {
   return (
     <div>
 
+      {/* ARCHIVO ADJUNTO */}
       {fileUrl && (
         <div className="mt-6">
           <p className="font-semibold flex items-center gap-2">
             <span className="text-xl">📎</span> Archivo adjunto:
           </p>
 
+          {/* PREVIEW BOX */}
           <div
             onClick={() => setModalOpen(true)}
             className="mt-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-100 transition shadow-sm w-fit"
@@ -47,6 +49,7 @@ export default function ApelacionInfo({ apelacion }) {
             )}
           </div>
 
+          {/* DESCARGAR */}
           <a
             href={fileUrl}
             download
@@ -57,10 +60,12 @@ export default function ApelacionInfo({ apelacion }) {
         </div>
       )}
 
+      {/* MODAL */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
           <div className="relative bg-white rounded-lg max-w-5xl w-[90%] max-h-[90%] p-6 overflow-auto shadow-xl">
 
+            {/* BOTÓN CERRAR */}
             <button
               onClick={() => setModalOpen(false)}
               className="absolute top-3 right-3 text-gray-600 hover:text-black text-3xl"
@@ -68,6 +73,7 @@ export default function ApelacionInfo({ apelacion }) {
               ✖
             </button>
 
+            {/* CONTENIDO DEL MODAL */}
             {esImagen && (
               <img
                 src={fileUrl}

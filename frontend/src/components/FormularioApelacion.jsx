@@ -40,6 +40,8 @@ export default function FormularioApelacion({
     (apelacionInicial?.estado === "aceptada" ||
       apelacionInicial?.estado === "rechazada");
 
+  // Inicializar campos desde apelacionInicial
+// 1️⃣ Inicializar campos desde apelacionInicial
 useEffect(() => {
   if (!apelacionInicial) return;
 
@@ -183,6 +185,7 @@ useEffect(() => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* CORREO PROFESOR */}
       <div className="border-b border-gray-200 pb-4">
         <label className="block text-sm font-semibold text-gray-600 mb-2">
           Correo del Profesor
@@ -195,6 +198,7 @@ useEffect(() => {
         />
       </div>
 
+      {/* TIPO */}
       <div className="border-b border-gray-200 pb-4">
         <label className="block text-sm font-semibold text-gray-600 mb-2">
           Tipo
@@ -212,6 +216,7 @@ useEffect(() => {
         </select>
       </div>
 
+      {/* SUBTIPO */}
       {tipo === "inasistencia" && (
         <div className="border-b border-gray-200 pb-4">
           <label className="block text-sm font-semibold text-gray-600 mb-2">
@@ -230,6 +235,7 @@ useEffect(() => {
         </div>
       )}
 
+      {/* SELECCIONAR EVALUACIÓN */}
       {tipo === "evaluacion" && (esCrear || esEditar) && (
         <div className="border-b border-gray-200 pb-4">
           <label className="block text-sm font-semibold text-gray-600 mb-2">
@@ -250,6 +256,7 @@ useEffect(() => {
         </div>
       )}
 
+      {/* EVALUACIÓN (SOLO LECTURA PARA PROFESOR) */}
       {tipo === "evaluacion" && esProfesor && apelacionInicial?.pautaEvaluada && (
         <div className="border-b border-gray-200 pb-4">
           <label className="block text-sm font-semibold text-gray-600 mb-2">
@@ -266,6 +273,7 @@ useEffect(() => {
       )}
 
 
+      {/* MENSAJE ALUMNO */}
       <div className="border-b border-gray-200 pb-4">
         <label className="block text-sm font-semibold text-gray-600 mb-2">
           Mensaje del Alumno
@@ -278,6 +286,7 @@ useEffect(() => {
         />
       </div>
 
+      {/* ARCHIVO */}
       {esAlumno && tipo !== "evaluacion" && (
         <div className="pb-4 space-y-2">
           <label className="block text-sm font-semibold text-gray-600">
@@ -353,6 +362,7 @@ useEffect(() => {
         </div>
       )}
 
+      {/* PROFESOR */}
       {esProfesor && (
         <>
           <div className="border-b border-gray-200 pb-4">

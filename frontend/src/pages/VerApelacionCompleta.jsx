@@ -23,6 +23,7 @@ export default function VerApelacionCompleta() {
         if (res?.data) {
           setApelacion(res.data);
 
+          // 🔹 Marcar automáticamente como revisada
           if (res.data.estado?.toLowerCase() === "pendiente") {
             await responderApelacion(id, { estado: "revisada" });
             setApelacion((prev) => ({
@@ -60,6 +61,7 @@ export default function VerApelacionCompleta() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#e9f7fb] to-[#d5e8f6] transition-all duration-300 ml-[250px] p-8">
       <div className="max-w-4xl mx-auto">
+        {/* ENCABEZADO */}
         <div className="bg-gradient-to-r from-[#0E2C66] to-[#1a3f8f] text-white px-8 py-6 rounded-t-2xl shadow-lg">
           <h1 className="text-3xl font-bold">Detalle de Apelación</h1>
           <p className="text-white/80 mt-1">
@@ -67,13 +69,16 @@ export default function VerApelacionCompleta() {
           </p>
         </div>
 
+        {/* CARD */}
         <div className="bg-white rounded-b-2xl shadow-xl p-8 space-y">
+          {/* INFO */}
           <section>
             <ApelacionInfo apelacion={apelacion} />
           </section>
 
           <hr />
 
+          {/* RESPUESTA */}
           <section>
             <h2 className="text-xl font-semibold mb-4">
               Responder apelación
@@ -87,6 +92,7 @@ export default function VerApelacionCompleta() {
             />
           </section>
 
+          {/* VOLVER */}
           <div className="flex justify-center pt-6">
             <button
               onClick={() => navigate("/apelaciones-profesor")}

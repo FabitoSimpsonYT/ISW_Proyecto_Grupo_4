@@ -53,7 +53,4 @@ router.delete("/:evaluacionId/:alumnoRut", authMiddleware, (req, res) => {
 // Ruta GET para obtener todas las pautas de una evaluación (solo normal)
 router.get("/:evaluacionId", authMiddleware, getPautasEvaluadasByEvaluacion);
 
-// Ruta más general al final (solo evaluacionId)
-router.get("/:evaluacionId", authMiddleware, getPautasEvaluadasByEvaluacion);
-
 export default router;

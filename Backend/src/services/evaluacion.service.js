@@ -13,10 +13,6 @@ function isAlumnoRole(role) {
   return role === "alumno" || role === "estudiante";
 }
 
-function isAlumnoRole(role) {
-  return role === "alumno" || role === "estudiante";
-}
-
 export async function getAllEvaluacionesService(user) {
   if (user.role === "profesor") {
     return await evaluacionRepository.find();
