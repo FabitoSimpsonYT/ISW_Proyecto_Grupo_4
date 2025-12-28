@@ -4,7 +4,7 @@ import morgan from "morgan";
 import cors from "cors";
 import dotenv from "dotenv";
 import { AppDataSource, connectDB } from "./config/configDb.js";
-import { routerApi } from "./routes/index.routes.js";
+import { routerApi, configureSocketIO } from "./routes/index.routes.js";
 import { HOST, PORT } from "./config/configEnv.js";
 import initDB from "./config/initDB.js";
 
@@ -29,8 +29,12 @@ connectDB()
       .then(() => {
         routerApi(app);
 
-        app.listen(PORT, () => {
+        // Configurar Socket.io
+        const httpServer = configureSocketIO(app);
+
+        httpServer.listen(PORT, () => {
           console.log(`Servidor iniciado en http://${HOST}:${PORT}`);
+          console.log(`🔌 WebSocket habilitado`);
         });
       })
       .catch((error) => {
@@ -42,3 +46,4 @@ connectDB()
     console.log("Error al conectar con la base de datos:", error);
     process.exit(1);
   });
+

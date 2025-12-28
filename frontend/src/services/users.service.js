@@ -38,6 +38,24 @@ export async function createProfesor(data) {
   }
 }
 
+export async function getProfesorById(id) {
+  try {
+    const response = await axios.get(`/profesores/${id}`);
+    return response.data.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error al obtener profesor' };
+  }
+}
+
+export async function getProfesorByRut(rut) {
+  try {
+    const response = await axios.get(`/profesores/rut/${rut}`);
+    return response.data.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error al obtener profesor' };
+  }
+}
+
 // Alumno
 export async function getAllAlumnos() {
   try {

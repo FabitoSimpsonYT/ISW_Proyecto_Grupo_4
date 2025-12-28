@@ -9,6 +9,8 @@ import {
   getPautasIntegradorasService,
   getNotaIntegradoraAlumnoService,
 } from "../services/evaluacionIntegradora.service.js";
+import { notificarAlumnos } from "../services/notificacionuno.service.js";
+import { AppDataSource } from "../config/configDb.js";
 
 /**
  * POST /evaluacion-integradora/:codigoRamo
@@ -144,6 +146,36 @@ export async function createPautaIntegradora(req, res) {
       return handleErrorClient(res, 400, resultado.error);
     }
 
+    // Notificar al alumno si la pauta fue publicada
+    try {
+      if (req.body.pautaPublicada) {
+        const { EvaluacionIntegradora } = await import("../entities/evaluacionIntegradora.entity.js");
+        const { User } = await import("../entities/user.entity.js");
+        
+        const evaluacionIntegradoraRepo = AppDataSource.getRepository(EvaluacionIntegradora);
+        const userRepo = AppDataSource.getRepository(User);
+
+        const evaluacionIntegradora = await evaluacionIntegradoraRepo.findOne({
+          where: { id: evaluacionIntegradoraId },
+          relations: ["ramo"],
+        });
+
+        if (evaluacionIntegradora && evaluacionIntegradora.ramo) {
+          const alumnoUser = await userRepo.createQueryBuilder("u")
+            .where("u.rut = :rut", { rut: alumnoRut })
+            .getOne();
+
+          if (alumnoUser?.email) {
+            const titulo = `Nota de ${evaluacionIntegradora.titulo} de ${evaluacionIntegradora.ramo.nombre} publicada`;
+            const mensaje = "Se publicó el resultado de tu evaluación. Ya puedes revisarla.";
+            await notificarAlumnos([alumnoUser.email], titulo, mensaje, null);
+          }
+        }
+      }
+    } catch (notifError) {
+      console.warn("Error al notificar alumno (createPautaIntegradora):", notifError.message);
+    }
+
     handleSuccess(res, 201, "Pauta integradora creada", resultado.data);
   } catch (error) {
     handleErrorServer(res, 500, "Error al crear pauta integradora", error.message);
@@ -167,6 +199,44 @@ export async function updatePautaIntegradora(req, res) {
 
     if (resultado.error) {
       return handleErrorClient(res, 400, resultado.error);
+    }
+
+    // Notificar al alumno si la pauta fue publicada
+    try {
+      if (req.body.pautaPublicada) {
+        const { PautaEvaluadaIntegradora } = await import("../entities/pautaEvaluadaIntegradora.entity.js");
+        const { EvaluacionIntegradora } = await import("../entities/evaluacionIntegradora.entity.js");
+        const { User } = await import("../entities/user.entity.js");
+        
+        const pautaRepo = AppDataSource.getRepository(PautaEvaluadaIntegradora);
+        const evaluacionIntegradoraRepo = AppDataSource.getRepository(EvaluacionIntegradora);
+        const userRepo = AppDataSource.getRepository(User);
+
+        const pauta = await pautaRepo.findOne({
+          where: { id: pautaIntegradoraId },
+        });
+
+        if (pauta) {
+          const evaluacionIntegradora = await evaluacionIntegradoraRepo.findOne({
+            where: { id: pauta.evaluacionIntegradoraId },
+            relations: ["ramo"],
+          });
+
+          if (evaluacionIntegradora && evaluacionIntegradora.ramo) {
+            const alumnoUser = await userRepo.createQueryBuilder("u")
+              .where("u.rut = :rut", { rut: pauta.alumnoRut })
+              .getOne();
+
+            if (alumnoUser?.email) {
+              const titulo = `Nota de ${evaluacionIntegradora.titulo} de ${evaluacionIntegradora.ramo.nombre} publicada`;
+              const mensaje = "Se publicó el resultado de tu evaluación. Ya puedes revisarla.";
+              await notificarAlumnos([alumnoUser.email], titulo, mensaje, null);
+            }
+          }
+        }
+      }
+    } catch (notifError) {
+      console.warn("Error al notificar alumno (updatePautaIntegradora):", notifError.message);
     }
 
     handleSuccess(res, 200, "Pauta integradora actualizada", resultado.data);

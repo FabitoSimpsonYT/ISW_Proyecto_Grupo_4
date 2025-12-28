@@ -6,6 +6,7 @@ import { getEvaluacionesByCodigoRamo, getPautaEvaluadaByAlumno, getPautaEvaluada
 import { getPromedioFinal } from "../services/alumnoPromedioRamo.service.js";
 import { getEvaluacionIntegradora } from "../services/evaluacionIntegradora.service.js";
 import { getPautaEvaluadaIntegradora } from "../services/pautaEvaluada.service.js";
+import { BotonRetroalimentacion } from "../components/BotonRetroalimentacion.jsx";
 
 export default function MisRamosNotasPage() {
   const [ramos, setRamos] = useState([]);
@@ -473,14 +474,26 @@ export default function MisRamosNotasPage() {
                                 )}
                               </td>
                               <td className="px-6 py-4 text-center">
-                                {nota && (
-                                  <button
-                                    onClick={() => evaluacion.esIntegradora ? handleVerMasPautaIntegradora() : handleVerMasPauta(evaluacion.id)}
-                                    className="inline-block px-4 py-2 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 transition"
-                                  >
-                                    Ver más
-                                  </button>
-                                )}
+                                <div className="flex items-center justify-center gap-2">
+                                  {nota && (
+                                    <button
+                                      onClick={() => evaluacion.esIntegradora ? handleVerMasPautaIntegradora() : handleVerMasPauta(evaluacion.id)}
+                                      className="inline-block px-4 py-2 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 transition"
+                                    >
+                                      Ver más
+                                    </button>
+                                  )}
+                                  {nota && (
+                                    <BotonRetroalimentacion
+                                      codigoRamo={selectedRamo?.codigo}
+                                      alumnoRut={user?.rut}
+                                      evaluacionId={!evaluacion.esIntegradora ? evaluacion.id : null}
+                                      evaluacionIntegradoraId={evaluacion.esIntegradora ? evaluacion.id : null}
+                                      label="Chat"
+                                      variante="mis-notas"
+                                    />
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           );

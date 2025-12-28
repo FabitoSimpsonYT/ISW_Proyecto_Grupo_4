@@ -1,8 +1,22 @@
 import app from './app.js';
 import config from './config/config.js';
 import pool from './config/database.js';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import retroalimentacionHandler from './websocket/retroalimentacionHandler.js';
 
 const PORT = config.port;
+const httpServer = createServer(app);
+
+const io = new Server(httpServer, {
+  cors: {
+    origin: config.frontendUrl,
+    credentials: true
+  }
+});
+
+// Almacenar io en app para acceder desde controladores
+app.set('io', io);
 
 const checkDatabaseConnection = async () => {
   try {
@@ -17,10 +31,22 @@ const checkDatabaseConnection = async () => {
 const startServer = async () => {
   await checkDatabaseConnection();
   
-  app.listen(PORT, () => {
+  // WebSocket handlers
+  io.on('connection', (socket) => {
+    console.log(`📱 Cliente conectado: ${socket.id}`);
+    
+    retroalimentacionHandler(socket, io);
+    
+    socket.on('disconnect', () => {
+      console.log(`📱 Cliente desconectado: ${socket.id}`);
+    });
+  });
+  
+  httpServer.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
     console.log(`📝 Ambiente: ${config.env}`);
     console.log(`🌐 Frontend URL: ${config.frontendUrl}`);
+    console.log(`🔌 WebSocket habilitado`);
   });
 };
 

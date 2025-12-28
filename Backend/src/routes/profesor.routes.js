@@ -3,6 +3,7 @@ import {
   createProfesorHandler,
   getAllProfesoresHandler,
   getProfesorByIdHandler,
+  getProfesorByRutHandler,
   updateProfesorHandler,
   deleteProfesorHandler
 } from "../controllers/profesor.controller.js";
@@ -22,12 +23,17 @@ router.post("/",
 );
 
 router.get("/", 
-  checkRole(["admin", "profesor", "jefecarrera"]), 
+  checkRole(["admin", "profesor", "jefecarrera", "alumno"]), 
   getAllProfesoresHandler
 );
 
+router.get("/rut/:rut", 
+  checkRole(["admin", "profesor", "jefecarrera", "alumno"]), 
+  getProfesorByRutHandler
+);
+
 router.get("/:id", 
-  checkRole(["admin", "jefe_carrera"]), 
+  checkRole(["admin", "profesor", "jefecarrera", "alumno"]), 
   getProfesorByIdHandler
 );
 
@@ -38,7 +44,7 @@ router.put("/",
 );
 
 router.delete("/:id", 
-  checkRole(["admin"]), 
+  checkRole(["admin", "jefecarrera"]), 
   deleteProfesorHandler
 );
 

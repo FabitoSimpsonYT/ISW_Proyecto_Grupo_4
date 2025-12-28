@@ -17,6 +17,7 @@ import CrearEditarPautaPage from '@pages/CrearEditarPautaPage';
 import CrearIntegradoraPage from '@pages/CrearIntegradoraPage';
 import EvaluarPage from '@pages/EvaluarPage';
 import NotificacionesPage from '@pages/NotificacionesPage';
+import RetroalimentacionPage from '@pages/RetroalimentacionPage';
 import Error404 from '@pages/Error404';
 import Root from '@pages/Root';
 import '@styles/styles.css';
@@ -58,6 +59,10 @@ const router = createBrowserRouter([
       // EVALUAR ESTUDIANTES
       { path: '/evaluacion/:codigoRamo/:idEvaluacion/evaluar', element: <EvaluarPage /> },
       { path: '/evaluacion/:codigoRamo/evaluar-integradora/:idEvaluacion', element: <EvaluarPage /> },
+
+      // RETROALIMENTACIÓN
+      { path: '/retroalimentacion/:ramoId/:alumnoRut/:evaluacionId', element: <RetroalimentacionPage /> },
+      { path: '/retroalimentacion/:ramoId/:alumnoRut/integradora/:evaluacionIntegradoraId', element: <RetroalimentacionPage /> },
 
       // MI PERFIL
       { path: '/mi-perfil', element: <MiPerfil /> },

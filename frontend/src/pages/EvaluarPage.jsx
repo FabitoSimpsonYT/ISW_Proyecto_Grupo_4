@@ -6,9 +6,12 @@ import { getAlumnosBySeccion, getSeccionesByRamo } from "../services/ramos.servi
 import { getPautaById } from "../services/pauta.service.js";
 import { createPautaEvaluada, updatePautaEvaluada, getPautaEvaluada, getPautaEvaluadaIntegradora, createPautaEvaluadaIntegradora, updatePautaEvaluadaIntegradora } from "../services/pautaEvaluada.service.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import { BotonRetroalimentacion } from "../components/BotonRetroalimentacion.jsx";
+import { ModalRetroalimentacion } from "../components/ModalRetroalimentacion.jsx";
 
 export default function EvaluarPage() {
     const { codigoRamo, idEvaluacion } = useParams();
+    const ramoId = codigoRamo; // ramoId es igual a codigoRamo
     const navigate = useNavigate();
     const location = useLocation();
     const { user } = useAuth();
@@ -25,6 +28,8 @@ export default function EvaluarPage() {
     const [pauta, setPauta] = useState(null);
     const [puntajesObtenidos, setPuntajesObtenidos] = useState({});
     const [observaciones, setObservaciones] = useState('');
+    const [modalRetroalimentacionOpen, setModalRetroalimentacionOpen] = useState(false);
+    const [estudianteRetroalimentacion, setEstudianteRetroalimentacion] = useState(null);
 
 
     useEffect(() => {
@@ -155,8 +160,6 @@ export default function EvaluarPage() {
 
     const handleEvaluar = async (estudiante) => {
         setEstudianteSeleccionado(estudiante);
-        setPuntajesObtenidos({});
-        setObservaciones('');
         
         // Si fue evaluado antes, cargar los datos existentes
         if (estudiante.nota) {
@@ -185,6 +188,15 @@ export default function EvaluarPage() {
             } catch (error) {
                 console.error("Error cargando pauta existente:", error);
             }
+        }
+    };
+
+    const handleAbrirRetroalimentacion = (estudiante) => {
+        // Navegar al chat de retroalimentación
+        if (isIntegradora) {
+            navigate(`/retroalimentacion/${ramoId}/${estudiante.rut}/integradora/${idEvaluacion}`);
+        } else {
+            navigate(`/retroalimentacion/${ramoId}/${estudiante.rut}/${idEvaluacion}`);
         }
     };
 
@@ -354,12 +366,21 @@ export default function EvaluarPage() {
                                                     )}
                                                 </td>
                                                 <td className="px-6 py-4 text-center">
-                                                    <button
-                                                        className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition"
-                                                        onClick={() => handleEvaluar(estudiante)}
-                                                    >
-                                                        {estudiante.nota ? "Reevaluar" : "Evaluar"}
-                                                    </button>
+                                                    <div className="flex gap-2 justify-center items-center">
+                                                        <button
+                                                            className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition"
+                                                            onClick={() => handleEvaluar(estudiante)}
+                                                        >
+                                                            {estudiante.nota ? "Reevaluar" : "Evaluar"}
+                                                        </button>
+                                                        <BotonRetroalimentacion
+                                                            codigoRamo={ramoId}
+                                                            alumnoRut={estudiante.rut}
+                                                            evaluacionId={isIntegradora ? null : evaluacion?.id}
+                                                            evaluacionIntegradoraId={isIntegradora ? evaluacion?.id : null}
+                                                            onClick={() => handleAbrirRetroalimentacion(estudiante)}
+                                                        />
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))
@@ -535,6 +556,21 @@ export default function EvaluarPage() {
                         </div>
                     )}
 
+                    {/* Modal de Retroalimentación */}
+                    {modalRetroalimentacionOpen && estudianteRetroalimentacion && (
+                        <ModalRetroalimentacion
+                            isOpen={modalRetroalimentacionOpen}
+                            onClose={() => {
+                                setModalRetroalimentacionOpen(false);
+                                setEstudianteRetroalimentacion(null);
+                            }}
+                            alumno={estudianteRetroalimentacion}
+                            evaluacionId={isIntegradora ? null : evaluacion?.id}
+                            evaluacionIntegradoraId={isIntegradora ? evaluacion?.id : null}
+                            ramoId={ramoId}
+                            ramoNombre={isIntegradora ? ramoNombre : evaluacion?.ramo?.nombre}
+                        />
+                    )}
                 </div>
             </div>
         </div>

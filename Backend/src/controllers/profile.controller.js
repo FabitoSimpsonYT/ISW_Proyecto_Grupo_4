@@ -7,7 +7,6 @@ export function getPublicProfile(req, res) {
   });
 }
 
-
 export function getPrivateProfile(req, res) {
   const user = req.user;
   handleSuccess(res, 200, "Perfil privado obtenido exitosamente", {

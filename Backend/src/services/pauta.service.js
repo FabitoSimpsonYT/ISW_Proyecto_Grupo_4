@@ -190,3 +190,33 @@ export async function deletePautaIntegradoraService(evaluacionIntegradoraId, use
 
   return { success: true, message: "Pauta integradora eliminada" };
 }
+
+/**
+ * Obtener pauta por evaluación
+ */
+export async function getPautaByEvaluacionService(evaluacionId) {
+  try {
+    const pauta = await pautaRepository.findOne({
+      where: { evaluacionId },
+    });
+    return pauta;
+  } catch (error) {
+    console.error("Error al obtener pauta por evaluación:", error);
+    return null;
+  }
+}
+
+/**
+ * Obtener pauta por evaluación integradora
+ */
+export async function getPautaByEvaluacionIntegradoraService(evaluacionIntegradoraId) {
+  try {
+    const pauta = await pautaRepository.findOne({
+      where: { evaluacionIntegradoraId },
+    });
+    return pauta;
+  } catch (error) {
+    console.error("Error al obtener pauta por evaluación integradora:", error);
+    return null;
+  }
+}

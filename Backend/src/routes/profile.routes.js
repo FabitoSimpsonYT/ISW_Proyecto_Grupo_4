@@ -11,7 +11,6 @@ const router = Router();
 
 router.get("/public", getPublicProfile);
 
-
 router.get("/private", authMiddleware, getPrivateProfile);
 router.patch("/private", authMiddleware, updatePrivateProfile);
 router.delete("/private", authMiddleware, deletePrivateProfile);

@@ -5,6 +5,8 @@ import {
   getAllPautasService,
   updatePautaService,
   deletePautaService,
+  getPautaByEvaluacionService,
+  getPautaByEvaluacionIntegradoraService,
 } from "../services/pauta.service.js";
 
 export async function getPautaById(req, res) {
@@ -188,5 +190,45 @@ export async function deletePautaIntegradora(req, res) {
     handleSuccess(res, 200, "Pauta integradora eliminada exitosamente");
   } catch (error) {
     handleErrorServer(res, 500, "Error al eliminar pauta integradora", error.message);
+  }
+}
+
+/**
+ * GET /pauta/evaluacion/:evaluacionId
+ * Obtener pauta por evaluación
+ */
+export async function getPautaByEvaluacion(req, res) {
+  try {
+    const { evaluacionId } = req.params;
+
+    const pauta = await getPautaByEvaluacionService(parseInt(evaluacionId));
+
+    if (!pauta) {
+      return handleErrorClient(res, 404, "Pauta no encontrada para esta evaluación");
+    }
+
+    handleSuccess(res, 200, "Pauta obtenida exitosamente", { pauta });
+  } catch (error) {
+    handleErrorServer(res, 500, "Error al obtener pauta", error.message);
+  }
+}
+
+/**
+ * GET /pauta/evaluacion-integradora/:evaluacionIntegradoraId
+ * Obtener pauta por evaluación integradora
+ */
+export async function getPautaByEvaluacionIntegradora(req, res) {
+  try {
+    const { evaluacionIntegradoraId } = req.params;
+
+    const pauta = await getPautaByEvaluacionIntegradoraService(parseInt(evaluacionIntegradoraId));
+
+    if (!pauta) {
+      return handleErrorClient(res, 404, "Pauta no encontrada para esta evaluación integradora");
+    }
+
+    handleSuccess(res, 200, "Pauta obtenida exitosamente", { pauta });
+  } catch (error) {
+    handleErrorServer(res, 500, "Error al obtener pauta", error.message);
   }
 }
