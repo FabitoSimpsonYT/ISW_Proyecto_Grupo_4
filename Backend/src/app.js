@@ -59,6 +59,7 @@ app.use('/api/bloqueo', bloqueoRoutes);
 app.use('/api/evaluacion-integradora', evaluacionIntegradoraRoutes);
 
 
+
 // Middlewares finales
 app.use(notFound);
 app.use(errorHandler);

@@ -112,6 +112,29 @@ export default function CalendarioAlumno() {
     } catch (err) {
       console.error('Error cargando datos', err);
     }
+  ];
+
+  const nombresMeses = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+
+  // Semana LUNES a DOMINGO con "Mié" en lugar de "X"
+  const diasSemana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
+  // Generar días del mes mostrado
+  const generarDias = () => {
+    const año = fechaMostrada.getFullYear();
+    const mes = fechaMostrada.getMonth();
+    const primerDiaMes = new Date(año, mes, 1);
+    const primerDiaSemana = primerDiaMes.getDay();
+    const offset = primerDiaSemana === 0 ? 6 : primerDiaSemana - 1;
+    const diasEnMes = new Date(año, mes + 1, 0).getDate();
+
+    const dias = [];
+    for (let i = 0; i < offset; i++) dias.push(null);
+    for (let dia = 1; dia <= diasEnMes; dia++) dias.push(dia);
+    return dias;
   };
 
   useEffect(() => {
