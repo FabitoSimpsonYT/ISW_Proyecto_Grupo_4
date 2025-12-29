@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { getEventosAlumno, getEventosDisponiblesParaSlot } from '../services/evento.service.js';
 import { getSlotsDisponibles } from '../services/booking.service.js';
+import { getSlotsEvento } from '../services/slot.service.js';
 import { inscribirAlumno } from '../services/inscripcion.service.js';
 import ModalInscripcion from '../components/Incripcion.jsx';
 
@@ -32,15 +33,31 @@ export default function InscribirEvaluaciones() {
 
   const abrirInscripcion = async (evento) => {
     try {
-      const slotsRes = await getSlotsDisponibles(evento.id);
+      // Prefer DB-backed slots endpoint; fall back to bookings mock if unavailable
+      let slotsRes;
+      try {
+        slotsRes = await getSlotsEvento(evento.id);
+      } catch (err) {
+        slotsRes = await getSlotsDisponibles(evento.id);
+      }
       const rawSlots = slotsRes?.data || slotsRes || [];
       const slots = rawSlots.map(s => ({
-        id: s.id || s.slot_id || s.slotId || `${evento.id}-${Math.random().toString(36).slice(2,6)}`,
+        id: s.id ?? s.slot_id ?? s.slotId ?? null,
         inicio: s.inicio || s.fecha_hora_inicio || s.fechaHoraInicio || s.fecha_inicio,
         fin: s.fin || s.fecha_hora_fin || s.fechaHoraFin || s.fecha_fin,
         disponible: s.disponible === undefined ? true : s.disponible
-      }));
-      const eventoConSlots = { ...evento, slotsDisponibles: slots };
+      }))
+      // Filtrar slots sin id numérico para evitar que se envíen strings como "6-1"
+      // Keep slots that have any id (numeric or synthetic from booking mock)
+      .filter(s => s.id !== null);
+      // Normalizar campos del evento para el modal
+      const fechaInicio = evento.fechaInicio || evento.fecha_inicio || evento.fechaInicioProgramada || evento.fecha_inicio_programada || evento.fechaProgramada || evento.fecha_programada || null;
+      const fechaFin = evento.fechaFin || evento.fecha_fin || evento.fechaFinProgramada || evento.fecha_fin_programada || null;
+      const modalidad = evento.modalidad || evento.modalidad_tipo || (evento.sala ? 'presencial' : 'online') || null;
+      const sala = evento.sala || evento.ubicacion || evento.aula || null;
+      const cupoDisponible = evento.cupoDisponible ?? evento.cupo_disponible ?? evento.cupo_maximo ?? evento.cupoMaximo ?? null;
+
+      const eventoConSlots = { ...evento, slotsDisponibles: slots, fechaInicio, fechaFin, modalidad, sala, cupoDisponible };
       setSelectedEvento(eventoConSlots);
       setShowModal(true);
     } catch (err) {
@@ -51,11 +68,17 @@ export default function InscribirEvaluaciones() {
 
   const onInscribir = async ({ eventoId, slotId, miembrosGrupo }) => {
     try {
-      const payload = {
-        eventoId,
-        slotId: slotId || null,
-      };
-      const res = await inscribirAlumno(payload);
+      let res;
+      // If slotId is non-numeric (booking mock like "6-1"), send slotData to backend to create+assign slot
+      if (slotId && isNaN(Number(slotId))) {
+        const selected = (selectedEvento?.slotsDisponibles || []).find(s => s.id === slotId);
+        if (!selected) throw new Error('Slot seleccionado no encontrado');
+        const payload = { eventoId, slotData: { inicio: selected.inicio, fin: selected.fin } };
+        res = await inscribirAlumno(payload);
+      } else {
+        const payload = { eventoId, slotId: slotId || null };
+        res = await inscribirAlumno(payload);
+      }
       const ok = res?.mensaje || res?.success || res?.status === 201;
       if (ok) {
         Swal.fire('¡Inscripción exitosa!', '', 'success');
@@ -65,7 +88,9 @@ export default function InscribirEvaluaciones() {
         Swal.fire('Error', (res?.error || res?.message) || 'No se pudo inscribir', 'error');
       }
     } catch (err) {
-      const msg = err?.response?.data?.error || err?.message || 'No se pudo inscribir';
+      const server = err?.response?.data;
+      const msg = server?.message || server?.error || err?.message || 'No se pudo inscribir';
+      console.error('Inscripción error:', err, server);
       Swal.fire('Error', msg, 'error');
     }
   };
@@ -135,9 +160,10 @@ export default function InscribirEvaluaciones() {
                     <div className="mt-4">
                       <div className="text-sm font-medium mb-2 text-blue-900">Horarios disponibles</div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                        {slots.slice(0,8).map((s, i) => (
+                        {slots.map((s, i) => (
                           <div key={i} className={`p-2 rounded-lg text-sm border border-blue-200 ${s.disponible===false ? 'bg-gray-100 text-red-400' : 'bg-blue-50/80 text-blue-900 hover:bg-blue-100 hover:shadow'} `}>
                             {new Date(s.inicio).toLocaleDateString()} {new Date(s.inicio).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                            {s.fin ? ` — ${new Date(s.fin).toLocaleDateString()}` : ''}
                           </div>
                         ))}
                       </div>
