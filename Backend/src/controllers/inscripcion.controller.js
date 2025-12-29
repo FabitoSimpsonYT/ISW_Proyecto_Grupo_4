@@ -146,7 +146,7 @@ class InscripcionController {
         return res.status(404).json({ error: 'Evento no encontrado' });
       }
 
-      if (evento.profesorId !== req.user.id && req.user.role !== 'jefe_carrera') {
+      if (evento.profesorId !== req.user.id && req.user.role !== 'jefecarrera') {
         return res.status(403).json({ error: 'No tienes permiso para ver estas inscripciones' });
       }
 
@@ -173,7 +173,7 @@ class InscripcionController {
   // Reasignar alumno de sección (Jefe de Carrera)
   reasignarSeccion = async (req, res) => {
     try {
-      if (req.user.role !== 'jefe_carrera') {
+      if (req.user.role !== 'jefecarrera') {
         return res.status(403).json({
           error: 'Solo el jefe de carrera puede reasignar secciones'
         });

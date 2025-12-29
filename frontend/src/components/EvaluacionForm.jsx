@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { showErrorAlert, showSuccessAlert } from "@/utils/alertUtils";
 import { createEvaluacion, updateEvaluacion, getEvaluacionesByCodigoRamo } from "../services/evaluacion.service.js";
 import { createEvaluacionIntegradora, updateEvaluacionIntegradora } from "../services/evaluacionIntegradora.service.js";
 import { getAllPautas } from "../services/pauta.service.js";
@@ -345,7 +346,7 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
                     updateResult = await updateEvaluacion(evaluacion.id, payload);
                 }
                 console.log("Resultado de actualización:", updateResult);
-                alert("Evaluación actualizada correctamente");
+                showSuccessAlert("Éxito", "Evaluación actualizada correctamente");
             } else {
                 console.log("Creando nueva evaluación...");
                 let createResult;
@@ -355,7 +356,7 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
                     createResult = await createEvaluacion(payload);
                 }
                 console.log("Resultado de creación:", createResult);
-                alert("Evaluación creada correctamente");
+                showSuccessAlert("Éxito", "Evaluación creada correctamente");
             }
             setEvaluacion(initialState);
             setErrors({});
@@ -374,7 +375,7 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
             }
             
             setError(errorMessage);
-            alert("Error: " + errorMessage);
+            showErrorAlert("Error", errorMessage);
         } finally {
             setIsLoading(false);
         }
@@ -388,12 +389,6 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
             <h2 className="text-xl font-semibold text-gray-800">
                 {evaluacion.id ? "Editar Evaluación" : "Nueva Evaluación"}
             </h2>
-
-            {error && (
-                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
-                    {error}
-                </div>
-            )}
 
 
             {/* Título */}
@@ -613,6 +608,12 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
                     Publicar evaluación
                 </label>
             </div>
+
+            {error && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+                    {error}
+                </div>
+            )}
 
             {/* Botón Submit */}
             <button

@@ -14,6 +14,7 @@ export const RetroalimentacionChat = ({
   alumnoEmail,
   profesorNombre,
   profesorEmail,
+  evaluacionId = null,
   evaluacionIntegradoraId = null,
   isProfesor = false,
 }) => {
@@ -24,6 +25,9 @@ export const RetroalimentacionChat = ({
   const [cargandoPauta, setCargandoPauta] = useState(false);
   const messagesEndRef = useRef(null);
   
+  // Usar evaluacionId prop si está disponible, si no, usar evaluacion?.id
+  const evalIdFinal = evaluacionId || evaluacion?.id;
+  
   const {
     mensajes,
     cargando,
@@ -32,7 +36,7 @@ export const RetroalimentacionChat = ({
     otroUsuarioConectado,
     enviarMensaje,
     marcarVistos,
-  } = useRetroalimentacion(ramoId, alumnoRut, evaluacion?.id, evaluacionIntegradoraId, user);
+  } = useRetroalimentacion(ramoId, alumnoRut, evalIdFinal, evaluacionIntegradoraId, user);
 
   // Auto-scroll al final
   useEffect(() => {
@@ -55,8 +59,8 @@ export const RetroalimentacionChat = ({
         
         if (evaluacionIntegradoraId) {
           pauta = await getPautaByEvaluacionIntegradora(evaluacionIntegradoraId);
-        } else if (evaluacion?.id) {
-          pauta = await getPautaByEvaluacion(evaluacion.id);
+        } else if (evalIdFinal) {
+          pauta = await getPautaByEvaluacion(evalIdFinal);
         }
         
         setPautaEvaluada(pauta);
@@ -67,7 +71,7 @@ export const RetroalimentacionChat = ({
       }
     };
 
-    if (alumnoRut && (evaluacion?.id || evaluacionIntegradoraId)) {
+    if (alumnoRut && (evalIdFinal || evaluacionIntegradoraId)) {
       cargarPauta();
     }
   }, [alumnoRut, evaluacion?.id, evaluacionIntegradoraId]);

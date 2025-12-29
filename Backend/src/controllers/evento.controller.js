@@ -283,7 +283,7 @@ class EventoController {
       if (check.rows.length === 0) {
         return res.status(404).json({ success: false, message: 'Evento no encontrado' });
       }
-      if (check.rows[0].profesor_id !== profesorId && req.user.role !== 'jefe_carrera') {
+      if (check.rows[0].profesor_id !== profesorId && req.user.role !== 'jefecarrera') {
         return res.status(403).json({ success: false, message: 'Sin permiso' });
       }
 
@@ -350,7 +350,7 @@ class EventoController {
       if (check.rows.length === 0) {
         return res.status(404).json({ success: false, message: 'Evento no encontrado' });
       }
-      if (check.rows[0].profesor_id !== profesorId && req.user.role !== 'jefe_carrera') {
+      if (check.rows[0].profesor_id !== profesorId && req.user.role !== 'jefecarrera') {
         return res.status(403).json({ success: false, message: 'Sin permiso' });
       }
 

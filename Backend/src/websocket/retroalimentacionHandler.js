@@ -194,6 +194,43 @@ class RetroalimentacionHandler {
           // Determinar profesorId según el rol
           let profesorId = userId;
           let ramoIdNum = ramoId;
+          
+          // Resolver ramoId a su ID numérico si es código
+          if (ramoId && isNaN(parseInt(ramoId, 10)) === false) {
+            // ramoId es un número, pero podría ser un código almacenado como string
+            // Intentar obtener el ramo
+            const { Ramos } = await import("../entities/ramos.entity.js");
+            const ramoRepo = AppDataSource.getRepository(Ramos);
+
+            console.log(`✓ [Socket] Buscando ramo por código/ID: ${ramoId}`);
+
+            const ramo = await ramoRepo
+              .createQueryBuilder("r")
+              .leftJoinAndSelect("r.profesor", "p")
+              .where("r.codigo = :codigo", { codigo: ramoId })
+              .orWhere("r.id = :id", { id: parseInt(ramoId, 10) })
+              .getOne();
+            
+            if (ramo) {
+              ramoIdNum = ramo.id;
+              console.log(`✓ [Socket] Ramo encontrado: ${ramo.nombre} (ID: ${ramo.id}, Código: ${ramo.codigo})`);
+              
+              // Si es profesor, obtener el ID del profesor del ramo si existe
+              if (role === "profesor" && ramo.profesor && ramo.profesor.id) {
+                // Verificar que el usuario sea el profesor del ramo
+                if (ramo.profesor.id !== userId) {
+                  console.warn(`⚠️ [Socket] Profesor ${userId} no es el profesor del ramo ${ramoIdNum}`);
+                  socket.emit("error", { message: "No eres el profesor de este ramo" });
+                  return;
+                }
+              }
+            } else if (role === "alumno") {
+              console.error(`❌ No se encontró ramo con código/ID ${ramoId}`);
+              socket.emit("error", { message: `No se encontró el ramo ${ramoId}` });
+              return;
+            }
+          }
+          
           if (role === "alumno") {
             // Si es alumno, obtener el profesor del ramo
             const { Ramos } = await import("../entities/ramos.entity.js");

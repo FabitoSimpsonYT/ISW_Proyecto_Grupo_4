@@ -57,7 +57,8 @@ export async function createPautaIntegradora(pautaData, evaluacionIntegradoraId)
 export async function getPautaIntegradora(evaluacionIntegradoraId) {
   try {
     const response = await axios.get(`/pauta/integradora/${evaluacionIntegradoraId}`);
-    return response.data?.data?.pauta || response.data;
+    const pauta = response.data?.data?.pauta || response.data?.pauta || response.data;
+    return pauta;
   } catch (error) {
     throw error.response?.data || {message: 'Error al obtener la pauta integradora'};
   }

@@ -82,13 +82,18 @@ export async function calcularPromedioFinal(alumnoRut, codigoRamo) {
     
     // Validar que la suma de ponderaciones sea exactamente 100
     if (sumaPonderaciones !== 100) {
+      const detallesEvaluaciones = notasAlumno
+        .map(item => `${item.nombre} (${item.ponderacion}%)`)
+        .join(', ');
+      
       return {
         promedioParcial: null,
         promedioFinal: null,
         promedioOficial: null,
         notaIntegradora: null,
         estado: "pendiente",
-        error: `La suma de ponderaciones debe ser 100%. Actualmente es ${sumaPonderaciones}%`,
+        error: `La suma de ponderaciones debe ser 100%. Actualmente es ${sumaPonderaciones}%.\n\nEvaluaciones: ${detallesEvaluaciones}`,
+        evaluacionesDetalle: notasAlumno,
       };
     }
     

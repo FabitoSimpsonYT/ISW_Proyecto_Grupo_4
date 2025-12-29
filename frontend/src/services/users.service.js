@@ -125,3 +125,31 @@ export async function getAllUsers() {
     throw error;
   }
 }
+
+// Eliminar usuarios
+export async function deleteAdmin(id) {
+  try {
+    const response = await axios.delete(`/admin/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error al eliminar admin' };
+  }
+}
+
+export async function deleteProfesor(id) {
+  try {
+    const response = await axios.delete(`/profesores/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error al eliminar profesor' };
+  }
+}
+
+export async function deleteAlumno(id) {
+  try {
+    const response = await axios.delete(`/alumnos/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error al eliminar alumno' };
+  }
+}

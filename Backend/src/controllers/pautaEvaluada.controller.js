@@ -121,9 +121,15 @@ export async function createPautaEvaluada(req, res) {
     const result = await createPautaEvaluadaService(evaluacionId, pautaId, alumnoRut, dataCompleta, user);
     if (result.error) return handleErrorClient(res, 400, result.error);
 
-    // Notificar al alumno si la pauta fue publicada
+    // Notificar al alumno cuando se crea una pauta evaluada
     try {
-      if (req.body.pautaPublicada) {
+      const { User } = await import("../entities/user.entity.js");
+      const userRepo = AppDataSource.getRepository(User);
+      const alumnoUser = await userRepo.createQueryBuilder("u")
+        .where("u.rut = :rut", { rut: alumnoRut })
+        .getOne();
+
+      if (alumnoUser?.email) {
         const evaluacion = await evaluacionRepository
           .createQueryBuilder("e")
           .leftJoinAndSelect("e.ramo", "ramo")
@@ -131,17 +137,12 @@ export async function createPautaEvaluada(req, res) {
           .getOne();
 
         if (evaluacion && evaluacion.ramo) {
-          const { User } = await import("../entities/user.entity.js");
-          const userRepo = AppDataSource.getRepository(User);
-          const alumnoUser = await userRepo.createQueryBuilder("u")
-            .where("u.rut = :rut", { rut: alumnoRut })
-            .getOne();
-
-          if (alumnoUser?.email) {
-            const titulo = `Nota de ${evaluacion.titulo} de ${evaluacion.ramo.nombre} publicada`;
-            const mensaje = "Se publicó el resultado de tu evaluación. Ya puedes revisarla.";
-            await notificarAlumnos([alumnoUser.email], titulo, mensaje, evaluacionId);
-          }
+          await notificarAlumnos(
+            [alumnoUser.email],
+            `Pauta evaluada registrada: ${evaluacion.titulo}`,
+            `Se ha registrado tu pauta evaluada de ${evaluacion.ramo.nombre} - ${evaluacion.titulo}.`,
+            evaluacionId
+          );
         }
       }
     } catch (notifError) {
@@ -157,7 +158,8 @@ export async function createPautaEvaluada(req, res) {
 export async function getPautaEvaluada(req, res) {
   try {
     const { evaluacionId, alumnoRut } = req.params;
-    const result = await getPautaEvaluadaService(evaluacionId, alumnoRut);
+    const { evaluacionIntegradoraId } = req.query;
+    const result = await getPautaEvaluadaService(evaluacionId, alumnoRut, evaluacionIntegradoraId);
     if (result.error) {
       // Retornar 200 con null si no existe la pauta (estudiante aún no evaluado)
       return handleSuccess(res, 200, "Pauta evaluada no encontrada", { pautaEvaluada: null });
@@ -174,13 +176,14 @@ export async function updatePautaEvaluada(req, res) {
     if (error) return handleErrorClient(res, 400, error.message);
 
     const { evaluacionId, alumnoRut } = req.params;
+    const { evaluacionIntegradoraId } = req.query;
     const { puntajes_obtenidos } = req.body;
     const user = req.user;
 
     // Si se proporcionan puntajes_obtenidos, validar que coincidan con la distribución
     if (puntajes_obtenidos) {
       // Primero obtener la pautaEvaluada para acceder a la pauta
-      const result = await getPautaEvaluadaService(evaluacionId, alumnoRut);
+      const result = await getPautaEvaluadaService(evaluacionId, alumnoRut, evaluacionIntegradoraId);
       if (result.error) return handleErrorClient(res, 404, result.error);
 
       const distribucion = result.pauta?.distribucionPuntaje || {};
@@ -190,34 +193,35 @@ export async function updatePautaEvaluada(req, res) {
       }
     }
 
-    const result = await updatePautaEvaluadaService(evaluacionId, alumnoRut, req.body, user);
+    const result = await updatePautaEvaluadaService(evaluacionId, alumnoRut, req.body, user, evaluacionIntegradoraId);
     if (result.error) return handleErrorClient(res, 400, result.error);
 
-    // Notificar al alumno si la pauta fue publicada
+    // Notificar al alumno cuando se actualiza una pauta evaluada
     try {
-      if (req.body.pautaPublicada) {
+      const { User } = await import("../entities/user.entity.js");
+      const userRepo = AppDataSource.getRepository(User);
+      const alumnoUser = await userRepo.createQueryBuilder("u")
+        .where("u.rut = :rut", { rut: alumnoRut })
+        .getOne();
+
+      if (alumnoUser?.email) {
         const evaluacion = await evaluacionRepository
           .createQueryBuilder("e")
           .leftJoinAndSelect("e.ramo", "ramo")
-          .where("e.id = :evaluacionId", { evaluacionId })
+          .where("e.id = :evaluacionId", { evaluacionId: evaluacionId || evaluacionIntegradoraId })
           .getOne();
 
         if (evaluacion && evaluacion.ramo) {
-          const { User } = await import("../entities/user.entity.js");
-          const userRepo = AppDataSource.getRepository(User);
-          const alumnoUser = await userRepo.createQueryBuilder("u")
-            .where("u.rut = :rut", { rut: alumnoRut })
-            .getOne();
-
-          if (alumnoUser?.email) {
-            const titulo = `Nota de ${evaluacion.titulo} de ${evaluacion.ramo.nombre} publicada`;
-            const mensaje = "Se publicó el resultado de tu evaluación. Ya puedes revisarla.";
-            await notificarAlumnos([alumnoUser.email], titulo, mensaje, evaluacionId);
-          }
+          await notificarAlumnos(
+            [alumnoUser.email],
+            `Pauta evaluada actualizada: ${evaluacion.titulo}`,
+            `Tu pauta evaluada de ${evaluacion.ramo.nombre} - ${evaluacion.titulo} ha sido actualizada.`,
+            evaluacionId || evaluacionIntegradoraId
+          );
         }
       }
     } catch (notifError) {
-      console.warn("Error al notificar alumno (pautaEvaluada):", notifError.message);
+      console.warn("Error al notificar alumno (updatePautaEvaluada):", notifError.message);
     }
 
     handleSuccess(res, 200, "Pauta evaluada actualizada", { pautaEvaluada: result });
@@ -229,7 +233,8 @@ export async function updatePautaEvaluada(req, res) {
 export async function getPautasEvaluadasByEvaluacion(req, res) {
   try {
     const { evaluacionId } = req.params;
-    const result = await getPautasEvaluadasByEvaluacionService(evaluacionId);
+    const { evaluacionIntegradoraId } = req.query;
+    const result = await getPautasEvaluadasByEvaluacionService(evaluacionId, evaluacionIntegradoraId);
     if (result.error) return handleErrorClient(res, 404, result.error);
     handleSuccess(res, 200, "Pautas evaluadas obtenidas", { pautasEvaluadas: result });
   } catch (error) {
@@ -240,9 +245,10 @@ export async function getPautasEvaluadasByEvaluacion(req, res) {
 export async function deletePautaEvaluada(req, res) {
   try {
     const { evaluacionId, alumnoRut } = req.params;
+    const { evaluacionIntegradoraId } = req.query;
     const user = req.user;
 
-    const result = await deletePautaEvaluadaService(evaluacionId, alumnoRut, user);
+    const result = await deletePautaEvaluadaService(evaluacionId, alumnoRut, user, evaluacionIntegradoraId);
     if (result.error) return handleErrorClient(res, 400, result.error);
 
     handleSuccess(res, 200, result.message, {});

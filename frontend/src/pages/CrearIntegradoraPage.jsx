@@ -102,11 +102,21 @@ export default function CrearIntegradoraPage() {
           navigate("/evaluaciones");
         });
       } else {
+        Swal.fire(
+          "Error",
+          resultado?.message || "No se pudo crear la evaluación",
+          "error"
+        );
         setError(resultado?.message || "No se pudo crear la evaluación");
       }
     } catch (err) {
       console.error("Error:", err);
       const errorMsg = err?.response?.data?.message || err?.message || "Error al crear";
+      Swal.fire(
+        "Error",
+        errorMsg,
+        "error"
+      );
       setError(errorMsg);
     } finally {
       setIsSubmitting(false);

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { showErrorAlert, showSuccessAlert } from "@/utils/alertUtils";
 import { getEvaluacionById } from "../services/evaluacion.service.js";
 import { getEvaluacionIntegradora } from "../services/evaluacionIntegradora.service.js";
 import { getAlumnosBySeccion, getSeccionesByRamo } from "../services/ramos.service.js";
@@ -271,11 +272,11 @@ export default function EvaluarPage() {
                 );
             }
             
-            alert("Evaluación guardada exitosamente");
+            showSuccessAlert("Éxito", "Evaluación guardada exitosamente");
             handleCerrarFormulario();
         } catch (error) {
             console.error("Error al guardar evaluación:", error);
-            alert("Error al guardar la evaluación: " + (error?.message || "Error desconocido"));
+            showErrorAlert("Error", "Error al guardar la evaluación: " + (error?.message || "Error desconocido"));
         }
     };
 
@@ -373,13 +374,15 @@ export default function EvaluarPage() {
                                                         >
                                                             {estudiante.nota ? "Reevaluar" : "Evaluar"}
                                                         </button>
-                                                        <BotonRetroalimentacion
-                                                            codigoRamo={ramoId}
-                                                            alumnoRut={estudiante.rut}
-                                                            evaluacionId={isIntegradora ? null : evaluacion?.id}
-                                                            evaluacionIntegradoraId={isIntegradora ? evaluacion?.id : null}
-                                                            onClick={() => handleAbrirRetroalimentacion(estudiante)}
-                                                        />
+                                                        {estudiante.nota && (
+                                                            <BotonRetroalimentacion
+                                                                codigoRamo={ramoId}
+                                                                alumnoRut={estudiante.rut}
+                                                                evaluacionId={isIntegradora ? null : evaluacion?.id}
+                                                                evaluacionIntegradoraId={isIntegradora ? evaluacion?.id : null}
+                                                                onClick={() => handleAbrirRetroalimentacion(estudiante)}
+                                                            />
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>

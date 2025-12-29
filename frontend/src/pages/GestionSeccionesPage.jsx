@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { getAllAlumnos } from "../services/users.service.js";
 import { useParams, useNavigate } from "react-router-dom";
+import { showErrorAlert, showInfoAlert } from "@/utils/alertUtils";
 import { getRamosByCodigo, getAlumnosBySeccion, getSeccionesByRamo, createSeccion, inscribirAlumnoEnSeccion } from "../services/ramos.service.js";
 import { useNavbar } from "../context/NavbarContext";
 
@@ -165,7 +166,7 @@ export default function GestionSeccionesPage() {
                 await createSeccion({ codigoRamo, numero: nextNumero });
                 await fetchSecciones();
               } catch (err) {
-                alert(err.message || "Error al crear sección");
+                showErrorAlert("Error", err.message || "Error al crear sección");
               }
             }}
           >
@@ -210,7 +211,7 @@ export default function GestionSeccionesPage() {
                     </button>
                     <button
                       className="bg-red-500 hover:bg-red-700 text-white px-2 py-1 rounded text-xs"
-                      onClick={() => alert('Aquí se implementará la lógica para eliminar sección')}
+                      onClick={() => showInfoAlert('Información', 'Aquí se implementará la lógica para eliminar sección')}
                     >
                       Eliminar sección
                     </button>
@@ -280,7 +281,7 @@ export default function GestionSeccionesPage() {
                                 {yaInscrito ? (
                                   <button
                                     className="bg-red-500 hover:bg-red-700 text-white px-2 py-1 rounded text-xs"
-                                    onClick={() => alert('Aquí se implementará la lógica para eliminar alumno')}
+                                    onClick={() => showInfoAlert('Información', 'Aquí se implementará la lógica para eliminar alumno')}
                                   >
                                     Eliminar
                                   </button>

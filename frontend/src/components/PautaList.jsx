@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { showConfirmAlert } from "@/utils/alertUtils";
 import { getAllPautas, deletePauta } from "../services/pauta.service.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
@@ -21,8 +22,13 @@ export default function PautaList({onEdit}){
     }, []);
 
     const handleDelete = async (id) =>{
-        const confirm = window.confirm('¿estas seguro de eliminar este pauta?');
-        if(confirm){
+        const result = await showConfirmAlert(
+          "¿Está seguro?",
+          "¿Estás seguro de que deseas eliminar esta pauta?",
+          "Eliminar",
+          "Cancelar"
+        );
+        if(result.isConfirmed){
             await deletePauta(id);
             setPautas(pautas.filter((p) => p.id !== id));
         }

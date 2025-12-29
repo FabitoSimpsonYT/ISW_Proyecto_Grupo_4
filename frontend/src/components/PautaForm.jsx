@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { showSuccessAlert } from "@/utils/alertUtils";
 import { createPauta, updatePauta } from "../services/pauta.service.js";
 import { updateEvaluacion } from "../services/evaluacion.service.js";
 
@@ -130,7 +131,7 @@ export default function PautaForm({ pautaEdit, evaluacionId, onSaved }) {
         try {
             if (pauta.id) {
                 await updatePauta(pauta.id, pautaToSend);
-                alert('Pauta actualizada correctamente');
+                showSuccessAlert('Éxito', 'Pauta actualizada correctamente');
             } else {
                 const createdPauta = await createPauta(pautaToSend, evaluacionId);
                 
@@ -140,7 +141,7 @@ export default function PautaForm({ pautaEdit, evaluacionId, onSaved }) {
                     await updateEvaluacion(evaluacionId, { idPauta: createdPauta.id });
                 }
                 
-                alert('Pauta creada correctamente');
+                showSuccessAlert('Éxito', 'Pauta creada correctamente');
             }
 
             setPauta(initialState);

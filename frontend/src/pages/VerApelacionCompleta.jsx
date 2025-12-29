@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { showErrorAlert } from "@/utils/alertUtils";
 import {
   getApelacionById,
   responderApelacion,
@@ -51,7 +52,7 @@ export default function VerApelacionCompleta() {
       navigate("/apelaciones-profesor");
     } catch (error) {
       console.error("Error respondiendo apelación:", error);
-      alert(error?.data?.message || "Error al responder la apelación");
+      showErrorAlert("Error", error?.data?.message || "Error al responder la apelación");
     } finally {
       setLoading(false);
     }

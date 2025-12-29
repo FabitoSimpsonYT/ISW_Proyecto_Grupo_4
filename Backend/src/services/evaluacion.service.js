@@ -260,12 +260,22 @@ export async function deleteEvaluacionService(id) {
     // 1. Buscar y eliminar todas las pautas evaluadas asociadas a la evaluación
     console.log("Buscando pautas evaluadas para evaluación:", id);
     const pautasEvaluadas = await pautaEvaluadaRepository.find({
-      where: { evaluacionId: id },
+      where: { idEvaluacion: id },
     });
     
     if (pautasEvaluadas && pautasEvaluadas.length > 0) {
       console.log("Eliminando", pautasEvaluadas.length, "pautas evaluadas");
       await pautaEvaluadaRepository.remove(pautasEvaluadas);
+      
+      // Verificar que se eliminaron correctamente
+      const verificacion = await pautaEvaluadaRepository.find({
+        where: { idEvaluacion: id },
+      });
+      if (verificacion.length === 0) {
+        console.log("✓ Todas las pautas evaluadas fueron eliminadas correctamente");
+      }
+    } else {
+      console.log("No se encontraron pautas evaluadas para esta evaluación");
     }
 
     // 2. Buscar y eliminar la pauta asociada a la evaluación
@@ -276,7 +286,15 @@ export async function deleteEvaluacionService(id) {
       if (pauta) {
         console.log("Eliminando pauta con ID:", pauta.id);
         await pautaRepository.remove(pauta);
+        
+        // Verificar que se eliminó correctamente
+        const verificacion = await pautaRepository.findOneBy({ id: pauta.id });
+        if (!verificacion) {
+          console.log("✓ Pauta eliminada correctamente");
+        }
       }
+    } else {
+      console.log("No hay pauta asociada a esta evaluación");
     }
 
     // 3. Eliminar la evaluación

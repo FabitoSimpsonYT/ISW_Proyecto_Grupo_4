@@ -14,10 +14,8 @@ const Home = () => {
   // Obtener el usuario del localStorage si no está en el contexto
   const userData = user || JSON.parse(localStorage.getItem('user') || '{}');
 
-  // Detectar género por el primer nombre (si termina en 'a' es femenino)
-  const primerNombre = userData.nombres?.split(' ')[0] || '';
-  const esFemenino = primerNombre.toLowerCase().endsWith('a');
-  const saludo = esFemenino ? '¡Bienvenida!' : '¡Bienvenido!';
+  // Saludo inclusivo
+  const saludo = '¡Bienvenid@!';
 
   useEffect(() => {
     let isMounted = true;
@@ -79,7 +77,7 @@ const Home = () => {
           </h1>
           
           <p className="text-2xl text-gray-700 font-semibold mb-8">
-            {userData.nombres} {userData.apellidoPaterno}
+            {userData.nombres?.split(' ')[0]} {userData.apellidoPaterno}
           </p>
 
           <p className="text-gray-600 text-lg">

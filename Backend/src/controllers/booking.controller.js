@@ -288,7 +288,7 @@ export const updateBooking = async (req, res, next) => {
     
     const canUpdate = 
       req.user.role === 'coordinador' ||
-      req.user.role === 'jefe_carrera' ||
+      req.user.role === 'jefecarrera' ||
       (req.user.role === 'alumno' && booking.student_id === req.user.id) ||
       (req.user.role === 'profesor' && booking.professor_id === req.user.id);
     

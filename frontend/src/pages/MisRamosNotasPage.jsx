@@ -431,6 +431,7 @@ export default function MisRamosNotasPage() {
                         <tr className="bg-[#143A80] text-white">
                           <th className="px-6 py-3 text-left font-semibold">Nombre</th>
                           <th className="px-6 py-3 text-left font-semibold">Fecha Programada</th>
+                          <th className="px-6 py-3 text-center font-semibold">Ponderación</th>
                           <th className="px-6 py-3 text-center font-semibold">Nota</th>
                           <th className="px-6 py-3 text-center font-semibold">Acciones</th>
                         </tr>
@@ -456,6 +457,9 @@ export default function MisRamosNotasPage() {
                                       "es-CL"
                                     )
                                   : "-"}
+                              </td>
+                              <td className="px-6 py-4 text-center font-semibold text-[#143A80]">
+                                {evaluacion.ponderacion ? `${evaluacion.ponderacion}%` : "-"}
                               </td>
                               <td className="px-6 py-4 text-center">
                                 {nota === null || nota === undefined ? (
