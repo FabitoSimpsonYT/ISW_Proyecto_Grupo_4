@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import { getEventosProfesor } from '../services/evento.service';
 import { getSlotsEvento, quitarAlumnoSlot, bloquearSlot, generarSlots } from '../services/slot.service';
@@ -9,6 +9,8 @@ export default function GestionarSlots() {
   const [eventoSel, setEventoSel] = useState(null);
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [filtroOcupacion, setFiltroOcupacion] = useState('todos'); // 'todos', 'ocupados', 'vacios'
+  const [filtroTexto, setFiltroTexto] = useState('');
 
   useEffect(() => {
     const fetchEventos = async () => {
@@ -148,77 +150,135 @@ export default function GestionarSlots() {
             </div>
           )}
           {!loading && slots.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {slots.map(slot => (
-                <div 
-                  key={slot.id} 
-                  className={`p-6 border-4 rounded-2xl shadow-lg transition-all ${
-                    slot.disponible 
-                      ? 'border-green-400 bg-gradient-to-br from-green-50 to-green-100 hover:shadow-xl' 
-                      : 'border-red-400 bg-gradient-to-br from-red-50 to-red-100 hover:shadow-xl'
+            <>
+              <div className="mb-4 flex gap-2 flex-wrap">
+                <div className="flex-1">
+                  <input
+                    type="search"
+                    value={filtroTexto}
+                    onChange={(e) => setFiltroTexto(e.target.value)}
+                    placeholder="Buscar por alumno, hora o estado..."
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+                <button
+                  onClick={() => setFiltroOcupacion('todos')}
+                  className={`px-4 py-2 rounded-lg font-bold transition ${
+                    filtroOcupacion === 'todos'
+                      ? 'bg-blue-600 text-white shadow-lg'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                   }`}
                 >
-                  {/* Estado disponibilidad */}
-                  <div className="flex items-center justify-between mb-4">
-                    <div className={`px-3 py-1 rounded-full font-bold text-sm ${
-                      slot.disponible ? 'bg-green-400 text-white' : 'bg-red-400 text-white'
-                    }`}>
-                      {slot.disponible ? '✓ DISPONIBLE' : '✗ OCUPADO'}
-                    </div>
-                  </div>
+                  Todos ({slots.length})
+                </button>
+                <button
+                  onClick={() => setFiltroOcupacion('vacios')}
+                  className={`px-4 py-2 rounded-lg font-bold transition ${
+                    filtroOcupacion === 'vacios'
+                      ? 'bg-green-600 text-white shadow-lg'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  Disponibles ({slots.filter(s => s.disponible).length})
+                </button>
+                <button
+                  onClick={() => setFiltroOcupacion('ocupados')}
+                  className={`px-4 py-2 rounded-lg font-bold transition ${
+                    filtroOcupacion === 'ocupados'
+                      ? 'bg-red-600 text-white shadow-lg'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  Ocupados ({slots.filter(s => !s.disponible && s.alumno).length})
+                </button>
+              </div>
 
-                  {/* Horario grande */}
-                  <div className="mb-4 border-b-2 border-gray-300 pb-4">
-                    <div className="text-3xl font-bold text-gray-800">
-                      {new Date(slot.fecha_hora_inicio).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
-                    </div>
-                    <div className="text-sm text-gray-600 mt-1">
-                      {new Date(slot.fecha_hora_inicio).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {new Date(slot.fecha_hora_fin).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-2">
-                      {new Date(slot.fecha_hora_inicio).toLocaleDateString('es-CL', {weekday: 'short', month: 'short', day: 'numeric'})}
-                    </div>
-                  </div>
-
-                  {/* Info del alumno o "Libre" */}
-                  <div className="mb-4 p-3 rounded-lg bg-white bg-opacity-70">
-                    {slot.alumno ? (
-                      <div>
-                        <div className="text-xs font-semibold text-gray-600 mb-1">INSCRITO:</div>
-                        <div className="font-semibold text-gray-800">
-                          {slot.alumno.nombres} {slot.alumno.apellidoPaterno}
-                        </div>
-                        <div className="text-xs text-gray-600">({slot.alumno.apellidoMaterno})</div>
-                      </div>
-                    ) : (
-                      <div className="text-lg font-bold text-green-600">LIBRE</div>
-                    )}
-                  </div>
-
-                  {/* Botones de acción */}
-                  <div className="flex gap-2 flex-wrap">
-                    {!slot.disponible && (
-                      <button 
-                        onClick={() => handleAccion('quitar', slot.id)} 
-                        className="flex-1 bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg font-bold text-sm transition" 
-                        disabled={loading}
-                      >
-                        Liberar
-                      </button>
-                    )}
-                    <button 
-                      onClick={() => handleAccion('bloquear', slot.id, !slot.bloqueado)} 
-                      className={`flex-1 text-white px-3 py-2 rounded-lg font-bold text-sm transition ${
-                        slot.bloqueado ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-gray-600 hover:bg-gray-700'
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {slots
+                  .filter(slot => {
+                    if (filtroOcupacion === 'vacios') return slot.disponible;
+                    if (filtroOcupacion === 'ocupados') return !slot.disponible && slot.alumno;
+                    // filtro de texto: nombre del alumno o horario
+                    if (filtroTexto && filtroTexto.trim() !== '') {
+                      const t = filtroTexto.toLowerCase();
+                      const alumnoStr = slot.alumno ? `${slot.alumno.nombres} ${slot.alumno.apellidoPaterno} ${slot.alumno.apellidoMaterno}`.toLowerCase() : '';
+                      const hora = new Date(slot.fecha_hora_inicio).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}).toLowerCase();
+                      const fecha = new Date(slot.fecha_hora_inicio).toLocaleDateString().toLowerCase();
+                      if (!alumnoStr.includes(t) && !hora.includes(t) && !fecha.includes(t) && !String(slot.id).includes(t)) return false;
+                    }
+                    return true;
+                  })
+                  .map(slot => (
+                    <div 
+                      key={slot.id} 
+                      className={`p-6 border-4 rounded-2xl shadow-lg transition-all ${
+                        slot.disponible 
+                          ? 'border-green-400 bg-gradient-to-br from-green-50 to-green-100 hover:shadow-xl' 
+                          : 'border-red-400 bg-gradient-to-br from-red-50 to-red-100 hover:shadow-xl'
                       }`}
-                      disabled={loading}
                     >
-                      {slot.bloqueado ? 'Desbloquear' : 'Bloquear'}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                      {/* Estado disponibilidad */}
+                      <div className="flex items-center justify-between mb-4">
+                        <div className={`px-3 py-1 rounded-full font-bold text-sm ${
+                          slot.disponible ? 'bg-green-400 text-white' : 'bg-red-400 text-white'
+                        }`}>
+                          {slot.disponible ? '✓ DISPONIBLE' : '✗ OCUPADO'}
+                        </div>
+                      </div>
+
+                      {/* Horario grande */}
+                      <div className="mb-4 border-b-2 border-gray-300 pb-4">
+                        <div className="text-3xl font-bold text-gray-800">
+                          {new Date(slot.fecha_hora_inicio).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                        </div>
+                        <div className="text-sm text-gray-600 mt-1">
+                          {new Date(slot.fecha_hora_inicio).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {new Date(slot.fecha_hora_fin).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-2">
+                          {new Date(slot.fecha_hora_inicio).toLocaleDateString('es-CL', {weekday: 'short', month: 'short', day: 'numeric'})}
+                        </div>
+                      </div>
+
+                      {/* Info del alumno o "Libre" */}
+                      <div className="mb-4 p-3 rounded-lg bg-white bg-opacity-70">
+                        {slot.alumno ? (
+                          <div>
+                            <div className="text-xs font-semibold text-gray-600 mb-1">INSCRITO:</div>
+                            <div className="font-semibold text-gray-800">
+                              {slot.alumno.nombres} {slot.alumno.apellidoPaterno}
+                            </div>
+                            <div className="text-xs text-gray-600">({slot.alumno.apellidoMaterno})</div>
+                          </div>
+                        ) : (
+                          <div className="text-lg font-bold text-green-600">LIBRE</div>
+                        )}
+                      </div>
+
+                      {/* Botones de acción */}
+                      <div className="flex gap-2 flex-wrap">
+                        {!slot.disponible && (
+                          <button 
+                            onClick={() => handleAccion('quitar', slot.id)} 
+                            className="flex-1 bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg font-bold text-sm transition" 
+                            disabled={loading}
+                          >
+                            Liberar
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => handleAccion('bloquear', slot.id, !slot.bloqueado)} 
+                          className={`flex-1 text-white px-3 py-2 rounded-lg font-bold text-sm transition ${
+                            slot.bloqueado ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-gray-600 hover:bg-gray-700'
+                          }`}
+                          disabled={loading}
+                        >
+                          {slot.bloqueado ? 'Desbloquear' : 'Bloquear'}
+                        </button>
+                      </div>
+                    </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
       )}
