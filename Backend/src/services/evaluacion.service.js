@@ -4,6 +4,7 @@ import { Pauta } from "../entities/pauta.entity.js";
 import { PautaEvaluada } from "../entities/pautaEvaluada.entity.js";
 import { Ramos } from "../entities/ramos.entity.js";
 import { BadRequestError } from "../Handlers/responseHandlers.js";
+import { getNextAvailableEvaluacionId } from "../utils/evaluacion-id.utils.js";
 
 const evaluacionRepository = AppDataSource.getRepository(Evaluacion);
 const pautaRepository = AppDataSource.getRepository(Pauta);
@@ -173,9 +174,11 @@ export async function createEvaluacionService(data) {
     }
   }
 
-  
+  // Obtener el siguiente ID disponible que no exista en evaluaciones normales ni integradoras
+  const nextId = await getNextAvailableEvaluacionId(resolvedRamoId);
 
   const nueva = evaluacionRepository.create({
+    id: nextId, // Asignar ID explícitamente para evitar conflictos
     titulo,
     fechaProgramada: fechaStr,
     horaInicio,

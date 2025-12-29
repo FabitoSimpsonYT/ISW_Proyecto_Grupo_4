@@ -4,6 +4,7 @@ import { PautaEvaluadaIntegradora } from "../entities/pautaEvaluadaIntegradora.e
 import { Pauta } from "../entities/pauta.entity.js";
 import { Ramos } from "../entities/ramos.entity.js";
 import { Alumno } from "../entities/alumno.entity.js";
+import { getNextAvailableEvaluacionId } from "../utils/evaluacion-id.utils.js";
 
 const evaluacionIntegradoraRepo = AppDataSource.getRepository(EvaluacionIntegradora);
 const pautaIntegradoraRepo = AppDataSource.getRepository(PautaEvaluadaIntegradora);
@@ -34,8 +35,12 @@ export async function createEvaluacionIntegradoraService(codigoRamo, data) {
       return { error: "Ya existe una evaluación integradora para este ramo" };
     }
 
+    // Obtener el siguiente ID disponible que no exista en evaluaciones normales ni integradoras
+    const nextId = await getNextAvailableEvaluacionId(ramo.id);
+
     // Crear evaluación integradora
     const evaluacionIntegradora = evaluacionIntegradoraRepo.create({
+      id: nextId, // Asignar ID explícitamente para evitar conflictos
       ramoId: ramo.id,
       codigoRamo: codigoRamo,
       titulo: data.titulo || "Evaluación Integradora",
