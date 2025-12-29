@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { showSuccessAlert } from "@/utils/alertUtils";
 import { createPauta, updatePauta, getPautaById, createPautaIntegradora, getPautaIntegradora, updatePautaIntegradora } from "../services/pauta.service.js";
 import { getEvaluacionById } from "../services/evaluacion.service.js";
 import { getEvaluacionIntegradora } from "../services/evaluacionIntegradora.service.js";
@@ -49,9 +50,18 @@ export default function CrearEditarPautaPage() {
                             fechaProgramada: integradoData?.fechaProgramada || new Date().toISOString().split('T')[0],
                         });
                         
-                        // Intentar cargar la pauta integradora si ya existe
+                        // Intentar cargar la pauta integradora si existe
                         try {
-                            const pautaData = await getPautaIntegradora(integradoData?.id);
+                            let pautaData;
+                            if (integradoData?.idPauta) {
+                                // Si la evaluación integradora tiene idPauta, cargar esa pauta
+                                console.log("Cargando pauta asociada con ID:", integradoData.idPauta);
+                                pautaData = await getPautaById(integradoData.idPauta);
+                            } else {
+                                // Si no, intentar cargar por evaluacionIntegradoraId
+                                console.log("Cargando pauta integradora por evaluacionIntegradoraId:", integradoData?.id);
+                                pautaData = await getPautaIntegradora(integradoData?.id);
+                            }
                             console.log("Pauta integradora cargada:", pautaData);
                             setPauta({
                                 ...pautaData,
@@ -81,6 +91,59 @@ export default function CrearEditarPautaPage() {
                 // Cargar datos de evaluación para evaluaciones normales
                 if (codigoRamo && idEvaluacion) {
                     const evalData = await getEvaluacionById(codigoRamo, idEvaluacion);
+                    
+                    // Si es un error o no encontrado, intentar cargar como integradora
+                    if (!evalData || evalData?.message || evalData?.error) {
+                        console.log("Evaluación normal no encontrada, intentando como integradora...", evalData);
+                        try {
+                            // Obtener la evaluación integradora del ramo para conseguir su ID
+                            const integradoRes = await getEvaluacionIntegradora(codigoRamo);
+                            const integradoData = integradoRes?.data;
+                            if (!integradoData?.id) {
+                                throw new Error("No se encontró evaluación integradora para este ramo");
+                            }
+                            console.log("Evaluación integradora cargada:", integradoData);
+                            setEvaluacionId(integradoData?.id);
+                            setEvaluacionData({
+                                id: integradoData?.id,
+                                titulo: integradoData?.titulo || "Evaluación Integradora",
+                                puntajeTotal: integradoData?.puntajeTotal || 100,
+                                fechaProgramada: integradoData?.fechaProgramada || new Date().toISOString().split('T')[0],
+                            });
+                            
+                            // Intentar cargar la pauta integradora con el ID de pauta asociada
+                            try {
+                                let pautaData;
+                                if (integradoData?.idPauta) {
+                                    // Si la evaluación integradora tiene idPauta, cargar esa pauta
+                                    console.log("Cargando pauta asociada con ID:", integradoData.idPauta);
+                                    pautaData = await getPautaById(integradoData.idPauta);
+                                } else {
+                                    // Si no, intentar cargar por evaluacionIntegradoraId
+                                    console.log("Cargando pauta integradora por evaluacionIntegradoraId:", integradoData.id);
+                                    pautaData = await getPautaIntegradora(integradoData.id);
+                                }
+                                console.log("Pauta integradora cargada:", pautaData);
+                                setPauta({
+                                    ...pautaData,
+                                    criteriosPuntaje: pautaData.distribucionPuntaje
+                                        ? Object.entries(pautaData.distribucionPuntaje).map(([nombre, puntaje]) => ({ nombre, puntaje }))
+                                        : [{ nombre: '', puntaje: 0 }],
+                                });
+                            } catch (err) {
+                                console.log("No existe pauta integradora aún");
+                                setPauta(initialState);
+                            }
+                            setPageLoading(false);
+                            return;
+                        } catch (integError) {
+                            console.error("Error al obtener evaluación integradora:", integError);
+                            setError("No se encontró la evaluación ni la evaluación integradora");
+                            setPageLoading(false);
+                            return;
+                        }
+                    }
+                    
                     console.log("Evaluación cargada:", evalData);
                     setEvaluacionData(evalData);
                     
@@ -95,6 +158,7 @@ export default function CrearEditarPautaPage() {
                                 ? Object.entries(pautaData.distribucionPuntaje).map(([nombre, puntaje]) => ({ nombre, puntaje }))
                                 : [{ nombre: '', puntaje: 0 }],
                         });
+                        setPageLoading(false);
                         return;
                     }
                 }
@@ -138,8 +202,8 @@ export default function CrearEditarPautaPage() {
                 }
                 if (c.puntaje === '' || isNaN(c.puntaje)) {
                     err[`criterio_puntaje_${idx}`] = 'El puntaje es obligatorio';
-                } else if (c.puntaje < 0 || c.puntaje > 100) {
-                    err[`criterio_puntaje_${idx}`] = 'El puntaje debe estar entre 0 y 100';
+                } else if (c.puntaje < 0) {
+                    err[`criterio_puntaje_${idx}`] = 'El puntaje debe ser mayor o igual a 0';
                 }
             });
         }
@@ -201,23 +265,23 @@ export default function CrearEditarPautaPage() {
 
         try {
             if (pauta.id) {
-                // Si es integradora (evaluacionId existe sin idEvaluacion en params), actualizar con updatePautaIntegradora
-                if (isNew && evaluacionId && !idEvaluacion) {
+                // Si evaluacionId está set pero no idEvaluacion, es integradora
+                if (evaluacionId && !idEvaluacion) {
                     await updatePautaIntegradora(evaluacionId, pautaToSend);
                 } else {
                     // Es normal: usar updatePauta con id de pauta
                     await updatePauta(pauta.id, pautaToSend);
                 }
-                alert('Pauta actualizada correctamente');
+                showSuccessAlert('Éxito', 'Pauta actualizada correctamente');
             } else {
-                // Si es integradora (evaluacionId existe), usar createPautaIntegradora
-                if (isNew && evaluacionId) {
+                // Si evaluacionId está set pero no idEvaluacion, es integradora
+                if (evaluacionId && !idEvaluacion) {
                     await createPautaIntegradora(pautaToSend, evaluacionId);
                 } else {
                     // Es normal: usar createPauta con idEvaluacion
                     await createPauta(pautaToSend, idEvaluacion || null);
                 }
-                alert('Pauta creada correctamente');
+                showSuccessAlert('Éxito', 'Pauta creada correctamente');
             }
             if (idEvaluacion || evaluacionId) {
                 navigate(`/evaluaciones`);
@@ -402,7 +466,6 @@ export default function CrearEditarPautaPage() {
                                                 value={c.puntaje}
                                                 onChange={handleChange}
                                                 min="0"
-                                                max="100"
                                                 placeholder="0"
                                                 className={`w-full rounded border p-3 text-gray-800 outline-none focus:ring-2 transition ${
                                                     hasFieldError(`criterio_puntaje_${idx}`)

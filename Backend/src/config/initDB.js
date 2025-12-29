@@ -127,16 +127,16 @@ export async function createTestData() {
     // Insertar ramos con profesores asignados
     await query(`
       INSERT INTO ramos (codigo, nombre, profesor_id, created_at, updated_at) VALUES
-      ('DER-101', 'Derecho Civil I', (SELECT id FROM users WHERE email = 'profesor1@ubiobio.cl'), NOW(), NOW())
+      ('620515', 'Derecho Civil I', (SELECT id FROM users WHERE email = 'profesor1@ubiobio.cl'), NOW(), NOW())
       ON CONFLICT (codigo) DO NOTHING
     `);
     console.log("✅ Ramos creados");
 
     // Insertar secciones
-    // Profesor 1: 1 ramo (DER-101) con 1 sección
+    // Profesor 1: 1 ramo (620515) con 1 sección
     await query(`
       INSERT INTO secciones (numero, ramo_id, capacidad, created_at, updated_at) VALUES
-      ('A', (SELECT id FROM ramos WHERE codigo = 'DER-101'), 30, NOW(), NOW())
+      ('A', (SELECT id FROM ramos WHERE codigo = '620515'), 30, NOW(), NOW())
       ON CONFLICT DO NOTHING
     `);
     console.log("✅ Secciones creadas");
@@ -144,7 +144,7 @@ export async function createTestData() {
     // Relacionar alumnos con secciones
     await query(`
       INSERT INTO seccion_alumnos (alumno_id, seccion_id, created_at, updated_at) VALUES
-      ((SELECT id FROM users WHERE email = 'alumno1@ubiobio.cl'), (SELECT id FROM secciones WHERE numero = 'A' AND ramo_id = (SELECT id FROM ramos WHERE codigo = 'DER-101') LIMIT 1), NOW(), NOW())
+      ((SELECT id FROM users WHERE email = 'alumno1@ubiobio.cl'), (SELECT id FROM secciones WHERE numero = 'A' AND ramo_id = (SELECT id FROM ramos WHERE codigo = '620515') LIMIT 1), NOW(), NOW())
       ON CONFLICT DO NOTHING
     `);
     console.log("✅ Alumnos asociados a secciones");
@@ -173,8 +173,8 @@ export async function createTestData() {
         'presencial',
         (SELECT id FROM tipos_eventos WHERE nombre = 'CERTAMEN'),
         (SELECT id FROM users WHERE email = 'profesor1@ubiobio.cl'),
-        (SELECT id FROM ramos WHERE codigo = 'DER-101'),
-        (SELECT id FROM secciones WHERE numero = 'A' AND ramo_id = (SELECT id FROM ramos WHERE codigo = 'DER-101') LIMIT 1),
+        (SELECT id FROM ramos WHERE codigo = '620515'),
+        (SELECT id FROM secciones WHERE numero = 'A' AND ramo_id = (SELECT id FROM ramos WHERE codigo = '620515') LIMIT 1),
         30, 30, false, 'Sala 301', NOW(), NOW()
       ),
       (
@@ -186,8 +186,8 @@ export async function createTestData() {
         'presencial',
         (SELECT id FROM tipos_eventos WHERE nombre = 'INTERROGACIÓN'),
         (SELECT id FROM users WHERE email = 'profesor1@ubiobio.cl'),
-        (SELECT id FROM ramos WHERE codigo = 'DER-101'),
-        (SELECT id FROM secciones WHERE numero = 'A' AND ramo_id = (SELECT id FROM ramos WHERE codigo = 'DER-101') LIMIT 1),
+        (SELECT id FROM ramos WHERE codigo = '620515'),
+        (SELECT id FROM secciones WHERE numero = 'A' AND ramo_id = (SELECT id FROM ramos WHERE codigo = '620515') LIMIT 1),
         30, 30, false, 'Sala 301', NOW(), NOW()
       )
       ON CONFLICT DO NOTHING
@@ -208,7 +208,7 @@ export async function createTestData() {
         true,
         true,
         75.5,
-        (SELECT id FROM ramos WHERE codigo = 'DER-101'),
+        (SELECT id FROM ramos WHERE codigo = '620515'),
         (SELECT id FROM users WHERE email = 'profesor1@ubiobio.cl'),
         NOW(),
         NOW()

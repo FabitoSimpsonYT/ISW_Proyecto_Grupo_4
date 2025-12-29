@@ -168,8 +168,9 @@ export const useRetroalimentacion = (ramoId, alumnoRut, evaluacionId, evaluacion
       alumnoRut,
       ramoId,
       mensaje,
+      rutEmisor: user?.rut,
     });
-  }, [alumnoRut, ramoId, evaluacionId, evaluacionIntegradoraId]);
+  }, [alumnoRut, ramoId, evaluacionId, evaluacionIntegradoraId, user?.rut]);
 
   const marcarVistos = useCallback(async () => {
     try {

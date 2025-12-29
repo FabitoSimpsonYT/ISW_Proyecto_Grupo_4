@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
-import { getAllUsers, getAllAlumnos, promoverProfesorAJefeCarrera, degradarJefeCarreraAProfesor, getJefeCarreraActual } from "../services/users.service.js";
+import { showSuccessAlert, showErrorAlert, showConfirmAlert } from "@/utils/alertUtils";
+import { getAllUsers, getAllAlumnos, promoverProfesorAJefeCarrera, degradarJefeCarreraAProfesor, getJefeCarreraActual, deleteAdmin, deleteProfesor, deleteAlumno } from "../services/users.service.js";
 
 export default function UsuariosList({ reload }) {
   const { user } = useAuth();
@@ -64,29 +65,71 @@ export default function UsuariosList({ reload }) {
       return;
     }
 
-    if (window.confirm(`¿Promover este profesor a Jefe de Carrera?`)) {
+    const result = await showConfirmAlert(
+      "¿Está seguro?",
+      "¿Promover este profesor a Jefe de Carrera?",
+      "Promover",
+      "Cancelar"
+    );
+    
+    if (result.isConfirmed) {
       try {
         await promoverProfesorAJefeCarrera(rut);
-        alert('Profesor promovido a Jefe de Carrera');
-        fetchUsuarios();
-        fetchJefeCarrera();
-        setSelectedRango('jefecarrera'); // Cambiar a la pestaña de Jefe de Carrera
+        showSuccessAlert('Éxito', 'Profesor promovido a Jefe de Carrera');
+        // Esperar a que se actualicen los datos antes de cambiar de pestaña
+        await Promise.all([fetchUsuarios(), fetchJefeCarrera()]);
+        setTimeout(() => setSelectedRango('jefecarrera'), 100);
       } catch (error) {
-        alert(`Error: ${error.message}`);
+        showErrorAlert('Error', `Error: ${error.message}`);
       }
     }
   };
 
   const handleDegradar = async () => {
-    if (window.confirm(`¿Degradar el Jefe de Carrera actual a profesor?`)) {
+    const result = await showConfirmAlert(
+      "¿Está seguro?",
+      "¿Degradar el Jefe de Carrera actual a profesor?",
+      "Degradar",
+      "Cancelar"
+    );
+    
+    if (result.isConfirmed) {
       try {
         await degradarJefeCarreraAProfesor();
-        alert('Jefe de Carrera degradado a profesor');
-        fetchUsuarios();
-        fetchJefeCarrera();
-        setSelectedRango('profesores'); // Cambiar a la pestaña de Profesores
+        showSuccessAlert('Éxito', 'Jefe de Carrera degradado a profesor');
+        // Esperar a que se actualicen los datos antes de cambiar de pestaña
+        await Promise.all([fetchUsuarios(), fetchJefeCarrera()]);
+        setTimeout(() => setSelectedRango('profesores'), 100);
       } catch (error) {
-        alert(`Error: ${error.message}`);
+        showErrorAlert('Error', `Error: ${error.message}`);
+      }
+    }
+  };
+
+  const handleDeleteUser = async (usuario) => {
+    const user = usuario.user || usuario;
+    const result = await showConfirmAlert(
+      "¿Está seguro?",
+      `¿Deseas eliminar a ${user.nombres} ${user.apellidoPaterno}? Esta acción no se puede deshacer.`,
+      "Eliminar",
+      "Cancelar"
+    );
+
+    if (result.isConfirmed) {
+      try {
+        // Determinar qué función de eliminación usar según el rol
+        if (user.role === 'admin') {
+          await deleteAdmin(user.id);
+        } else if (user.role === 'profesor' || user.role === 'jefecarrera') {
+          await deleteProfesor(user.id);
+        } else if (user.role === 'alumno') {
+          await deleteAlumno(user.id);
+        }
+        
+        showSuccessAlert('Éxito', 'Usuario eliminado correctamente');
+        fetchUsuarios();
+      } catch (error) {
+        showErrorAlert('Error', `Error: ${error.message}`);
       }
     }
   };
@@ -148,8 +191,7 @@ export default function UsuariosList({ reload }) {
             <th className="px-4 py-2 border">Nombre</th>
             <th className="px-4 py-2 border">Email</th>
             <th className="px-4 py-2 border">Teléfono</th>
-            {selectedRango === 'profesores' && <th className="px-4 py-2 border text-center">Acciones</th>}
-            {selectedRango === 'jefecarrera' && <th className="px-4 py-2 border text-center">Acciones</th>}
+            <th className="px-4 py-2 border text-center">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -165,26 +207,37 @@ export default function UsuariosList({ reload }) {
                 </td>
                 <td className="px-4 py-2 border text-gray-600">{user.email}</td>
                 <td className="px-4 py-2 border text-gray-600">{user.telefono}</td>
-                {selectedRango === 'profesores' && user?.role === 'admin' && (
-                  <td className="px-4 py-2 border text-center">
+                <td className="px-4 py-2 border text-center">
+                  <div className="flex flex-col gap-2">
+                    {/* Botón Promover (solo para profesores) */}
+                    {selectedRango === 'profesores' && user?.role === 'profesor' && (
+                      <button
+                        onClick={() => handlePromover(user.rut)}
+                        className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 rounded text-sm transition-colors"
+                      >
+                        Promover a Jefe
+                      </button>
+                    )}
+
+                    {/* Botón Degradar (solo para jefe de carrera) */}
+                    {selectedRango === 'jefecarrera' && (
+                      <button
+                        onClick={handleDegradar}
+                        className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-3 rounded text-sm transition-colors"
+                      >
+                        Degradar
+                      </button>
+                    )}
+
+                    {/* Botón Eliminar (en todas las vistas) */}
                     <button
-                      onClick={() => handlePromover(user.rut)}
-                      className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition-colors"
+                      onClick={() => handleDeleteUser(usuario)}
+                      className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-3 rounded text-sm transition-colors"
                     >
-                      Promover a Jefe
+                      Eliminar
                     </button>
-                  </td>
-                )}
-                {selectedRango === 'jefecarrera' && user?.role === 'admin' && (
-                  <td className="px-4 py-2 border text-center">
-                    <button
-                      onClick={handleDegradar}
-                      className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded transition-colors"
-                    >
-                      Degradar
-                    </button>
-                  </td>
-                )}
+                  </div>
+                </td>
               </tr>
             );
           })}

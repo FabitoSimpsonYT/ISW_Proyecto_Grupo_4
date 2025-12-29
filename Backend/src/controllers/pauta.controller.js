@@ -136,6 +136,7 @@ export async function getPautaIntegradora(req, res) {
 
     handleSuccess(res, 200, "Pauta integradora obtenida exitosamente", { pauta: result });
   } catch (error) {
+    console.error("Error en getPautaIntegradora:", error);
     handleErrorServer(res, 500, "Error al obtener pauta integradora", error.message);
   }
 }

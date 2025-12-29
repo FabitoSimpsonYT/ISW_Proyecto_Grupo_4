@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { showSuccessAlert } from "@/utils/alertUtils";
 import { createRamo, updateRamo } from "../services/ramos.service.js";
 import { getAllProfesores, getJefeCarreraActual } from "../services/users.service.js";
 
@@ -130,12 +131,12 @@ export default function RamosForm({ ramoEdit, onSaved }) {
       // Si originalCodigo existe, es una actualización
       if (ramo.originalCodigo) {
         await updateRamo(ramo.originalCodigo, dataToSend);
-        alert('Ramo actualizado correctamente');
+        showSuccessAlert('Éxito', 'Ramo actualizado correctamente');
         // Agregar pequeño delay para asegurar que los datos se procesaron en el backend
         await new Promise(resolve => setTimeout(resolve, 500));
       } else {
         await createRamo(dataToSend);
-        alert('Ramo creado correctamente');
+        showSuccessAlert('Éxito', 'Ramo creado correctamente');
       }
 
       setRamo(initialState);

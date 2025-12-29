@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { showErrorAlert, showConfirmAlert } from "@/utils/alertUtils";
 import {
   deleteEvaluacion,
   getAllEvaluaciones,
   getEvaluacionesByCodigoRamo,
   updateEvaluacion,
 } from "../services/evaluacion.service.js";
-import { getEvaluacionIntegradora } from "../services/evaluacionIntegradora.service.js";
+import { getEvaluacionIntegradora, deleteEvaluacionIntegradora } from "../services/evaluacionIntegradora.service.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { calcularPromediosRamo, createPromedioParcial, createPromedioFinal, calcularPromediosParcial, calcularPromediosFinal } from "../services/alumnoPromedioRamo.service.js";
 import Swal from "sweetalert2";
@@ -111,11 +112,21 @@ export default function EvaluacionList({ onEdit, codigoRamo, onNuevaEvaluacion }
     });
   }, [evaluaciones]);
 
-  const handleDelete = async (id) => {
-    const confirmDelete = window.confirm("¿Estás seguro de eliminar esta evaluación?");
-    if (confirmDelete) {
-      await deleteEvaluacion(id);
-      setEvaluaciones(evaluaciones.filter((e) => e.id !== id));
+  const handleDelete = async (id, isIntegradora = false) => {
+    const result = await showConfirmAlert(
+      "¿Está seguro?",
+      "¿Estás seguro de eliminar esta evaluación?",
+      "Eliminar",
+      "Cancelar"
+    );
+    if (result.isConfirmed) {
+      if (isIntegradora) {
+        await deleteEvaluacionIntegradora(id);
+        setEvaluacionIntegradora(null);
+      } else {
+        await deleteEvaluacion(id);
+        setEvaluaciones(evaluaciones.filter((e) => e.id !== id));
+      }
     }
   };
 
@@ -132,7 +143,7 @@ export default function EvaluacionList({ onEdit, codigoRamo, onNuevaEvaluacion }
       );
     } catch (e) {
       const msg = e?.message || e?.error || "No se pudo actualizar la publicación";
-      alert(msg);
+      showErrorAlert("Error", msg);
     } finally {
       setPublishingId(null);
     }
@@ -177,20 +188,32 @@ export default function EvaluacionList({ onEdit, codigoRamo, onNuevaEvaluacion }
       
       console.log("✅ Resultado:", resultado);
       const message = resultado?.data?.message || "Promedio parcial calculado exitosamente";
-      Swal.fire(
-        "Cálculo Completado",
-        message,
-        "success"
-      );
+      
+      // Verificar si hay errores en la respuesta
+      if (resultado?.data?.hasErrors) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error en Ponderaciones',
+          html: `<div style="text-align: left;">${message.replace(/\n/g, '<br>')}</div>`,
+          confirmButtonText: 'Entendido'
+        });
+      } else {
+        Swal.fire(
+          "Cálculo Completado",
+          message,
+          "success"
+        );
+      }
     } catch (error) {
       setCalculandoPromedioParcial(false);
       console.error("❌ Error al calcular promedio parcial:", error);
       const errorMsg = error?.response?.data?.message || error?.message || "Error al calcular promedio parcial";
-      Swal.fire(
-        "Error",
-        errorMsg,
-        "error"
-      );
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        html: `<div style="text-align: left;">${errorMsg.replace(/\n/g, '<br>')}</div>`,
+        confirmButtonText: 'Entendido'
+      });
     }
   };
 
@@ -208,20 +231,32 @@ export default function EvaluacionList({ onEdit, codigoRamo, onNuevaEvaluacion }
       
       console.log("✅ Resultado:", resultado);
       const message = resultado?.data?.message || "Promedio final calculado exitosamente";
-      Swal.fire(
-        "Cálculo Completado",
-        message,
-        "success"
-      );
+      
+      // Verificar si hay errores en la respuesta
+      if (resultado?.data?.hasErrors) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error en Ponderaciones',
+          html: `<div style="text-align: left;">${message.replace(/\n/g, '<br>')}</div>`,
+          confirmButtonText: 'Entendido'
+        });
+      } else {
+        Swal.fire(
+          "Cálculo Completado",
+          message,
+          "success"
+        );
+      }
     } catch (error) {
       setCalculandoPromedioFinal(false);
       console.error("❌ Error al calcular promedio final:", error);
       const errorMsg = error?.response?.data?.message || error?.message || "Error al calcular promedio final";
-      Swal.fire(
-        "Error",
-        errorMsg,
-        "error"
-      );
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        html: `<div style="text-align: left;">${errorMsg.replace(/\n/g, '<br>')}</div>`,
+        confirmButtonText: 'Entendido'
+      });
     }
   };
 
@@ -516,7 +551,7 @@ export default function EvaluacionList({ onEdit, codigoRamo, onNuevaEvaluacion }
                       </button>
                       <button
                         className="rounded-lg bg-red-500 hover:bg-red-600 text-white px-3 py-2 text-xs font-bold transition-colors"
-                        onClick={() => handleDelete(evaluacionIntegradora.id)}
+                        onClick={() => handleDelete(evaluacionIntegradora.id, true)}
                         title="Eliminar evaluación"
                       >
                         Eliminar

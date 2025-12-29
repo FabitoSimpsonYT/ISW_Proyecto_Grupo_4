@@ -15,6 +15,22 @@ const pautaRepository = AppDataSource.getRepository(Pauta);
 const alumnoRepository = AppDataSource.getRepository(Alumno);
 
 /**
+ * Helper: Valida evaluacionId y si es null, busca evaluacionIntegradoraId
+ * @param {number} evaluacionId - ID de la evaluación
+ * @param {number} evaluacionIntegradoraId - ID de la evaluación integradora
+ * @returns {object} { id: evaluacionId validado, isIntegradora: boolean }
+ */
+export function resolveEvaluacionId(evaluacionId, evaluacionIntegradoraId) {
+  if (evaluacionId === null || evaluacionId === undefined) {
+    if (evaluacionIntegradoraId === null || evaluacionIntegradoraId === undefined) {
+      return { error: "Se requiere evaluacionId o evaluacionIntegradoraId" };
+    }
+    return { id: evaluacionIntegradoraId, isIntegradora: true };
+  }
+  return { id: evaluacionId, isIntegradora: false };
+}
+
+/**
  * Obtiene todas las evaluaciones y notas de un alumno
  * @param {number} alumnoId - ID del alumno
  * @returns {Promise<Array>} Array con nombre de evaluación y nota
@@ -165,14 +181,35 @@ export async function createPautaEvaluadaService(evaluacionId, pautaId, alumnoRu
 }
 
 
-export async function getPautaEvaluadaService(evaluacionId, alumnoRut) {
+export async function getPautaEvaluadaService(evaluacionId, alumnoRut, evaluacionIntegradoraId = null) {
+  // Resolver si usar evaluacionId o evaluacionIntegradoraId
+  const resolved = resolveEvaluacionId(evaluacionId, evaluacionIntegradoraId);
+  if (resolved.error) return { error: resolved.error };
+
+  if (resolved.isIntegradora) {
+    // Buscar en pautaEvaluadaIntegradora
+    const pauta = await pautaEvaluadaIntegradoraRepository
+      .createQueryBuilder("pei")
+      .leftJoinAndSelect("pei.alumno", "a")
+      .leftJoinAndSelect("a.user", "u")
+      .leftJoinAndSelect("pei.evaluacionIntegradora", "ei")
+      .leftJoinAndSelect("pei.pauta", "p")
+      .where("pei.evaluacion_integradora_id = :evaluacionIntegradoraId", { evaluacionIntegradoraId: resolved.id })
+      .andWhere("u.rut = :rut", { rut: alumnoRut })
+      .getOne();
+
+    if (!pauta) return { error: "Pauta evaluada integradora no encontrada" };
+    return pauta;
+  }
+
+  // Buscar en pautaEvaluada normal
   const pauta = await pautaEvaluadaRepository
     .createQueryBuilder("pe")
     .leftJoinAndSelect("pe.alumno", "a")
     .leftJoinAndSelect("a.user", "u")
     .leftJoinAndSelect("pe.evaluacion", "e")
     .leftJoinAndSelect("pe.pauta", "p")
-    .where("pe.evaluacion_id = :evaluacionId", { evaluacionId })
+    .where("pe.evaluacion_id = :evaluacionId", { evaluacionId: resolved.id })
     .andWhere("u.rut = :rut", { rut: alumnoRut })
     .getOne();
 
@@ -180,16 +217,34 @@ export async function getPautaEvaluadaService(evaluacionId, alumnoRut) {
   return pauta;
 }
 
-export async function getPautasEvaluadasByEvaluacionService(evaluacionId) {
+export async function getPautasEvaluadasByEvaluacionService(evaluacionId, evaluacionIntegradoraId = null) {
   try {
-    const pautas = await pautaEvaluadaRepository
-      .createQueryBuilder("pe")
-      .leftJoinAndSelect("pe.alumno", "a")
-      .leftJoinAndSelect("a.user", "u")
-      .leftJoinAndSelect("pe.evaluacion", "e")
-      .leftJoinAndSelect("pe.pauta", "p")
-      .where("pe.evaluacion_id = :evaluacionId", { evaluacionId })
-      .getMany();
+    // Resolver si usar evaluacionId o evaluacionIntegradoraId
+    const resolved = resolveEvaluacionId(evaluacionId, evaluacionIntegradoraId);
+    if (resolved.error) return { error: resolved.error };
+
+    let pautas;
+    if (resolved.isIntegradora) {
+      // Buscar en pautaEvaluadaIntegradora
+      pautas = await pautaEvaluadaIntegradoraRepository
+        .createQueryBuilder("pei")
+        .leftJoinAndSelect("pei.alumno", "a")
+        .leftJoinAndSelect("a.user", "u")
+        .leftJoinAndSelect("pei.evaluacionIntegradora", "ei")
+        .leftJoinAndSelect("pei.pauta", "p")
+        .where("pei.evaluacion_integradora_id = :evaluacionIntegradoraId", { evaluacionIntegradoraId: resolved.id })
+        .getMany();
+    } else {
+      // Buscar en pautaEvaluada normal
+      pautas = await pautaEvaluadaRepository
+        .createQueryBuilder("pe")
+        .leftJoinAndSelect("pe.alumno", "a")
+        .leftJoinAndSelect("a.user", "u")
+        .leftJoinAndSelect("pe.evaluacion", "e")
+        .leftJoinAndSelect("pe.pauta", "p")
+        .where("pe.evaluacion_id = :evaluacionId", { evaluacionId: resolved.id })
+        .getMany();
+    }
 
     if (!pautas || pautas.length === 0) {
       return { error: "No hay pautas evaluadas para esta evaluación" };
@@ -255,20 +310,38 @@ export async function obtenerPromedioGeneralPorRamo(ramoId) {
   return courseAvg;
 }
 
-export async function updatePautaEvaluadaService(evaluacionId, alumnoRut, data, user) {
+export async function updatePautaEvaluadaService(evaluacionId, alumnoRut, data, user, evaluacionIntegradoraId = null) {
+  // Resolver si usar evaluacionId o evaluacionIntegradoraId
+  const resolved = resolveEvaluacionId(evaluacionId, evaluacionIntegradoraId);
+  if (resolved.error) return { error: resolved.error };
+
   // Buscar la pautaEvaluada por evaluacionId y alumnoRut
-  const pauta = await pautaEvaluadaRepository
-    .createQueryBuilder("pe")
-    .leftJoinAndSelect("pe.alumno", "a")
-    .leftJoinAndSelect("a.user", "u")
-    .leftJoinAndSelect("pe.pauta", "p")
-    .where("pe.evaluacion_id = :evaluacionId", { evaluacionId })
-    .andWhere("u.rut = :rut", { rut: alumnoRut })
-    .getOne();
+  let pauta;
+  if (resolved.isIntegradora) {
+    pauta = await pautaEvaluadaIntegradoraRepository
+      .createQueryBuilder("pei")
+      .leftJoinAndSelect("pei.alumno", "a")
+      .leftJoinAndSelect("a.user", "u")
+      .leftJoinAndSelect("pei.pauta", "p")
+      .where("pei.evaluacion_integradora_id = :evaluacionIntegradoraId", { evaluacionIntegradoraId: resolved.id })
+      .andWhere("u.rut = :rut", { rut: alumnoRut })
+      .getOne();
+  } else {
+    pauta = await pautaEvaluadaRepository
+      .createQueryBuilder("pe")
+      .leftJoinAndSelect("pe.alumno", "a")
+      .leftJoinAndSelect("a.user", "u")
+      .leftJoinAndSelect("pe.pauta", "p")
+      .where("pe.evaluacion_id = :evaluacionId", { evaluacionId: resolved.id })
+      .andWhere("u.rut = :rut", { rut: alumnoRut })
+      .getOne();
+  }
 
   if (!pauta) return { error: "Pauta evaluada no encontrada" };
 
-  if (user.role !== "admin" && pauta.creadaPor !== user.id) {
+  // Validar permisos: solo admin, profesor, jefecarrera o quien creó la pauta puede modificar
+  console.log("DEBUG updatePautaEvaluada - user.role:", user?.role, "user.id:", user?.id, "pauta.creadaPor:", pauta.creadaPor);
+  if (user.role !== "admin" && user.role !== "profesor" && user.role !== "jefecarrera" && pauta.creadaPor !== user.id) {
     return { error: "No tienes permiso para modificar esta pauta evaluada" };
   }
 
@@ -309,25 +382,44 @@ export async function updatePautaEvaluadaService(evaluacionId, alumnoRut, data, 
   return saved;
 }
 
-export async function deletePautaEvaluadaService(evaluacionId, alumnoRut, user) {
+export async function deletePautaEvaluadaService(evaluacionId, alumnoRut, user, evaluacionIntegradoraId = null) {
+  // Resolver si usar evaluacionId o evaluacionIntegradoraId
+  const resolved = resolveEvaluacionId(evaluacionId, evaluacionIntegradoraId);
+  if (resolved.error) return { error: resolved.error };
+
   // Buscar la pautaEvaluada por evaluacionId y alumnoRut
-  const pauta = await pautaEvaluadaRepository
-    .createQueryBuilder("pe")
-    .leftJoinAndSelect("pe.alumno", "a")
-    .leftJoinAndSelect("a.user", "u")
-    .where("pe.evaluacion_id = :evaluacionId", { evaluacionId })
-    .andWhere("u.rut = :rut", { rut: alumnoRut })
-    .getOne();
+  let pauta;
+  if (resolved.isIntegradora) {
+    pauta = await pautaEvaluadaIntegradoraRepository
+      .createQueryBuilder("pei")
+      .leftJoinAndSelect("pei.alumno", "a")
+      .leftJoinAndSelect("a.user", "u")
+      .where("pei.evaluacion_integradora_id = :evaluacionIntegradoraId", { evaluacionIntegradoraId: resolved.id })
+      .andWhere("u.rut = :rut", { rut: alumnoRut })
+      .getOne();
+  } else {
+    pauta = await pautaEvaluadaRepository
+      .createQueryBuilder("pe")
+      .leftJoinAndSelect("pe.alumno", "a")
+      .leftJoinAndSelect("a.user", "u")
+      .where("pe.evaluacion_id = :evaluacionId", { evaluacionId: resolved.id })
+      .andWhere("u.rut = :rut", { rut: alumnoRut })
+      .getOne();
+  }
 
   if (!pauta) return { error: "Pauta evaluada no encontrada" };
 
-  if (user.role !== "admin" && pauta.creadaPor !== user.id) {
+  // Validar permisos: solo admin, profesor, jefecarrera o quien creó la pauta puede eliminar
+  if (user.role !== "admin" && user.role !== "profesor" && user.role !== "jefecarrera" && pauta.creadaPor !== user.id) {
     return { error: "No tienes permiso para eliminar esta pauta evaluada" };
   }
 
-  await pautaEvaluadaRepository.remove(pauta);
-
-  await updateEvaluacionPromedio(evaluacionId);
+  if (resolved.isIntegradora) {
+    await pautaEvaluadaIntegradoraRepository.remove(pauta);
+  } else {
+    await pautaEvaluadaRepository.remove(pauta);
+    await updateEvaluacionPromedio(evaluacionId);
+  }
 
   return { message: "Pauta evaluada eliminada exitosamente" };
 }

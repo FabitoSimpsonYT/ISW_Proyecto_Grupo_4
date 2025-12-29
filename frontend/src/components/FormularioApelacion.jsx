@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { showWarningAlert } from "@/utils/alertUtils";
 import { getEvaluacionesDisponibles } from "../services/apelaciones.service";
 
 export default function FormularioApelacion({
@@ -126,12 +127,12 @@ useEffect(() => {
 
     if (esAlumno) {
       if (!mensaje.trim()) {
-        alert("El mensaje es obligatorio.");
+        showWarningAlert("Advertencia", "El mensaje es obligatorio.");
         return;
       }
 
       if (tipo === "evaluacion" && !pautaSeleccionada) {
-        alert("Debes seleccionar la evaluación por la que estás apelando.");
+        showWarningAlert("Advertencia", "Debes seleccionar la evaluación por la que estás apelando.");
         return;
       }
 
@@ -161,17 +162,17 @@ useEffect(() => {
 
     if (esProfesor) {
       if (!estado) {
-        alert("Debes seleccionar un estado.");
+        showWarningAlert("Advertencia", "Debes seleccionar un estado.");
         return;
       }
 
       if (estado === "rechazada" && !respuestaDocente.trim()) {
-        alert("El rechazo requiere un mensaje obligatorio.");
+        showWarningAlert("Advertencia", "El rechazo requiere un mensaje obligatorio.");
         return;
       }
 
       if (estado === "cita" && !fechaCitacion) {
-        alert("Debe indicar una fecha de citación.");
+        showWarningAlert("Advertencia", "Debe indicar una fecha de citación.");
         return;
       }
 

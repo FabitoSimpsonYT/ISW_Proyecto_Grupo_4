@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { showSuccessAlert } from "@/utils/alertUtils";
 // Validación de correo para profesores/administradores y alumnos
 function validateEmail(email, tipo) {
   // Profesores y administradores: deben terminar en @ubiobio.cl
@@ -278,7 +279,7 @@ export default function RegistroUsuariosForm({ onSaved }) {
         await createAlumno({ ...dataToSend, generacion: formDataConRutFormateado.generacion });
       }
 
-      alert(`${tipo.charAt(0).toUpperCase() + tipo.slice(1)} creado correctamente`);
+      showSuccessAlert('Éxito', `${tipo.charAt(0).toUpperCase() + tipo.slice(1)} creado correctamente`);
       setFormData({
         nombres: '',
         apellidoPaterno: '',

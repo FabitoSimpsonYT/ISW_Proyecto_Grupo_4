@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { showSuccessAlert, showErrorAlert, showConfirmAlert } from "@/utils/alertUtils";
 import { getAllRamos, deleteRamo, getAlumnosBySeccion } from "../services/ramos.service.js";
 
 export default function RamosList({ onEdit, reload, searchTerm = "" }) {
@@ -45,14 +46,20 @@ export default function RamosList({ onEdit, reload, searchTerm = "" }) {
   });
 
   const handleDelete = async (codigo) => {
-    if (window.confirm(`¿Estás seguro de que deseas eliminar el ramo ${codigo}?`)) {
+    const result = await showConfirmAlert(
+      "¿Está seguro?",
+      `¿Estás seguro de que deseas eliminar el ramo ${codigo}?`,
+      "Eliminar",
+      "Cancelar"
+    );
+    if (result.isConfirmed) {
       try {
         await deleteRamo(codigo);
-        alert('Ramo eliminado correctamente');
+        showSuccessAlert('Éxito', 'Ramo eliminado correctamente');
         fetchRamos();
       } catch (error) {
         console.error('Error al eliminar:', error);
-        alert(`Error al eliminar ramo: ${error.message || 'Intenta nuevamente'}`);
+        showErrorAlert('Error', `Error al eliminar ramo: ${error.message || 'Intenta nuevamente'}`);
       }
     }
   };

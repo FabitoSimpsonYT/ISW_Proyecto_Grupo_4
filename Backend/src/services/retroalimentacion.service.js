@@ -35,7 +35,7 @@ export async function crearMensajeRetroalimentacion(data) {
 
     // Validar que el usuario sea profesor, jefe de carrera o alumno
     const usuario = await userRepo.findOne({
-      where: { id: creadoPor },
+      where: { rut: rutEmisor },
     });
 
     if (!usuario || (usuario.role !== "profesor" && usuario.role !== "jefecarrera" && usuario.role !== "alumno")) {

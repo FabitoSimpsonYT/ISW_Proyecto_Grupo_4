@@ -58,10 +58,12 @@ export default function MiPerfil() {
               <span className={`inline-block px-6 py-2 rounded-full text-lg font-bold ${
                 userData.role === 'admin' ? 'bg-red-100 text-red-700' :
                 userData.role === 'profesor' ? 'bg-blue-100 text-blue-700' :
+                userData.role === 'jefecarrera' ? 'bg-purple-100 text-purple-700' :
                 'bg-green-100 text-green-700'
               }`}>
                 {userData.role === 'admin' ? '👔 Administrador' :
                  userData.role === 'profesor' ? '👨‍🏫 Profesor' :
+                 userData.role === 'jefecarrera' ? '📋 Jefe de Carrera' :
                  '👨‍🎓 Alumno'}
               </span>
             </div>

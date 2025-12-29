@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { showErrorAlert, showConfirmAlert } from "@/utils/alertUtils";
 import {
   getApelacionesProfesor,
   eliminarApelacion
@@ -34,18 +35,21 @@ export default function ApelacionesProfesor() {
      ELIMINAR (pendiente / revisada)
   =============================== */
   const handleEliminar = async (id) => {
-    const confirmar = window.confirm(
-      "¿Estás seguro de que deseas eliminar esta apelación?"
+    const result = await showConfirmAlert(
+      "¿Está seguro?",
+      "¿Estás seguro de que deseas eliminar esta apelación?",
+      "Eliminar",
+      "Cancelar"
     );
 
-    if (!confirmar) return;
+    if (!result.isConfirmed) return;
 
     try {
       await eliminarApelacion(id);
       setApelaciones((prev) => prev.filter((apel) => apel.id !== id));
     } catch (error) {
       console.error("Error al eliminar apelación", error);
-      alert("No se pudo eliminar la apelación.");
+      showErrorAlert("Error", "No se pudo eliminar la apelación.");
     }
   };
 

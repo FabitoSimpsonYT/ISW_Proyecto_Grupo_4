@@ -22,15 +22,15 @@ router.get("/", authMiddleware, getAllPautas);
 router.get("/by-evaluacion/:evaluacionId", authMiddleware, getPautaByEvaluacion);
 router.get("/by-evaluacion-integradora/:evaluacionIntegradoraId", authMiddleware, getPautaByEvaluacionIntegradora);
 
-// Rutas para pautas de evaluaciones normales
-router.post("/", authMiddleware, createPauta);
-router.post("/:evaluacionId", authMiddleware, createPauta);
-
-// Rutas específicas para pautas de evaluación integradora
+// Rutas específicas para pautas de evaluación integradora (ANTES de rutas genéricas)
 router.post("/integradora/:evaluacionIntegradoraId", authMiddleware, createPautaIntegradora);
 router.get("/integradora/:evaluacionIntegradoraId", authMiddleware, getPautaIntegradora);
 router.patch("/integradora/:evaluacionIntegradoraId", authMiddleware, updatePautaIntegradora);
 router.delete("/integradora/:evaluacionIntegradoraId", authMiddleware, deletePautaIntegradora);
+
+// Rutas para pautas de evaluaciones normales
+router.post("/", authMiddleware, createPauta);
+router.post("/:evaluacionId", authMiddleware, createPauta);
 
 // Ruta genérica al final
 router.get("/:id", authMiddleware, getPautaById);

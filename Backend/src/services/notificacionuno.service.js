@@ -165,6 +165,23 @@ export const crearEvaluacionConNotificacion = async (evaluacionRepo, evaluacionD
 export const notificarEvaluacionYPauta = async (evaluacionId, pautaId, emailsAlumnos) => {
   return await notificarAlumnos(emailsAlumnos, "Evaluación y Pauta Disponibles", `Tu evaluación y pauta están listas para revisar.`, evaluacionId);
 };
+
+export const notificarPautaEvaluada = async (alumnoEmail, evaluacionTitulo, ramoNombre, tipo = 'creacion') => {
+  try {
+    const titulo = tipo === 'actualizacion' 
+      ? `Pauta evaluada actualizada: ${evaluacionTitulo}`
+      : `Pauta evaluada creada: ${evaluacionTitulo}`;
+    
+    const mensaje = tipo === 'actualizacion'
+      ? `Tu pauta evaluada de ${ramoNombre} - ${evaluacionTitulo} ha sido actualizada.`
+      : `Se ha registrado tu pauta evaluada de ${ramoNombre} - ${evaluacionTitulo}.`;
+    
+    return await notificarAlumnos([alumnoEmail], titulo, mensaje);
+  } catch (error) {
+    console.error("notificarPautaEvaluada - Error:", error);
+    return { error: "Error al enviar notificación de pauta evaluada" };
+  }
+};
  
 export const obtenerNotificacionesPorUsuario = async (usuarioId) => {
   console.log("obtenerNotificacionesPorUsuario - buscando para usuarioId:", usuarioId);

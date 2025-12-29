@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { showErrorAlert } from '@/utils/alertUtils';
 import { login as loginService } from '../services/auth.service.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -20,11 +21,11 @@ const Login = () => {
                 navigate('/home');
             } else {
                 const msg = res?.message || 'Error en el login';
-                alert(msg);
+                showErrorAlert('Error', msg);
             }
         } catch (err) {
             console.error('Login error', err);
-            alert('Error al conectar con el servidor');
+            showErrorAlert('Error', 'Error al conectar con el servidor');
         }
     };    return (
         <div className="min-h-screen bg-gradient-to-br from-[#1e3a5f] via-[#2c4a6b] to-[#1e3a5f] flex items-center justify-center p-4">

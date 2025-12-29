@@ -31,6 +31,9 @@ import { Profesor } from "../entities/profesor.entity.js";
 import { User } from "../entities/user.entity.js";
 import { Alumno } from "../entities/alumno.entity.js";
 import { Seccion } from "../entities/seccion.entity.js";
+import { Evaluacion } from "../entities/evaluaciones.entity.js";
+import { Pauta } from "../entities/pauta.entity.js";
+import { PautaEvaluada } from "../entities/pautaEvaluada.entity.js";
 
 const ramosRepository = AppDataSource.getRepository(Ramos);
 const profesorRepository = AppDataSource.getRepository(Profesor);
@@ -196,16 +199,119 @@ export async function updateRamo(codigo, ramoData) {
 }
 
 export async function deleteRamo(codigo) {
-  const ramo = await ramosRepository.findOne({
-    where: { codigo }
-  });
+  try {
+    const ramo = await ramosRepository.findOne({
+      where: { codigo }
+    });
 
-  if (!ramo) {
-    throw new NotFoundError("Ramo no encontrado");
+    if (!ramo) {
+      throw new NotFoundError("Ramo no encontrado");
+    }
+
+    const pautaEvaluadaRepository = AppDataSource.getRepository(PautaEvaluada);
+    const pautaRepository = AppDataSource.getRepository(Pauta);
+    const evaluacionRepository = AppDataSource.getRepository(Evaluacion);
+
+    // Paso 1: Revisar que hayan pautas evaluadas
+    console.log("Paso 1: Buscando pautas evaluadas del ramo:", codigo);
+    const pautasEvaluadas = await pautaEvaluadaRepository.find({
+      where: { codigoRamo: codigo }
+    });
+
+    if (pautasEvaluadas && pautasEvaluadas.length > 0) {
+      console.log("Encontradas", pautasEvaluadas.length, "pautas evaluadas. Eliminando...");
+      await pautaEvaluadaRepository.remove(pautasEvaluadas);
+      
+      // Verificar que se eliminaron correctamente
+      const verificacion = await pautaEvaluadaRepository.find({
+        where: { codigoRamo: codigo }
+      });
+      if (verificacion.length === 0) {
+        console.log("✓ Todas las pautas evaluadas fueron eliminadas correctamente");
+      }
+    } else {
+      console.log("No se encontraron pautas evaluadas");
+    }
+
+    // Paso 2: Buscar si existen pautas
+    console.log("Paso 2: Buscando pautas del ramo");
+    const pautas = await pautaRepository.find({
+      where: { codigoRamo: codigo }
+    });
+
+    if (pautas && pautas.length > 0) {
+      console.log("Encontradas", pautas.length, "pautas. Eliminando...");
+      await pautaRepository.remove(pautas);
+      
+      // Verificar que se eliminaron correctamente
+      const verificacion = await pautaRepository.find({
+        where: { codigoRamo: codigo }
+      });
+      if (verificacion.length === 0) {
+        console.log("✓ Todas las pautas fueron eliminadas correctamente");
+      }
+    } else {
+      console.log("No se encontraron pautas");
+    }
+
+    // Paso 3: Buscar que tenga evaluaciones
+    console.log("Paso 3: Buscando evaluaciones del ramo");
+    const evaluaciones = await evaluacionRepository.find({
+      where: { codigoRamo: codigo }
+    });
+
+    if (evaluaciones && evaluaciones.length > 0) {
+      console.log("Encontradas", evaluaciones.length, "evaluaciones");
+      
+      // Para cada evaluación, eliminar sus pautas evaluadas y pautas
+      for (const evaluacion of evaluaciones) {
+        console.log("Procesando evaluación:", evaluacion.id);
+        
+        // Eliminar pautas evaluadas de esta evaluación
+        const pautasEvalDeEvaluacion = await pautaEvaluadaRepository.find({
+          where: { idEvaluacion: evaluacion.id }
+        });
+        
+        if (pautasEvalDeEvaluacion && pautasEvalDeEvaluacion.length > 0) {
+          console.log("Eliminando", pautasEvalDeEvaluacion.length, "pautas evaluadas de evaluación", evaluacion.id);
+          await pautaEvaluadaRepository.remove(pautasEvalDeEvaluacion);
+        }
+        
+        // Eliminar pauta asociada a la evaluación
+        if (evaluacion.idPauta) {
+          const pauta = await pautaRepository.findOneBy({ id: evaluacion.idPauta });
+          if (pauta) {
+            console.log("Eliminando pauta", pauta.id, "asociada a evaluación", evaluacion.id);
+            await pautaRepository.remove(pauta);
+          }
+        }
+      }
+      
+      // Eliminar todas las evaluaciones
+      console.log("Eliminando", evaluaciones.length, "evaluaciones");
+      await evaluacionRepository.remove(evaluaciones);
+      
+      // Verificar que se eliminaron correctamente
+      const verificacion = await evaluacionRepository.find({
+        where: { codigoRamo: codigo }
+      });
+      if (verificacion.length === 0) {
+        console.log("✓ Todas las evaluaciones fueron eliminadas correctamente");
+      }
+    } else {
+      console.log("No se encontraron evaluaciones");
+    }
+
+    // Paso 4: Eliminar el ramo
+    console.log("Paso 4: Eliminando ramo con código:", codigo);
+    await ramosRepository.remove(ramo);
+    console.log("✓ Ramo eliminado correctamente");
+
+    return { message: "Ramo eliminado correctamente" };
+  } catch (error) {
+    console.error("Error al eliminar ramo:", error);
+    throw error;
   }
-
-  await ramosRepository.remove(ramo);
-  return { message: "Ramo eliminado correctamente" };
 }
 
 export async function getRamosByUser(userId, role) {

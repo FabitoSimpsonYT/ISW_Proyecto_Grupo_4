@@ -145,16 +145,21 @@ export async function getAllPautasService(user) {
 }
 
 export async function getPautaIntegradoraService(evaluacionIntegradoraId, user) {
-  const pauta = await pautaRepository.findOne({
-    where: { evaluacionIntegradoraId },
-    relations: ["evaluacion"],
-  });
-  if (!pauta) return {error: "pauta integradora no encontrada"};
+  try {
+    const pauta = await pautaRepository.findOne({
+      where: { evaluacionIntegradoraId },
+      relations: ["evaluacion"],
+    });
+    if (!pauta) return {error: "pauta integradora no encontrada"};
 
-  if(user.role === "estudiante" && !pauta.publicada){
-    return {error: "la pauta no ha sido publicada"};
+    if(user?.role === "estudiante" && !pauta.publicada){
+      return {error: "la pauta no ha sido publicada"};
+    }
+    return pauta;
+  } catch (error) {
+    console.error("Error en getPautaIntegradoraService:", error);
+    return {error: error.message || "Error al obtener pauta integradora"};
   }
-  return pauta;
 }
 
 export async function updatePautaIntegradoraService(evaluacionIntegradoraId, data, user) {
