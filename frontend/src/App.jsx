@@ -5,6 +5,7 @@ import Login from './pages/Login.jsx';
 import GestionRamosPage from './pages/GestionRamosPage.jsx';
 import EvaluacionPage from './pages/EvaluacionPage.jsx';
 import BloqueoPage from './pages/BloqueoPage.jsx';
+import RetroalimentacionPage from './pages/RetroalimentacionPage.jsx';
 
 import CrearIntegradoraPage from './pages/CrearIntegradoraPage.jsx';
 function App() {
@@ -12,6 +13,8 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/retroalimentacion/:ramoId/:alumnoRut/:evaluacionId" element={<RetroalimentacionPage />} />
+        <Route path="/retroalimentacion/:ramoId/:alumnoRut/integradora/:evaluacionIntegradoraId" element={<RetroalimentacionPage />} />
         <Route path="/evaluacion/:codigoRamo/crear-integradora" element={<CrearIntegradoraPage />} />
         <Route path="/evaluacion/:evaluacionId/pauta/:pautaId" element={<CrearEditarPautaPage />} />
         <Route path="/evaluacion/:evaluacionId/pauta" element={<CrearEditarPautaPage />} />

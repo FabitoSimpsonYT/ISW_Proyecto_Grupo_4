@@ -126,3 +126,34 @@ export async function updatePautaEvaluadaIntegradora(evaluacionIntegradoraId, al
         throw error.response?.data || { message: "Error al actualizar la pauta evaluada integradora" };
     }
 }
+/**
+ * Obtener pauta de evaluación
+ * GET /pauta/by-evaluacion/:evaluacionId
+ */
+export async function getPautaByEvaluacion(evaluacionId) {
+    try {
+        const response = await axios.get(`/pauta/by-evaluacion/${evaluacionId}`);
+        return response.data?.data?.pauta || null;
+    } catch (error) {
+        if (error.response?.status === 404) {
+            return null;
+        }
+        throw error.response?.data || { message: "Error al obtener la pauta" };
+    }
+}
+
+/**
+ * Obtener pauta de evaluación integradora
+ * GET /pauta/by-evaluacion-integradora/:evaluacionIntegradoraId
+ */
+export async function getPautaByEvaluacionIntegradora(evaluacionIntegradoraId) {
+    try {
+        const response = await axios.get(`/pauta/by-evaluacion-integradora/${evaluacionIntegradoraId}`);
+        return response.data?.data?.pauta || null;
+    } catch (error) {
+        if (error.response?.status === 404) {
+            return null;
+        }
+        throw error.response?.data || { message: "Error al obtener la pauta" };
+    }
+}

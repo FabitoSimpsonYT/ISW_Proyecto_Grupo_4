@@ -1,0 +1,94 @@
+/* BotonRetroalimentacion.css */
+
+.boton-retroalimentacion {
+  position: relative;
+  padding: 8px 16px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background-color: white;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.3s ease;
+}
+
+.boton-retroalimentacion .icono {
+  font-size: 16px;
+}
+
+.boton-retroalimentacion.evaluar {
+  color: #333;
+}
+
+.boton-retroalimentacion.evaluar:hover {
+  background-color: #f5f5f5;
+  border-color: #1e5a8e;
+  color: #1e5a8e;
+}
+
+.boton-retroalimentacion.mis-notas {
+  color: #666;
+}
+
+.boton-retroalimentacion.mis-notas:hover {
+  background-color: #f9f9f9;
+  border-color: #1e5a8e;
+  color: #1e5a8e;
+}
+
+/* Estado con mensajes no vistos */
+.boton-retroalimentacion.con-no-vistos {
+  background-color: #e8f5e9;
+  border-color: #4caf50;
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+.boton-retroalimentacion.con-no-vistos:hover {
+  background-color: #c8e6c9;
+  border-color: #388e3c;
+}
+
+/* Indicador verde */
+.boton-retroalimentacion .indicador-verde {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 12px;
+  height: 12px;
+  background-color: #4caf50;
+  border: 2px solid white;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px #4caf50;
+  animation: pulso 2s infinite;
+}
+
+@keyframes pulso {
+  0%, 100% {
+    box-shadow: 0 0 0 2px #4caf50;
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(76, 175, 80, 0.3);
+  }
+}
+
+/* Deshabilitado */
+.boton-retroalimentacion:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .boton-retroalimentacion {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .boton-retroalimentacion .icono {
+    font-size: 14px;
+  }
+}
