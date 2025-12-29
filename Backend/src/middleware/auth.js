@@ -21,9 +21,12 @@ export const authMiddleware = (req, res, next) => {
 };
 
 export const profesorMiddleware = (req, res, next) => {
-  if (req.user.role !== 'profesor' && req.user.role !== 'jefe_carrera') {
+  const isProfesor = req.user.role === 'profesor';
+  const isJefeCarrera = req.user.role === 'jefecarrera';
+  
+  if (!isProfesor && !isJefeCarrera) {
     return res.status(403).json({
-      error: 'Acceso denegado. Se requiere rol de profesor'
+      error: 'Acceso denegado. Se requiere rol de profesor o jefe de carrera'
     });
   }
   next();
@@ -39,7 +42,7 @@ export const alumnoMiddleware = (req, res, next) => {
 };
 
 export const jefeCarreraMiddleware = (req, res, next) => {
-  if (req.user.role !== 'jefe_carrera') {
+  if (req.user.role !== 'jefecarrera') {
     return res.status(403).json({
       error: 'Acceso denegado. Se requiere rol de jefe de carrera'
     });
@@ -48,8 +51,8 @@ export const jefeCarreraMiddleware = (req, res, next) => {
 };
 
 export const adminOrJefeCarreraMiddleware = (req, res, next) => {
-  // Solo jefe_carrera (o jefecarrera sin guión) puede crear/eliminar bloqueos
-  const isJefeCarrera = req.user?.role === 'jefe_carrera' || req.user?.role === 'jefecarrera';
+  // Solo jefecarrera puede crear/eliminar bloqueos
+  const isJefeCarrera = req.user?.role === 'jefecarrera';
   
   if (!isJefeCarrera) {
     return res.status(403).json({

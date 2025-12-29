@@ -16,6 +16,11 @@ const Home = () => {
 
   // Saludo inclusivo
   const saludo = '¡Bienvenid@!';
+  
+  // Nombre con fallback - mostrar primer nombre y apellido paterno
+  const nombreMostrar = userData && userData.nombres 
+    ? `${userData.nombres.split(' ')[0]} ${userData.apellidoPaterno || ''}`.trim()
+    : 'Usuario invitado';
 
   useEffect(() => {
     let isMounted = true;
@@ -77,7 +82,7 @@ const Home = () => {
           </h1>
           
           <p className="text-2xl text-gray-700 font-semibold mb-8">
-            {userData.nombres?.split(' ')[0]} {userData.apellidoPaterno}
+            {nombreMostrar}
           </p>
 
           <p className="text-gray-600 text-lg">

@@ -1,5 +1,6 @@
 // src/components/CrearEventoForm.jsx
 import { useState, useEffect } from 'react';
+import { getBloqueos } from '../services/bloqueo.service.js';
 import Swal from 'sweetalert2';
 import { crearEvento, actualizarEvento } from '../services/evento.service.js';
 import { getTiposEventos } from '../services/tipoEvento.service.js';
@@ -17,8 +18,8 @@ export default function CrearEventoForm({ onSaved, evento }) {
     linkOnline: '',
     tipoEvaluacion: 'escrita',
     fechaDia: '',
-    horaInicio: '',
-    horaFin: '',
+    horaInicio: '08:00',
+    horaFin: '20:00',
     duracionMinutos: '',
     fechaRangoInicio: '',
     fechaFinRango: '',
@@ -38,6 +39,22 @@ export default function CrearEventoForm({ onSaved, evento }) {
   const [misRamos, setMisRamos] = useState([]);
   const [loadingRamos, setLoadingRamos] = useState(true);
   const [generandoSlots, setGenerandoSlots] = useState(false);
+
+  // Bloqueos
+  const [bloqueos, setBloqueos] = useState([]);
+
+  useEffect(() => {
+    // Cargar bloqueos al montar
+    const cargarBloqueos = async () => {
+      try {
+        const res = await getBloqueos();
+        setBloqueos(Array.isArray(res) ? res : res?.data || []);
+      } catch (err) {
+        setBloqueos([]);
+      }
+    };
+    cargarBloqueos();
+  }, []);
 
   const resetearFormulario = () => {
     setFormData({
@@ -195,20 +212,56 @@ export default function CrearEventoForm({ onSaved, evento }) {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-
-    // Si cambió el ramo, limpiar sección seleccionada
-    if (name === 'ramoId') {
-      setFormData(prev => ({ ...prev, seccionId: '' }));
+    // Si es presencial, forzar horario fijo
+    if (
+      (name === 'modalidad' && value === 'presencial') ||
+      (name === 'tipoEvaluacion' && value === 'escrita')
+    ) {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        horaInicio: '08:00',
+        horaFin: '21:00',
+      }));
+    } else if (name === 'ramoId') {
+      setFormData(prev => ({ ...prev, ramoId: value, seccionId: '' }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+
     if (!formData.nombre || !formData.tipoEvento || !formData.ramoId || !formData.seccionId) {
       Swal.fire('Error', 'Completa todos los campos obligatorios', 'warning');
       return;
+    }
+
+    // Validar que la fecha no esté bloqueada
+    let fechaEvento = null;
+    if (formData.modalidad === 'presencial' && formData.tipoEvaluacion === 'escrita') {
+      fechaEvento = formData.fechaDia;
+    } else if (formData.tipoEvaluacion === 'slots') {
+      fechaEvento = formData.fechaRangoInicio;
+    }
+    if (fechaEvento) {
+      // Buscar si la fecha está bloqueada
+      const bloqueado = bloqueos.some(b => {
+        // Usar fechaInicio/fechaFin o fallback a inicio/fin
+        const rawInicio = b.fechaInicio || b.inicio || b.fecha_inicio;
+        const rawFin = b.fechaFin || b.fin || b.fecha_fin;
+        if (!rawInicio || !rawFin) return false;
+        const inicio = typeof rawInicio === 'string' ? rawInicio.split('T')[0] : new Date(rawInicio).toISOString().split('T')[0];
+        const fin = typeof rawFin === 'string' ? rawFin.split('T')[0] : new Date(rawFin).toISOString().split('T')[0];
+        return fechaEvento >= inicio && fechaEvento <= fin;
+      });
+      if (bloqueado) {
+        alert('No se puede crear un evento en un día bloqueado por la jefatura.');
+        Swal.fire('Error', 'No se puede crear un evento en un día bloqueado por la jefatura.', 'error');
+        return;
+      }
     }
 
     if (formData.estado === 'cancelado' && !formData.comentario.trim()) {
@@ -484,7 +537,10 @@ export default function CrearEventoForm({ onSaved, evento }) {
                       value={formData.horaInicio} 
                       onChange={handleChange} 
                       required 
+                      min="08:00"
+                      max="21:00"
                       className="w-full px-4 py-3 border-2 border-gray-600 rounded-lg focus:border-[#0E2C66] transition" 
+                      // El usuario siempre puede elegir la hora
                     />
                   </div>
                   <div>
@@ -495,7 +551,10 @@ export default function CrearEventoForm({ onSaved, evento }) {
                       value={formData.horaFin} 
                       onChange={handleChange} 
                       required 
+                      min="08:00"
+                      max="21:00"
                       className="w-full px-4 py-3 border-2 border-gray-600 rounded-lg focus:border-[#0E2C66] transition" 
+                      // El usuario siempre puede elegir la hora
                     />
                   </div>
                 </div>

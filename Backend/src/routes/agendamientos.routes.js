@@ -48,7 +48,7 @@ router.get('/', authMiddleware, (req, res) => {
 
 router.post('/', 
   authMiddleware,
-  checkRole(['profesor', 'coordinador', 'jefe_carrera']),
+  checkRole(['profesor', 'coordinador', 'jefecarrera']),
   (req, res) => {
     try {
       const { titulo, descripcion, start_time, end_time, invitados, location } = req.body;
@@ -172,7 +172,7 @@ router.get('/:agendamientoId', authMiddleware, (req, res) => {
 
 router.put('/:agendamientoId',
   authMiddleware,
-  checkRole(['profesor', 'coordinador', 'jefe_carrera']),
+  checkRole(['profesor', 'coordinador', 'jefecarrera']),
   (req, res) => {
     try {
       const agendamiento = agendamientos.find(a => a.id === parseInt(req.params.agendamientoId));
@@ -260,7 +260,7 @@ router.put('/:agendamientoId',
 
 router.delete('/:agendamientoId',
   authMiddleware,
-  checkRole(['profesor', 'coordinador', 'jefe_carrera']),
+  checkRole(['profesor', 'coordinador', 'jefecarrera']),
   (req, res) => {
     try {
       const index = agendamientos.findIndex(a => a.id === parseInt(req.params.agendamientoId));

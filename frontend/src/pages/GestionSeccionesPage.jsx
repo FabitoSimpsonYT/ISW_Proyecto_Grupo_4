@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { getAllAlumnos } from "../services/users.service.js";
 import { useParams, useNavigate } from "react-router-dom";
-import { showErrorAlert, showInfoAlert } from "@/utils/alertUtils";
 import { getRamosByCodigo, getAlumnosBySeccion, getSeccionesByRamo, createSeccion, inscribirAlumnoEnSeccion } from "../services/ramos.service.js";
 import { useNavbar } from "../context/NavbarContext";
 
@@ -138,7 +137,9 @@ export default function GestionSeccionesPage() {
     try {
       const rut = alumno.user ? alumno.user.rut : alumno.rut;
       await inscribirAlumnoEnSeccion(codigoRamo, modalSeccion.id, rut);
-      setAlumnosModalData(prev => [...prev, alumno]);
+      // Refrescar lista desde backend para evitar duplicados y asegurar persistencia
+      const alumnosInscritos = await getAlumnosBySeccion(codigoRamo, modalSeccion.numero);
+      setAlumnosModalData(alumnosInscritos || []);
     } catch (e) {
       setAddError("No se pudo agregar el alumno");
     }
@@ -166,7 +167,7 @@ export default function GestionSeccionesPage() {
                 await createSeccion({ codigoRamo, numero: nextNumero });
                 await fetchSecciones();
               } catch (err) {
-                showErrorAlert("Error", err.message || "Error al crear sección");
+                alert(err.message || "Error al crear sección");
               }
             }}
           >
@@ -211,7 +212,7 @@ export default function GestionSeccionesPage() {
                     </button>
                     <button
                       className="bg-red-500 hover:bg-red-700 text-white px-2 py-1 rounded text-xs"
-                      onClick={() => showInfoAlert('Información', 'Aquí se implementará la lógica para eliminar sección')}
+                      onClick={() => alert('Aquí se implementará la lógica para eliminar sección')}
                     >
                       Eliminar sección
                     </button>
@@ -281,7 +282,7 @@ export default function GestionSeccionesPage() {
                                 {yaInscrito ? (
                                   <button
                                     className="bg-red-500 hover:bg-red-700 text-white px-2 py-1 rounded text-xs"
-                                    onClick={() => showInfoAlert('Información', 'Aquí se implementará la lógica para eliminar alumno')}
+                                    onClick={() => alert('Aquí se implementará la lógica para eliminar alumno')}
                                   >
                                     Eliminar
                                   </button>

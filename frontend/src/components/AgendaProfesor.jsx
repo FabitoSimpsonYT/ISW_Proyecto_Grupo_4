@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext';
 
 export default function AgendaProfesor() {
   const { user } = useAuth();
-  const isJefe = user?.role === 'jefecarrera' || user?.role === 'jefe_carrera';
+  const isJefe = user?.role === 'jefecarrera';
 
   const [vista, setVista] = useState('calendario'); // 'calendario', 'crear', 'tipos', 'bloqueos', 'slots'
   const [eventoEnEdicion, setEventoEnEdicion] = useState(null);
