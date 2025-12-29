@@ -284,6 +284,8 @@ class RetroalimentacionHandler {
             mensaje: mensajeGuardado.mensaje,
             profesorId: mensajeGuardado.profesorId,
             creadoPor: mensajeGuardado.creadoPor,
+            rutEmisor: mensajeGuardado.rutEmisor,
+            rutReceptor: mensajeGuardado.rutReceptor,
             visto: mensajeGuardado.visto,
             createdAt: mensajeGuardado.createdAt,
           };
