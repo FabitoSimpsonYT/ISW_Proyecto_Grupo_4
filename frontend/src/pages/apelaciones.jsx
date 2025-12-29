@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { useNavbar } from "../context/NavbarContext";
+import { useNavbar } from "../context/NavBarContext";
 import FormularioApelacion from "../components/FormularioApelacion";
 import { crearApelacion } from "../services/apelaciones.service";
 

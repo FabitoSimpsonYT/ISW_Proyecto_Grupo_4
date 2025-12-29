@@ -4,6 +4,7 @@ import {
   getApelacionById,
   responderApelacion,
 } from "../services/apelaciones.service";
+import { useNavbar } from "../context/NavBarContext";
 
 import ApelacionInfo from "../components/ApelacionInfo";
 import FormularioApelacion from "../components/FormularioApelacion";
@@ -14,6 +15,8 @@ export default function VerApelacionCompleta() {
 
   const [apelacion, setApelacion] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  const { isNavbarOpen } = useNavbar();
 
   useEffect(() => {
     const loadApelacion = async () => {
@@ -59,7 +62,11 @@ export default function VerApelacionCompleta() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#e9f7fb] to-[#d5e8f6] transition-all duration-300 ml-[250px] p-8">
+    <div
+        className={`min-h-screen bg-gradient-to-br from-[#e9f7fb] to-[#d5e8f6]
+        transition-all duration-300
+        ${isNavbarOpen ? "ml-64" : "ml-0"} p-8`}
+      >
       <div className="max-w-4xl mx-auto">
         {/* ENCABEZADO */}
         <div className="bg-gradient-to-r from-[#0E2C66] to-[#1a3f8f] text-white px-8 py-6 rounded-t-2xl shadow-lg">
