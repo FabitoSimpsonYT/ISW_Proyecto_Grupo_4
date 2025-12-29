@@ -40,6 +40,14 @@ export default function CalendarioView({ onEditarEvento }) {
     console.log('📅 Eventos del backend:', eventosBackend);
     return eventosBackend.map(ev => {
       const fechaInicio = ev.fecha_inicio ? new Date(ev.fecha_inicio) : null;
+      const fechaFin = ev.fecha_fin ? new Date(ev.fecha_fin) : null;
+      // Formatear hora en formato HH:mm
+      const getHora = (dateObj) => {
+        if (!dateObj || isNaN(dateObj.getTime())) return '';
+        return dateObj.toTimeString().slice(0,5);
+      };
+      const horaInicio = ev.horaInicio || (fechaInicio ? getHora(fechaInicio) : '') || ev.start_time?.split(' ')[1]?.slice(0,5) || '';
+      const horaFin = ev.horaFin || (fechaFin ? getHora(fechaFin) : '') || ev.end_time?.split(' ')[1]?.slice(0,5) || '';
       const mapped = {
         // Datos originales del backend (para editar)
         id: ev.id,
@@ -47,7 +55,6 @@ export default function CalendarioView({ onEditarEvento }) {
         seccion_id: ev.seccion_id,
         tipo_evento_id: ev.tipo_evento_id || ev.tipoEvento,
         profesor_id: ev.profesor_id,
-        
         // Datos mapeados para el calendario
         dia: fechaInicio?.getDate() ?? null,
         mes: fechaInicio?.getMonth() ?? null,
@@ -56,8 +63,8 @@ export default function CalendarioView({ onEditarEvento }) {
         fecha_fin: ev.fecha_fin,
         nombre: ev.nombre || ev.titulo || '',
         tipo: ev.tipo_nombre || ev.tipoEvento || 'Otro',
-        horaInicio: ev.horaInicio || ev.start_time?.split(' ')[1]?.slice(0,5) || '',
-        horaFin: ev.horaFin || ev.end_time?.split(' ')[1]?.slice(0,5) || '',
+        horaInicio,
+        horaFin,
         duracion: ev.duracion || '',
         duracion_por_alumno: ev.duracion_por_alumno,
         capacidad: ev.capacidad || ev.max_bookings || '',
@@ -169,27 +176,47 @@ export default function CalendarioView({ onEditarEvento }) {
       return;
     }
 
-    let html = '<div class="space-y-4 max-h-96 overflow-y-auto">';
+    let html = '<div class="space-y-6 max-h-96 overflow-y-auto">';
     eventosDia.forEach(ev => {
       const colorTipo = getColorPorTipo(ev.tipo);
       const colorEstado = getColorPorEstado(ev.estado);
       html += `
-        <div class="p-4 rounded-lg text-white shadow-lg" style="background-color: ${colorTipo}CC;">
-          <h4 class="font-bold text-lg">${ev.nombre}</h4>
-          <p><strong>Tipo:</strong> ${ev.tipo}</p>
-          <p><strong>Descripción:</strong> ${ev.descripcion || 'Sin descripción'}</p>
-          <p><strong>Hora inicio:</strong> ${ev.horaInicio}</p>
-          <p><strong>Hora fin:</strong> ${ev.horaFin}</p>
-          <p><strong>Duración:</strong> ${ev.duracion || 'No especificada'}</p>
-          <p><strong>Capacidad:</strong> ${ev.capacidad}</p>
-          <p><strong>Sala:</strong> ${ev.sala || 'No especificada'}</p>
-          <p><strong>Estado:</strong> <span style="background:${colorEstado}; padding:2px 8px; border-radius:4px;">${ev.estado}</span></p>
-          ${esProfesorOJefe ? `
-            <div class="mt-3 flex gap-2">
-              <button onclick="window.editarEvento(${ev.id})" class="px-4 py-2 bg-blue-600 rounded">Editar</button>
-              <button onclick="window.eliminarEvento(${ev.id})" class="px-4 py-2 bg-red-600 rounded">Eliminar</button>
+        <div class="rounded-xl shadow-lg p-0 bg-white border border-gray-300">
+          <div class="rounded-t-xl px-6 py-3 font-bold text-xl text-[#0E2C66] bg-[${colorTipo}]/10 border-b border-gray-200">${ev.nombre}</div>
+          <div class="px-6 py-4 text-gray-800">
+            <div class="mb-2"><span class="font-semibold">Tipo:</span> ${ev.tipo}</div>
+            <div class="mb-2"><span class="font-semibold">Descripción:</span> ${ev.descripcion || 'Sin descripción'}</div>
+            <div class="mb-2 flex gap-4 items-center justify-center">
+              <span class="font-semibold">Hora:</span>
+              <span class="inline-block px-2 py-1 rounded bg-blue-100 text-blue-900 font-mono">${ev.horaInicio || '--:--'}</span>
+              <span class="font-semibold">a</span>
+              <span class="inline-block px-2 py-1 rounded bg-blue-100 text-blue-900 font-mono">${ev.horaFin || '--:--'}</span>
             </div>
-          ` : ''}
+            <div class="mb-2"><span class="font-semibold">Duración:</span> ${(() => {
+                if (ev.horaInicio && ev.horaFin) {
+                  const [h1, m1] = ev.horaInicio.split(':').map(Number);
+                  const [h2, m2] = ev.horaFin.split(':').map(Number);
+                  let mins = (h2 * 60 + m2) - (h1 * 60 + m1);
+                  if (mins < 0) mins += 24 * 60;
+                  const horas = Math.floor(mins / 60);
+                  const minutos = mins % 60;
+                  if (horas > 0 && minutos > 0) return `${horas}h ${minutos}min`;
+                  if (horas > 0) return `${horas}h`;
+                  if (minutos > 0) return `${minutos}min`;
+                  return '0min';
+                }
+                return 'No especificada';
+              })()}</div>
+            <div class="mb-2"><span class="font-semibold">Capacidad:</span> ${ev.capacidad}</div>
+            <div class="mb-2"><span class="font-semibold">Sala:</span> ${ev.sala || 'No especificada'}</div>
+            <div class="mb-2"><span class="font-semibold">Estado:</span> <span style="background:${colorEstado}; color:white; padding:2px 10px; border-radius:6px; font-weight:bold;">${ev.estado}</span></div>
+            ${esProfesorOJefe ? `
+              <div class="mt-4 flex gap-2">
+                <button onclick="window.editarEvento(${ev.id})" class="px-4 py-2 bg-blue-600 text-white rounded">Editar</button>
+                <button onclick="window.eliminarEvento(${ev.id})" class="px-4 py-2 bg-red-600 text-white rounded">Eliminar</button>
+              </div>
+            ` : ''}
+          </div>
         </div>`;
     });
     html += '</div>';

@@ -17,7 +17,7 @@ export default function MiAgenda() {
         <div className="container mx-auto px-4 py-4">
           <div>
             <h1 className="text-2xl font-bold">
-              {userRole === 'profesor' ? '👨‍🏫 Gestión de Evaluaciones' : '👨‍🎓 Mis Evaluaciones'}
+              {userRole === 'profesor' || userRole === 'jefecarrera' ? '👨‍🏫 Gestión de Evaluaciones' : '👨‍🎓 Mis Evaluaciones'}
             </h1>
             <p className="text-sm text-gray-300">{user?.email || 'Usuario'}</p>
           </div>
@@ -25,7 +25,7 @@ export default function MiAgenda() {
       </header>
 
       <div className="container mx-auto">
-        {userRole === 'profesor' ? <AgendaProfesor /> : <CalendarioAlumno />}
+        {(userRole === 'profesor' || userRole === 'jefecarrera') ? <AgendaProfesor /> : <CalendarioAlumno />}
       </div>
     </div>
   );

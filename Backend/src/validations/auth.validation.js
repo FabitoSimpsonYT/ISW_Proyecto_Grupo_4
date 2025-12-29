@@ -31,10 +31,10 @@ export const registerSchema = Joi.object({
       'any.required': 'El apellido es requerido'
     }),
   role: Joi.string()
-    .valid('profesor', 'alumno', 'coordinador', 'jefe_carrera')
+    .valid('profesor', 'alumno', 'coordinador', 'jefecarrera')
     .required()
     .messages({
-      'any.only': 'El rol debe ser profesor, alumno, coordinador o jefe_carrera',
+      'any.only': 'El rol debe ser profesor, alumno, coordinador o jefecarrera',
       'any.required': 'El rol es requerido'
     }),
   rut: Joi.string()

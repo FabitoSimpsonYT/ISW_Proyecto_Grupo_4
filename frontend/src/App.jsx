@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import InscribirSlotsAlumno from './pages/InscribirSlotAlumno.jsx';
 import PautaPage from './pages/PautaPage.jsx';
 import CrearEditarPautaPage from './pages/CrearEditarPautaPage.jsx';
 import Login from './pages/Login.jsx';
@@ -23,6 +24,7 @@ function App() {
         <Route path="/ramos" element={<GestionRamosPage />} />
         <Route path="/evaluaciones" element={<EvaluacionPage />} />
         <Route path="/bloqueos" element={<BloqueoPage />} />
+        <Route path="/inscribir-slots" element={<InscribirSlotsAlumno />} />
       </Routes>
     </BrowserRouter>
   );

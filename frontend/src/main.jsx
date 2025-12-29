@@ -7,6 +7,7 @@ import Apelaciones from '@pages/apelaciones';
 import MisApelaciones from '@pages/MisApelaciones';
 import MiAgenda from '@pages/MiAgenda';
 import InscribirEvaluaciones from '@pages/InscribirEvaluaciones';
+import InscribirSlotAlumno from '@pages/InscribirSlotAlumno';
 import MisRamosNotasPage from '@pages/MisRamosNotasPage';
 import MiPerfil from '@pages/MiPerfil';
 import GestionRamosPage from '@pages/GestionRamosPage';
@@ -47,18 +48,15 @@ const router = createBrowserRouter([
       // MI AGENDA
       { path: '/mi-agenda', element: <MiAgenda /> },
       { path: '/inscribir-evaluaciones', element: <InscribirEvaluaciones /> },
+      { path: '/inscribir-slots', element: <InscribirSlotAlumno /> },
       { path: '/bloqueos', element: <BloqueoPage /> },
       { path: '/mis-ramos-notas', element: <MisRamosNotasPage /> },
 
       // EVALUACIONES
       { path: '/evaluaciones', element: <EvaluacionPage /> },
       { path: '/evaluacion/:codigoRamo/crear-integradora', element: <CrearIntegradoraPage /> },
-
-      // PAUTA DE EVALUACIÓN
       { path: '/evaluacion/:codigoRamo/:idEvaluacion/pauta', element: <CrearEditarPautaPage /> },
       { path: '/evaluacion/:codigoRamo/:idEvaluacion/pauta/:pautaId', element: <CrearEditarPautaPage /> },
-
-      // EVALUAR ESTUDIANTES
       { path: '/evaluacion/:codigoRamo/:idEvaluacion/evaluar', element: <EvaluarPage /> },
       { path: '/evaluacion/:codigoRamo/evaluar-integradora/:idEvaluacion', element: <EvaluarPage /> },
 
