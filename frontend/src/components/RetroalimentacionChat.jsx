@@ -229,7 +229,7 @@ export const RetroalimentacionChat = ({
               mensajes.map((msg, index) => (
                 <div
                   key={msg.id || index}
-                  className={`mensaje ${msg.creadoPor === user?.id ? 'enviado' : 'recibido'}`}
+                  className={`mensaje ${msg.rutEmisor === user?.rut ? 'enviado' : 'recibido'}`}
                 >
                   <div className="mensaje-contenido">
                     <p>{msg.mensaje}</p>
@@ -238,7 +238,7 @@ export const RetroalimentacionChat = ({
                         hour: '2-digit',
                         minute: '2-digit',
                       })}
-                      {msg.creadoPor === user?.id && (
+                      {msg.rutEmisor === user?.rut && (
                         <span>
                           {msg.visto ? ' ✓✓' : ' ✓'}
                         </span>
