@@ -1,4 +1,4 @@
-import { AppDataSource } from "../config/configDb.js";
+import { AppDataSource } from "../config/configDB.js";
 import { AlumnoPromedioRamo } from "../entities/alumnoPromedioRamo.entity.js";
 import { Evaluacion } from "../entities/evaluaciones.entity.js";
 import { PautaEvaluada } from "../entities/pautaEvaluada.entity.js";

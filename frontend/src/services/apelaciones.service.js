@@ -1,6 +1,6 @@
 import cookies from "js-cookie";
 
-const API_URL = "http://localhost:3000/api/apelaciones";
+const API_URL = `${import.meta.env.VITE_BASE_URL}/apelaciones`;
 
 const authHeaders = () => {
   const token = cookies.get("jwt-auth");
@@ -144,7 +144,7 @@ export const responderApelacion = async (id, data) => {
 // Descargar archivo adjunto
 // ---------------------------------------------------------
 export const descargarArchivo = (id) => {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+  const API_URL = import.meta.env.VITE_API_URL;
   return `${API_URL}/apelaciones/${id}/archivo`;
 };
 

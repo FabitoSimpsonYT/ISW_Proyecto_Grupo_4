@@ -51,12 +51,13 @@ export const jefeCarreraMiddleware = (req, res, next) => {
 };
 
 export const adminOrJefeCarreraMiddleware = (req, res, next) => {
-  // Solo jefecarrera puede crear/eliminar bloqueos
+  // Permitir a admin y jefecarrera crear/eliminar bloqueos
   const isJefeCarrera = req.user?.role === 'jefecarrera';
-  
-  if (!isJefeCarrera) {
+  const isAdmin = req.user?.role === 'admin' || req.user?.role === 'administrador';
+
+  if (!isJefeCarrera && !isAdmin) {
     return res.status(403).json({
-      error: 'Acceso denegado. Solo jefe de carrera puede crear/eliminar bloqueos',
+      error: 'Acceso denegado. Solo jefe de carrera o administrador puede crear/eliminar bloqueos',
       userRole: req.user?.role
     });
   }

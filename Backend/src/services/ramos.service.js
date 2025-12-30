@@ -24,7 +24,7 @@ export async function buscarAlumnosPorQuery(query) {
     email: a.user.email
   }));
 }
-import { AppDataSource } from "../config/configDb.js";
+import { AppDataSource } from "../config/configDB.js";
 import { BadRequestError, NotFoundError } from "../Handlers/responseHandlers.js";
 import { Ramos } from "../entities/ramos.entity.js";
 import { Profesor } from "../entities/profesor.entity.js";

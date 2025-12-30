@@ -1,4 +1,4 @@
-import { AppDataSource } from "../config/configDb.js";
+import { AppDataSource } from "../config/configDB.js";
 import { Retroalimentacion } from "../entities/retroalimentacion.entity.js";
 import { crearMensajeRetroalimentacion, marcarMensajesComoVistos } from "../services/retroalimentacion.service.js";
 import { notificarAlumnos } from "../services/notificacionuno.service.js";

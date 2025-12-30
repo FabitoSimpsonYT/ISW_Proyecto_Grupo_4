@@ -1,4 +1,4 @@
-import { AppDataSource } from "../config/configDb.js";
+import { AppDataSource } from "../config/configDB.js";
 import { Pauta } from "../entities/pauta.entity.js";
 import { Evaluacion } from "../entities/evaluaciones.entity.js";
 import { EvaluacionIntegradora } from "../entities/evaluacionIntegradora.entity.js";
@@ -190,10 +190,15 @@ export async function deletePautaIntegradoraService(evaluacionIntegradoraId, use
   if (!pauta) return { error: "Pauta integradora no encontrada" };
   if (user.role !== "profesor" && user.role !== "jefecarrera") return { error: "No autorizado" };
 
+  // Eliminar pautas evaluadas relacionadas a la pauta
+  const pautaEvaluadaRepository = AppDataSource.getRepository(require("../entities/pautaEvaluada.entity.js").PautaEvaluada);
+  await pautaEvaluadaRepository.delete({ pauta: { id: pauta.id } });
+
+  // Eliminar la pauta relacionada a la evaluación integradora
   await pautaRepository.remove(pauta);
   console.log("Pauta integradora eliminada:", pauta.id);
 
-  return { success: true, message: "Pauta integradora eliminada" };
+  return { success: true, message: "Pauta integradora y pautas evaluadas relacionadas eliminadas" };
 }
 
 /**

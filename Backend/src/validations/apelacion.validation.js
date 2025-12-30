@@ -66,6 +66,7 @@ fechaCitacion: Joi.when("estado", {
 
 
 
+
 export const createApelacionValidation = Joi.object({
   tipo: Joi.string()
     .valid("evaluacion", "inasistencia", "emergencia")
@@ -84,13 +85,23 @@ export const createApelacionValidation = Joi.object({
       "string.min": "El mensaje debe tener al menos 5 caracteres.",
       "string.max": "El mensaje no puede superar los 1000 caracteres.",
     }),
-profesorCorreo: Joi.string()
-  .email()
-  .required()
-  .messages({
-    "any.required": "El correo del profesor es obligatorio",
-    "string.empty": "El correo del profesor no puede estar vacío",
-    "string.email": "El correo del profesor debe tener un formato válido",
-  }),
+  profesorCorreo: Joi.string()
+    .email()
+    .required()
+    .messages({
+      "any.required": "El correo del profesor es obligatorio",
+      "string.empty": "El correo del profesor no puede estar vacío",
+      "string.email": "El correo del profesor debe tener un formato válido",
+    }),
+  pautaEvaluadaId: Joi.when('tipo', {
+    is: 'evaluacion',
+    then: Joi.number().integer().required().messages({
+      "any.required": "La pauta evaluada es obligatoria para apelaciones de tipo evaluación.",
+      "number.base": "El ID de la pauta evaluada debe ser un número.",
+    }),
+    otherwise: Joi.forbidden().messages({
+      "any.unknown": "No se permite pautaEvaluadaId para este tipo de apelación."
+    })
+  })
 });
 

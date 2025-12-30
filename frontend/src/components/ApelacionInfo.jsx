@@ -3,7 +3,7 @@ import { useState } from "react";
 export default function ApelacionInfo({ apelacion }) {
   const [modalOpen, setModalOpen] = useState(false);
 
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+  const API_URL = import.meta.env.VITE_API_URL;
 
   const fileUrl = apelacion.archivo
     ? `${API_URL}/api/apelaciones/${apelacion.id}/archivo`

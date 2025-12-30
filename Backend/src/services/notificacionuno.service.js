@@ -1,4 +1,4 @@
-import { AppDataSource } from "../config/configDb.js";
+import { AppDataSource } from "../config/configDB.js";
 import { Brackets, In } from "typeorm";
 import { Notificacion } from "../entities/notificacionuno.entity.js";
 import { User } from "../entities/user.entity.js";

@@ -9,7 +9,7 @@ import {
   obtenerMensajesNoVistosAlumno,
 } from "../services/retroalimentacion.service.js";
 import { validateRetroalimentacion } from "../validations/retroalimentacion.validation.js";
-import { AppDataSource } from "../config/configDb.js";
+import { AppDataSource } from "../config/configDB.js";
 
 // ========== ENDPOINTS ANTIGUOS (compatibilidad) ==========
 

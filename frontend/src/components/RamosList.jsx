@@ -55,7 +55,7 @@ export default function RamosList({ onEdit, reload, searchTerm = "" }) {
     if (result.isConfirmed) {
       try {
         await deleteRamo(codigo);
-        showSuccessAlert('Éxito', 'Ramo eliminado correctamente');
+        showSuccessAlert('Ramo eliminado', 'El ramo y todas sus evaluaciones y pautas asociadas han sido eliminados correctamente.');
         fetchRamos();
       } catch (error) {
         console.error('Error al eliminar:', error);

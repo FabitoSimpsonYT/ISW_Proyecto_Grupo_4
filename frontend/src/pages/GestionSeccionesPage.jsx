@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import Swal from "sweetalert2";
 import { getAllAlumnos } from "../services/users.service.js";
 import { useParams, useNavigate } from "react-router-dom";
 import { getRamosByCodigo, getAlumnosBySeccion, getSeccionesByRamo, createSeccion, inscribirAlumnoEnSeccion } from "../services/ramos.service.js";
@@ -140,16 +141,44 @@ export default function GestionSeccionesPage() {
       // Refrescar lista desde backend para evitar duplicados y asegurar persistencia
       const alumnosInscritos = await getAlumnosBySeccion(codigoRamo, modalSeccion.numero);
       setAlumnosModalData(alumnosInscritos || []);
+      Swal.fire({
+        icon: 'success',
+        title: 'Alumno agregado',
+        text: `El alumno fue inscrito exitosamente en la sección`,
+        toast: true,
+        position: 'top-end',
+        timer: 2000,
+        showConfirmButton: false
+      });
     } catch (e) {
       setAddError("No se pudo agregar el alumno");
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudo agregar el alumno',
+        toast: true,
+        position: 'top-end',
+        timer: 2000,
+        showConfirmButton: false
+      });
     }
+  };
+
+  // Botón para volver a la lista de ramos
+  const handleVolverRamos = () => {
+    navigate('/ramos');
   };
 
   return (
     <div className={`p-6 bg-[#e9f7fb] min-h-screen transition-all duration-300 ${isNavbarOpen ? 'ml-64' : 'ml-0'}`}>
-      {/* Título */}
-      <div className="bg-[#113C63] text-white px-6 py-4 rounded">
-        <h2 className="text-3xl font-bold">Gestión de Secciones</h2>
+      <div className="flex flex-col gap-4 mb-4">
+        <h2 className="text-2xl font-bold">Gestión de Secciones</h2>
+        <button
+          onClick={handleVolverRamos}
+          className="self-start px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+        >
+          ← Volver a Ramos
+        </button>
       </div>
       {/* Línea separadora */}
       <div className="mt-6 bg-white h-4 rounded"></div>
@@ -166,8 +195,25 @@ export default function GestionSeccionesPage() {
               try {
                 await createSeccion({ codigoRamo, numero: nextNumero });
                 await fetchSecciones();
+                Swal.fire({
+                  icon: 'success',
+                  title: 'Sección creada',
+                  text: `La sección ${nextNumero} fue creada exitosamente`,
+                  toast: true,
+                  position: 'top-end',
+                  timer: 2500,
+                  showConfirmButton: false
+                });
               } catch (err) {
-                alert(err.message || "Error al crear sección");
+                Swal.fire({
+                  icon: 'error',
+                  title: 'Error',
+                  text: err.message || "Error al crear sección",
+                  toast: true,
+                  position: 'top-end',
+                  timer: 2500,
+                  showConfirmButton: false
+                });
               }
             }}
           >

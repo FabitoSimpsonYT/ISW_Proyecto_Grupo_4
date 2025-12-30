@@ -17,7 +17,7 @@ export function showSuccessAlert(title, text) {
     text: text,
     confirmButtonText: 'Aceptar',
     confirmButtonColor: '#3085d6',
-    timer: 3000
+    timer: import.meta.env.VITE_ALERT_TIMER ? parseInt(import.meta.env.VITE_ALERT_TIMER) : 3000
   });
 }
 
