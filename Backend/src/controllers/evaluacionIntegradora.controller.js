@@ -10,7 +10,7 @@ import {
   getNotaIntegradoraAlumnoService,
 } from "../services/evaluacionIntegradora.service.js";
 import { notificarAlumnos } from "../services/notificacionuno.service.js";
-import { AppDataSource } from "../config/configDb.js";
+import { AppDataSource } from "../config/configDB.js";
 
 /**
  * POST /evaluacion-integradora/:codigoRamo

@@ -85,6 +85,15 @@ export async function updatePauta(req, res) {
 
     const result =await updatePautaService(id, req.body, user);
 
+    // Eliminar pautas evaluadas relacionadas al id de pauta
+    try {
+      const { AppDataSource } = await import("../config/configDB.js");
+      const pautaEvaluadaRepository = AppDataSource.getRepository(require("../entities/pautaEvaluada.entity.js").PautaEvaluada);
+      await pautaEvaluadaRepository.delete({ pauta: { id: id } });
+    } catch (err) {
+      console.error("Error eliminando pautas evaluadas relacionadas:", err);
+    }
+
     if (result.error) return handleErrorClient(res, 400, result.error);
 
     handleSuccess(res, 200, "Pauta actualizada exitosamente", { pauta: result });

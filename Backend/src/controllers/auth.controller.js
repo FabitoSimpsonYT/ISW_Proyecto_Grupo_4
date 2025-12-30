@@ -2,7 +2,7 @@ import { loginUser } from "../services/auth.service.js";
 import { createUser } from "../services/user.service.js";
 import { handleSuccess, handleErrorClient, handleErrorServer } from "../Handlers/responseHandlers.js";
 import { createValidation, loginValidation } from "../validations/users.validation.js";
-import { AppDataSource } from "../config/configDb.js";
+import { AppDataSource } from "../config/configDB.js";
 import { User } from "../entities/user.entity.js";
 import jwt from "jsonwebtoken";
 

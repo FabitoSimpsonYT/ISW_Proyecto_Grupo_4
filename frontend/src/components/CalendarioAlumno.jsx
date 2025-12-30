@@ -1,5 +1,6 @@
 // src/components/CalendarioAlumno.jsx
 import { useState, useEffect } from 'react';
+import { getSlotsEvento } from '../services/slot.service.js';
 import { useAuth } from '../context/AuthContext';
 import Swal from 'sweetalert2';
 import { getEventosAlumno } from '../services/evento.service.js';
@@ -124,7 +125,7 @@ export default function CalendarioAlumno() {
     return () => window.removeEventListener('bloqueosUpdated', recargar);
   }, []);
 
-  const mostrarEventosDelDia = (dia) => {
+  const mostrarEventosDelDia = async (dia) => {
     const eventosDia = eventos.filter(e => e.dia === dia && e.mes === mesMostrado && e.año === añoMostrado);
     const fechaDia = new Date(añoMostrado, mesMostrado, dia);
     const bloqueo = bloqueos.find(b => {
@@ -153,17 +154,55 @@ export default function CalendarioAlumno() {
       return;
     }
 
-    // Tarjetas amigables para cada evento (simplificado)
-    let html = eventosDia.map(e => `
+    // Formatear hora de inicio y fin igual que en el calendario de profesor
+    // Si el evento es por slots, mostrar la hora reservada del slot del alumno
+    let html = '';
+    for (const e of eventosDia) {
+      // Mostrar en 'Hora' el horario completo del evento (no el slot)
+      let horaInicio = e.fecha_inicio ? new Date(e.fecha_inicio).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : (e.horaInicio || '-');
+      let horaFin = e.fecha_fin ? new Date(e.fecha_fin).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : (e.horaFin || '-');
+      let slotInfoHtml = '';
+      // Si es evento por slots (duracion_por_alumno > 0), mostrar el slot reservado del alumno
+      if (e.duracion_por_alumno && Number(e.duracion_por_alumno) > 0) {
+        try {
+          const slotsRes = await getSlotsEvento(e.id);
+          const slots = slotsRes?.data || slotsRes || [];
+          const userId = user?.id;
+          const mySlot = slots.find(s => s.alumno && s.alumno.id === userId);
+          if (mySlot) {
+            const slotInicio = new Date(mySlot.fecha_hora_inicio).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+            const slotFin = new Date(mySlot.fecha_hora_fin).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+            slotInfoHtml = `<div style='margin-bottom:6px;'><b>Tu horario reservado:</b> <span style='background:#bbf7d0;padding:2px 8px;border-radius:6px;'>${slotInicio} a ${slotFin}</span></div>`;
+          } else {
+            slotInfoHtml = `<div style='margin-bottom:6px;'><b>Tu horario reservado:</b> <span style='background:#fee2e2;padding:2px 8px;border-radius:6px;'>No asignado</span></div>`;
+          }
+        } catch (err) {
+          slotInfoHtml = `<div style='margin-bottom:6px;'><b>Tu horario reservado:</b> <span style='background:#fee2e2;padding:2px 8px;border-radius:6px;'>Error al obtener slot</span></div>`;
+        }
+      }
+      // Si no hay horaInicio/horaFin, intentar formatear desde fecha_inicio/fecha_fin
+      if ((!horaInicio || horaInicio === '-') && e.fecha_inicio) {
+        try {
+          horaInicio = new Date(e.fecha_inicio).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+        } catch {}
+      }
+      if ((!horaFin || horaFin === '-') && e.fecha_fin) {
+        try {
+          horaFin = new Date(e.fecha_fin).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+        } catch {}
+      }
+      html += `
       <div style=\"border-radius:16px;border:2px solid #e5e7eb;padding:18px;margin-bottom:18px;background:#fff;box-shadow:0 2px 8px #e5e7eb;\">
         <div style='font-size:20px;font-weight:bold;color:#0E2C66;margin-bottom:8px;'>${e.nombre}</div>
         <div style='margin-bottom:6px;'><b>Tipo:</b> ${e.tipo}</div>
         <div style='margin-bottom:6px;'><b>Descripción:</b> ${e.descripcion || '-'} </div>
-        <div style='margin-bottom:6px;'><b>Hora:</b> <span style='background:#e0e7ff;padding:2px 8px;border-radius:6px;'>${e.horaInicio || '-'}</span> a <span style='background:#e0e7ff;padding:2px 8px;border-radius:6px;'>${e.horaFin || '-'}</span></div>
+        <div style='margin-bottom:6px;'><b>Hora:</b> <span style='background:#e0e7ff;padding:2px 8px;border-radius:6px;'>${horaInicio || '-'}</span> a <span style='background:#e0e7ff;padding:2px 8px;border-radius:6px;'>${horaFin || '-'}</span></div>
+        ${slotInfoHtml}
         <div style='margin-bottom:6px;'><b>Sala:</b> ${e.sala || '-'} </div>
         <div style='margin-bottom:6px;'><b>Estado:</b> <span style='color:${e.estado==='cancelado'?'#dc2626':e.estado==='confirmado'?'#16a34a':'#64748b'};font-weight:bold;background:${e.estado==='cancelado'?'#fee2e2':e.estado==='confirmado'?'#bbf7d0':'#f3f4f6'};padding:2px 10px;border-radius:8px;'>${e.estado}</span></div>
       </div>
-    `).join('');
+      `;
+    }
 
     Swal.fire({
       title: `Eventos del ${dia} de ${nombresMeses[mesMostrado]}`,

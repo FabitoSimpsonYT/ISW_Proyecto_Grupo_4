@@ -50,6 +50,7 @@ export const Apelacion = new EntitySchema({
     createdAt: {
       type: "timestamp",
       default: () => "CURRENT_TIMESTAMP",
+      update: false,
     },
     updatedAt: {
       type: "timestamp",

@@ -99,7 +99,7 @@ const Navbar = () => {
               onClick={() => { navigate("/apelaciones/mis"); setIsOpen(false); }}
               className="px-4 py-2 border border-white rounded-lg hover:bg-white hover:text-[#0E2C66] transition font-medium"
             >
-              Apelaciones
+              📢 Apelaciones
             </button>
           )}
           
@@ -108,7 +108,7 @@ const Navbar = () => {
               onClick={() => navigate("/apelaciones-profesor")}
             className="px-4 py-2 border border-white rounded-lg hover:bg-white hover:text-[#0E2C66] transition font-medium"
           >
-            Apelaciones
+            📢 Apelaciones
             </button>
           )}
 
@@ -127,7 +127,7 @@ const Navbar = () => {
             onClick={() => { navigate("/notificaciones"); setIsOpen(false); }}
             className="px-4 py-2 border border-white rounded-lg hover:bg-white hover:text-[#0E2C66] transition font-medium"
           >
-            Notificaciones
+            🔔 Notificaciones
           </button>
 
           {(user?.role === "admin" || user?.role === "jefecarrera") && (
@@ -161,7 +161,7 @@ const Navbar = () => {
             onClick={() => { navigate("/mi-perfil"); setIsOpen(false); }}
             className="px-4 py-2 border border-white rounded-lg hover:bg-white hover:text-[#0E2C66] transition font-medium"
           >
-            Ver Perfil
+            🙍‍♂️ Ver Perfil
           </button>
         </div>
 

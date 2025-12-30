@@ -177,24 +177,10 @@ export default function CrearEventoForm({ onSaved, evento }) {
     const cargarSecciones = async () => {
       setLoadingSecciones(true);
       try {
-        // Buscar el ramo seleccionado por codigo o id
-        const ramoSeleccionado = misRamos.find(r => String(r.codigo) === String(formData.ramoId) || String(r.id) === String(formData.ramoId));
-
-        // Si el ramo ya trae secciones (por ejemplo ramos dictados), úsalas directamente
-        if (ramoSeleccionado && Array.isArray(ramoSeleccionado.secciones) && ramoSeleccionado.secciones.length > 0) {
-          const seccionesData = ramoSeleccionado.secciones.map(s => ({ id: s.id ?? s.numero, numero: s.numero }));
-          setSecciones(seccionesData);
-          setLoadingSecciones(false);
-          return;
-        }
-
-        // Si no encontramos objeto con secciones completas, intentar obtener por codigo
-        const codigoRamo = (ramoSeleccionado && (ramoSeleccionado.codigo || ramoSeleccionado.codigoRamo)) || formData.ramoId;
-
+        // Siempre usar el endpoint para obtener secciones con id real
+        const codigoRamo = formData.ramoId;
         console.log('🔍 Cargando secciones para el ramo (codigo):', codigoRamo);
-
         const res = await getSeccionesByRamo(codigoRamo);
-
         const seccionesData = Array.isArray(res) ? res : res?.data || [];
         console.log('✅ Secciones cargadas:', seccionesData);
         setSecciones(seccionesData);
@@ -233,8 +219,12 @@ export default function CrearEventoForm({ onSaved, evento }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Convertir IDs a número antes de enviar
+    const ramoIdNum = formData.ramoId ? Number(formData.ramoId) : null;
+    const seccionIdNum = formData.seccionId ? Number(formData.seccionId) : null;
+    const tipoEventoNum = formData.tipoEvento ? Number(formData.tipoEvento) : null;
 
-    if (!formData.nombre || !formData.tipoEvento || !formData.ramoId || !formData.seccionId) {
+    if (!formData.nombre || !tipoEventoNum || !ramoIdNum || !seccionIdNum) {
       Swal.fire('Error', 'Completa todos los campos obligatorios', 'warning');
       return;
     }
@@ -301,40 +291,47 @@ export default function CrearEventoForm({ onSaved, evento }) {
         }
       }
 
+      // Siempre incluir fechaInicio y fechaFin en el payload
+      let fechaInicio = '';
+      let fechaFin = '';
+      let duracionPorAlumno = undefined;
+      let duracion = undefined;
+
+      if (formData.modalidad === 'presencial' && formData.tipoEvaluacion === 'escrita') {
+        fechaInicio = `${formData.fechaDia}T${formData.horaInicio}:00`;
+        fechaFin = `${formData.fechaDia}T${formData.horaFin || formData.horaInicio}:00`;
+      } else if (formData.tipoEvaluacion === 'slots') {
+        fechaInicio = `${formData.fechaRangoInicio}T${formData.horaInicioDiaria || '08:00'}:00`;
+        fechaFin = formData.fechaFinRango || `${formData.fechaRangoInicio}T${formData.horaFinDiaria || '18:00'}:00`;
+        duracionPorAlumno = Number(formData.duracionPorAlumno) || null;
+      } else if (formData.modalidad === 'online') {
+        // Online necesita fechas también
+        fechaInicio = formData.fechaDia ? `${formData.fechaDia}T${formData.horaInicio || '08:00'}:00` : new Date().toISOString();
+        fechaFin = formData.fechaDia ? `${formData.fechaDia}T${formData.horaFin || formData.horaInicio || '09:00'}:00` : new Date(Date.now() + 60 * 60 * 1000).toISOString();
+        duracion = Number(formData.duracionMinutos) || null;
+      } else {
+        // fallback: usar fecha y hora actuales
+        fechaInicio = new Date().toISOString();
+        fechaFin = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+      }
+
       let payload = {
         nombre: formData.nombre.trim(),
         descripcion: formData.descripcion.trim(),
         estado: formData.estado,
         comentario: formData.comentario.trim() || null,
-        tipoEvento: Number(formData.tipoEvento),
+        tipoEvento: tipoEventoNum,
         modalidad: formData.modalidad,
         linkOnline: formData.modalidad === 'online' ? formData.linkOnline.trim() || null : null,
-        ramoId: ramoIdNumeric,
-        seccionId: Number(formData.seccionId),
+        ramoId: ramoIdNum,
+        seccionId: seccionIdNum,
         cupoMaximo: Number(formData.cupoMaximo) || 40,
         sala: formData.modalidad === 'presencial' ? formData.sala.trim() || null : null,
+        fechaInicio,
+        fechaFin
       };
-
-      // Configurar fechas según el tipo
-      if (formData.modalidad === 'presencial' && formData.tipoEvaluacion === 'escrita') {
-        payload.fechaInicio = `${formData.fechaDia}T${formData.horaInicio}:00`;
-        payload.fechaFin = `${formData.fechaDia}T${formData.horaFin || formData.horaInicio}:00`;
-      } else if (formData.tipoEvaluacion === 'slots') {
-        // Para slots, construir fechas con el rango
-        const fechaInicio = `${formData.fechaRangoInicio}T${formData.horaInicioDiaria || '08:00'}:00`;
-        const fechaFin = formData.fechaFinRango || `${formData.fechaRangoInicio}T${formData.horaFinDiaria || '18:00'}:00`;
-        
-        payload.fechaInicio = fechaInicio;
-        payload.fechaFin = fechaFin;
-        payload.duracionPorAlumno = Number(formData.duracionPorAlumno) || null;
-      } else if (formData.modalidad === 'online') {
-        // Online necesita fechas también
-        const ahora = new Date();
-        const dentroDeUnDia = new Date(ahora.getTime() + 24 * 60 * 60 * 1000);
-        payload.fechaInicio = ahora.toISOString();
-        payload.fechaFin = dentroDeUnDia.toISOString();
-        payload.duracion = Number(formData.duracionMinutos) || null;
-      }
+      if (duracionPorAlumno !== undefined) payload.duracionPorAlumno = duracionPorAlumno;
+      if (duracion !== undefined) payload.duracion = duracion;
 
       console.log('📤 Payload a enviar:', payload);
 
@@ -392,7 +389,9 @@ export default function CrearEventoForm({ onSaved, evento }) {
       }, 500);
     } catch (err) {
       console.error('❌ Error al guardar evento:', err);
-      Swal.fire('Error', err.message || 'No se pudo guardar el evento', 'error');
+      // Mostrar mensaje del backend si existe
+      const backendMsg = err?.response?.data?.message;
+      Swal.fire('Error', backendMsg || err.message || 'No se pudo guardar el evento', 'error');
     } finally {
       setGenerandoSlots(false);
     }

@@ -338,15 +338,20 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
             console.log("Payload a enviar:", payload);
 
             if (evaluacion.id) {
-                console.log("Actualizando evaluación...");
-                let updateResult;
-                if (isIntegradora) {
-                    updateResult = await updateEvaluacionIntegradora(evaluacion.id, payload);
-                } else {
-                    updateResult = await updateEvaluacion(evaluacion.id, payload);
-                }
-                console.log("Resultado de actualización:", updateResult);
-                showSuccessAlert("Éxito", "Evaluación actualizada correctamente");
+                                console.log("Actualizando evaluación...");
+                                let updateResult;
+                                try {
+                                    if (isIntegradora) {
+                                            updateResult = await updateEvaluacionIntegradora(evaluacion.id, payload);
+                                    } else {
+                                            updateResult = await updateEvaluacion(evaluacion.id, payload);
+                                    }
+                                    console.log("Resultado de actualización:", updateResult);
+                                    showSuccessAlert("Evaluación actualizada", "La evaluación y sus pautas asociadas han sido actualizadas correctamente.");
+                                    if (onSaved) onSaved(updateResult);
+                                } catch (error) {
+                                    showErrorAlert("Error", `Error al actualizar la evaluación: ${error.message || 'Intenta nuevamente'}`);
+                                }
             } else {
                 console.log("Creando nueva evaluación...");
                 let createResult;

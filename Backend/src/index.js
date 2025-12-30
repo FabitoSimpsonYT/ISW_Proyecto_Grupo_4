@@ -3,7 +3,7 @@ import express from "express";
 import morgan from "morgan";
 import cors from "cors";
 import dotenv from "dotenv";
-import { AppDataSource, connectDB } from "./config/configDb.js";
+import { AppDataSource, connectDB } from "./config/configDB.js";
 import { routerApi, configureSocketIO } from "./routes/index.routes.js";
 import { HOST, PORT } from "./config/configEnv.js";
 import initDB from "./config/initDB.js";
@@ -13,12 +13,14 @@ const app = express();
 app.use(express.json());
 app.use(morgan("dev"));
 
-// Configurar CORS: permitir el origen del frontend y credenciales (cookies)
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
-const corsOptions = process.env.NODE_ENV === "development"
-  ? { origin: true, credentials: true }
-  : { origin: FRONTEND_URL, credentials: true };
-app.use(cors(corsOptions));
+// Configurar CORS: permitir orígenes desde variable de entorno FRONTEND_ORIGINS (separados por coma)
+const allowedOrigins = process.env.FRONTEND_ORIGINS
+  ? process.env.FRONTEND_ORIGINS.split(',').map(origin => origin.trim())
+  : ["http://localhost:5173"];
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true
+}));
 app.get("/", (req, res) => {
   res.send("¡Bienvenido a mi API REST con TypeORM!");
 });

@@ -1,7 +1,7 @@
 // Buscar alumnos por query (nombre, apellido o rut)
 import { buscarAlumnosPorQuery } from "../services/ramos.service.js";
 import { Seccion } from "../entities/seccion.entity.js";
-import { AppDataSource } from "../config/configDb.js";
+import { AppDataSource } from "../config/configDB.js";
 
 export async function buscarAlumnosHandler(req, res) {
   try {

@@ -2,7 +2,7 @@ import { handleSuccess, handleErrorClient, handleErrorServer } from "../Handlers
 import { createPautaEvaluadaService, getPautaEvaluadaService, getPautasEvaluadasByEvaluacionService, updatePautaEvaluadaService, deletePautaEvaluadaService, createPautaEvaluadaIntegradoraService, getPautaEvaluadaIntegradoraService, updatePautaEvaluadaIntegradoraService, deletePautaEvaluadaIntegradoraService } from "../services/pautaEvaluada.service.js";
 import { createPautaEvaluadaValidation, updatePautaEvaluadaValidation } from "../validations/pautaEvaluada.validation.js";
 import { notificarAlumnos } from "../services/notificacionuno.service.js";
-import { AppDataSource } from "../config/configDb.js";
+import { AppDataSource } from "../config/configDB.js";
 import { Pauta } from "../entities/pauta.entity.js";
 import { Evaluacion } from "../entities/evaluaciones.entity.js";
 import { EvaluacionIntegradora } from "../entities/evaluacionIntegradora.entity.js";

@@ -16,7 +16,8 @@ import { createAdmin, createProfesor, createAlumno } from "../services/users.ser
 
 export default function RegistroUsuariosForm({ onSaved }) {
   const [tipo, setTipo] = useState("profesor");
-  const [error, setError] = useState('');
+    const [error, setError] = useState('');
+    const [telefonoError, setTelefonoError] = useState('');
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     nombres: '',
@@ -187,9 +188,19 @@ export default function RegistroUsuariosForm({ onSaved }) {
 
     // Formatear RUT antes de validar
     const rutFormateado = formatRut(formData.rut);
+    // Formatear nombres y correo
+    // Capitaliza solo la primera letra de cada palabra si está después de un espacio
+    const capitalizeWords = (str) =>
+      str.replace(/(^|\s)([a-záéíóúüñ])/gi, (match, space, letter) =>
+        space + letter.toUpperCase()
+      ).replace(/(?<=\s)([A-ZÁÉÍÓÚÜÑ])([A-ZÁÉÍÓÚÜÑ]+)/g, (m, first, rest) => first + rest.toLowerCase());
     const formDataConRutFormateado = {
       ...formData,
-      rut: rutFormateado
+      rut: rutFormateado,
+      nombres: capitalizeWords(formData.nombres.trim()),
+      apellidoPaterno: capitalizeWords(formData.apellidoPaterno.trim()),
+      apellidoMaterno: capitalizeWords(formData.apellidoMaterno.trim()),
+      email: formData.email.trim().toLowerCase()
     };
 
     // Validar con el RUT formateado
@@ -233,6 +244,7 @@ export default function RegistroUsuariosForm({ onSaved }) {
       }
       return;
     }
+        setTelefonoError('');
     if (!formDataConRutFormateado.password.trim()) {
       setError('La contraseña es obligatoria');
       return;
@@ -303,12 +315,6 @@ export default function RegistroUsuariosForm({ onSaved }) {
   return (
     <form onSubmit={handleSubmit} className="p-6 border rounded-lg bg-gray-50 shadow-md space-y-4">
       <h2 className="text-2xl font-bold text-gray-800">Crear Nuevo Usuario</h2>
-
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg">
-          {error}
-        </div>
-      )}
 
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de Usuario:</label>
@@ -451,6 +457,24 @@ export default function RegistroUsuariosForm({ onSaved }) {
             placeholder="ej: 2025"
             required
           />
+        </div>
+      )}
+
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">Correo Jefe de Carrera:</label>
+        <input
+          type="email"
+          name="correoJefeCarrera"
+          value={formData.correoJefeCarrera || ''}
+          onChange={handleChange}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="jefe.carrera@ubiobio.cl"
+        />
+      </div>
+
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-4">
+          {error}
         </div>
       )}
 

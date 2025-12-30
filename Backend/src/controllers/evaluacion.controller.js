@@ -12,7 +12,7 @@ import { notificarAlumnos } from "../services/notificacionuno.service.js";
 
 async function getUniqueAlumnoEmailsByRamoId(ramoId) {
   if (!ramoId) return [];
-  const { AppDataSource } = await import("../config/configDb.js");
+  const { AppDataSource } = await import("../config/configDB.js");
   const { Ramos } = await import("../entities/ramos.entity.js");
 
   const ramoRepo = AppDataSource.getRepository(Ramos);
@@ -101,7 +101,7 @@ export async function createEvaluacion(req, res) {
     const { codigoRamo, ponderacion } = req.body;
     if (codigoRamo && ponderacion) {
       try {
-        const { AppDataSource } = await import("../config/configDb.js");
+        const { AppDataSource } = await import("../config/configDB.js");
         const { Evaluacion } = await import("../entities/evaluaciones.entity.js");
         const evaluacionRepo = AppDataSource.getRepository(Evaluacion);
         
@@ -209,7 +209,7 @@ export async function updateEvaluacion(req, res) {
     // Validar que la suma de ponderaciones no exceda 100 si se está actualizando la ponderación
     if (ponderacion) {
       try {
-        const { AppDataSource } = await import("../config/configDb.js");
+        const { AppDataSource } = await import("../config/configDB.js");
         const { Evaluacion } = await import("../entities/evaluaciones.entity.js");
         const evaluacionRepo = AppDataSource.getRepository(Evaluacion);
         
@@ -241,7 +241,7 @@ export async function updateEvaluacion(req, res) {
     let wasPublished = false;
     let ramoIdForNotif = null;
     try {
-      const { AppDataSource } = await import("../config/configDb.js");
+      const { AppDataSource } = await import("../config/configDB.js");
       const { Evaluacion } = await import("../entities/evaluaciones.entity.js");
       const evaluacionRepo = AppDataSource.getRepository(Evaluacion);
       const before = await evaluacionRepo.findOne({ where: { id: Number(id) }, relations: ["ramo"] });
@@ -266,6 +266,23 @@ export async function updateEvaluacion(req, res) {
 
     if (!evaluacionActualizada) {
       return  handleErrorClient(res, 404, "No se pudo actualizar la evaluación");
+    }
+
+    // Eliminar pautas evaluadas relacionadas a la pauta de la evaluación
+    try {
+      const { AppDataSource } = await import("../config/configDB.js");
+      const { Evaluacion } = await import("../entities/evaluaciones.entity.js");
+      const { Pauta } = await import("../entities/pauta.entity.js");
+      const pautaEvaluadaRepository = AppDataSource.getRepository(require("../entities/pautaEvaluada.entity.js").PautaEvaluada);
+      const pautaRepository = AppDataSource.getRepository(Pauta);
+      const evaluacionRepo = AppDataSource.getRepository(Evaluacion);
+      const evaluacionActual = await evaluacionRepo.findOne({ where: { id: Number(id) } });
+      if (evaluacionActual && evaluacionActual.idPauta) {
+        await pautaEvaluadaRepository.delete({ pauta: { id: evaluacionActual.idPauta } });
+        await pautaRepository.delete({ id: evaluacionActual.idPauta });
+      }
+    } catch (err) {
+      console.error("Error eliminando pautas evaluadas y pauta relacionada:", err);
     }
 
     const isNowPublished = Boolean(evaluacionActualizada?.pautaPublicada);

@@ -1,4 +1,4 @@
-import { AppDataSource } from "../config/configDb.js";
+import { AppDataSource } from "../config/configDB.js";
 import { Retroalimentacion } from "../entities/retroalimentacion.entity.js";
 import { User } from "../entities/user.entity.js";
 import { Ramos } from "../entities/ramos.entity.js";

@@ -1,5 +1,5 @@
 
-import { AppDataSource } from "../config/configDb.js";
+import { AppDataSource } from "../config/configDB.js";
 import { Apelacion } from "../entities/apelacion.entity.js";
 import { User } from "../entities/user.entity.js";
 import path from "path";

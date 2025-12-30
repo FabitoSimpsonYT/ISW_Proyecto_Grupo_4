@@ -130,8 +130,12 @@ export default function PautaForm({ pautaEdit, evaluacionId, onSaved }) {
 
         try {
             if (pauta.id) {
-                await updatePauta(pauta.id, pautaToSend);
-                showSuccessAlert('Éxito', 'Pauta actualizada correctamente');
+                try {
+                    await updatePauta(pauta.id, pautaToSend);
+                    showSuccessAlert('Pauta actualizada', 'La pauta y todas las pautas evaluadas asociadas han sido actualizadas correctamente.');
+                } catch (error) {
+                    showErrorAlert('Error', `Error al actualizar la pauta: ${error.message || 'Intenta nuevamente'}`);
+                }
             } else {
                 const createdPauta = await createPauta(pautaToSend, evaluacionId);
                 

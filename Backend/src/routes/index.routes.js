@@ -61,7 +61,9 @@ export function configureSocketIO(app) {
   const httpServer = createServer(app);
   const io = new Server(httpServer, {
     cors: {
-      origin: FRONTEND_URL,
+      origin: process.env.NODE_ENV === "production" 
+        ? [FRONTEND_URL, "http://localhost:5173", "http://localhost:3000"]
+        : true,
       credentials: true
     }
   });

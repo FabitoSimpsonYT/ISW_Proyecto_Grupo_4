@@ -265,14 +265,18 @@ export default function CrearEditarPautaPage() {
 
         try {
             if (pauta.id) {
-                // Si evaluacionId está set pero no idEvaluacion, es integradora
-                if (evaluacionId && !idEvaluacion) {
-                    await updatePautaIntegradora(evaluacionId, pautaToSend);
-                } else {
-                    // Es normal: usar updatePauta con id de pauta
-                    await updatePauta(pauta.id, pautaToSend);
+                try {
+                    // Si evaluacionId está set pero no idEvaluacion, es integradora
+                    if (evaluacionId && !idEvaluacion) {
+                        await updatePautaIntegradora(evaluacionId, pautaToSend);
+                    } else {
+                        // Es normal: usar updatePauta con id de pauta
+                        await updatePauta(pauta.id, pautaToSend);
+                    }
+                    showSuccessAlert('Pauta actualizada', 'La pauta y todas las pautas evaluadas asociadas han sido actualizadas correctamente.');
+                } catch (error) {
+                    showErrorAlert('Error', `Error al actualizar la pauta: ${error.message || 'Intenta nuevamente'}`);
                 }
-                showSuccessAlert('Éxito', 'Pauta actualizada correctamente');
             } else {
                 // Si evaluacionId está set pero no idEvaluacion, es integradora
                 if (evaluacionId && !idEvaluacion) {
@@ -499,24 +503,6 @@ export default function CrearEditarPautaPage() {
                             </div>
                         </div>
 
-                        {/* Publicar Pauta */}
-                        <div className="border rounded-lg p-4 bg-blue-50 border-blue-200">
-                            <label className="flex items-center cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    name="publicada"
-                                    checked={pauta.publicada}
-                                    onChange={handleChange}
-                                    className="h-5 w-5 cursor-pointer rounded border-blue-300"
-                                />
-                                <span className="ml-3 font-semibold text-[#113C63]">
-                                    Publicar pauta
-                                </span>
-                            </label>
-                            <p className="text-xs text-gray-600 mt-2 ml-8">
-                                Los estudiantes podrán ver esta pauta una vez publicada
-                            </p>
-                        </div>
                     </div>
 
                     {/* Botones */}

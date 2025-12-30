@@ -115,17 +115,22 @@ export default function EvaluacionList({ onEdit, codigoRamo, onNuevaEvaluacion }
   const handleDelete = async (id, isIntegradora = false) => {
     const result = await showConfirmAlert(
       "¿Está seguro?",
-      "¿Estás seguro de eliminar esta evaluación?",
+      "¿Estás seguro de eliminar esta evaluación? Se eliminarán también todas las pautas y pautas evaluadas asociadas.",
       "Eliminar",
       "Cancelar"
     );
     if (result.isConfirmed) {
-      if (isIntegradora) {
-        await deleteEvaluacionIntegradora(id);
-        setEvaluacionIntegradora(null);
-      } else {
-        await deleteEvaluacion(id);
-        setEvaluaciones(evaluaciones.filter((e) => e.id !== id));
+      try {
+        if (isIntegradora) {
+          await deleteEvaluacionIntegradora(id);
+          setEvaluacionIntegradora(null);
+        } else {
+          await deleteEvaluacion(id);
+          setEvaluaciones(evaluaciones.filter((e) => e.id !== id));
+        }
+        showSuccessAlert('Evaluación eliminada', 'La evaluación y todas sus pautas asociadas han sido eliminadas correctamente.');
+      } catch (error) {
+        showErrorAlert('Error', `Error al eliminar evaluación: ${error.message || 'Intenta nuevamente'}`);
       }
     }
   };
