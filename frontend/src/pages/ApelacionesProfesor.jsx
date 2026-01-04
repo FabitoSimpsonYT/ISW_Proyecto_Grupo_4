@@ -13,7 +13,9 @@ export default function ApelacionesProfesor() {
   const [loading, setLoading] = useState(true);
   const [filtroEstado, setFiltroEstado] = useState("todas");
   const [filtroTipo, setFiltroTipo] = useState("todos");
+  const [filtroRamo, setFiltroRamo] = useState("todos");
   const [busquedaRut, setBusquedaRut] = useState("");
+  const [ramosDisponibles, setRamosDisponibles] = useState([]);
   const { isNavbarOpen } = useNavbar();
   const navigate = useNavigate();
 
@@ -27,6 +29,15 @@ export default function ApelacionesProfesor() {
         if (res?.data) {
           setApelaciones(res.data);
           setApelacionesFiltradas(res.data);
+          
+          // Extraer ramos disponibles
+          const ramosSet = new Set();
+          res.data.forEach(apel => {
+            if (apel.alumno?.ramo?.nombre) {
+              ramosSet.add(apel.alumno.ramo.nombre);
+            }
+          });
+          setRamosDisponibles(Array.from(ramosSet).sort());
         }
       } catch (error) {
         console.error("Error cargando apelaciones", error);
@@ -52,6 +63,10 @@ export default function ApelacionesProfesor() {
       filtradas = filtradas.filter(a => a.tipo?.toLowerCase() === filtroTipo);
     }
 
+    if (filtroRamo !== "todos") {
+      filtradas = filtradas.filter(a => a.alumno?.ramo?.nombre === filtroRamo);
+    }
+
     if (busquedaRut.trim()) {
       const rutBusqueda = busquedaRut.toLowerCase().trim();
       filtradas = filtradas.filter(a => {
@@ -62,7 +77,7 @@ export default function ApelacionesProfesor() {
     }
 
     setApelacionesFiltradas(filtradas);
-  }, [filtroEstado, filtroTipo, busquedaRut, apelaciones]);
+  }, [filtroEstado, filtroTipo, filtroRamo, busquedaRut, apelaciones]);
 
   /* ===============================
      ELIMINAR (pendiente / revisada)
@@ -120,7 +135,7 @@ export default function ApelacionesProfesor() {
         </div>
 
         {/* Filtros */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -159,6 +174,25 @@ export default function ApelacionesProfesor() {
               <option value="inasistencia">🚫 Inasistencia</option>
             </select>
           </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C6.5 6.253 2 10.998 2 17s4.5 10.747 10 10.747c5.5 0 10-4.998 10-10.747S17.5 6.253 12 6.253z" />
+              </svg>
+              Filtrar por Ramo
+            </label>
+            <select
+              className="w-full p-3 rounded-lg border-2 border-gray-200 focus:border-blue-500 focus:outline-none transition-colors bg-white"
+              value={filtroRamo}
+              onChange={(e) => setFiltroRamo(e.target.value)}
+            >
+              <option value="todos">📚 Todos los ramos</option>
+              {ramosDisponibles.map((ramo) => (
+                <option key={ramo} value={ramo}>{ramo}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* Results counter */}
@@ -177,6 +211,7 @@ export default function ApelacionesProfesor() {
                 <th className="px-6 py-4 text-left text-sm font-semibold">Mensaje</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold">Estado</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold">Alumno</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold">Ramo</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold">Fecha creación</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold">Última actualización</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold">Citación</th>
@@ -186,7 +221,7 @@ export default function ApelacionesProfesor() {
             <tbody className="divide-y divide-gray-200">
             {apelacionesFiltradas.length === 0 && (
               <tr>
-                <td colSpan="8" className="text-center py-12">
+                <td colSpan="9" className="text-center py-12">
                   <div className="flex flex-col items-center justify-center text-gray-400">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
@@ -228,6 +263,11 @@ export default function ApelacionesProfesor() {
                       </span>
                       <div>
                         <p className="font-medium text-gray-900 capitalize">{apel.tipo}</p>
+                        {apel.tipo === "evaluacion" && apel.pautaEvaluada?.evaluacionTitulo && (
+                          <span className="text-xs text-gray-500">
+                            {apel.pautaEvaluada.evaluacionTitulo}
+                          </span>
+                        )}
                         {apel.subtipoInasistencia && (
                           <span className="text-xs text-gray-500">
                             {apel.subtipoInasistencia === "evaluacion" ? "Reagendar" : "Justificación"}
@@ -268,6 +308,13 @@ export default function ApelacionesProfesor() {
                       </div>
                       <span className="text-gray-700 text-sm">{apel.alumno?.email || "Desconocido"}</span>
                     </div>
+                  </td>
+
+                  {/* RAMO */}
+                  <td className="px-6 py-4">
+                    <span className="inline-block px-3 py-1 bg-blue-50 text-blue-700 text-sm font-medium rounded-lg">
+                      {apel.alumno?.ramo?.nombre || "—"}
+                    </span>
                   </td>
 
                   {/* FECHA CREACIÓN */}
