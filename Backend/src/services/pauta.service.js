@@ -5,6 +5,56 @@ import { EvaluacionIntegradora } from "../entities/evaluacionIntegradora.entity.
 import { notificarAlumnos } from "./notificacionuno.service.js";
 import { Ramos } from "../entities/ramos.entity.js";
 
+async function getUniqueAlumnoEmailsByRamoIdRobust(ramoId) {
+  if (!ramoId) return [];
+
+  // 1) Intento vía relaciones (TypeORM)
+  try {
+    const ramoRepo = AppDataSource.getRepository(Ramos);
+    const ramo = await ramoRepo.findOne({
+      where: { id: ramoId },
+      relations: ["secciones", "secciones.alumnos", "secciones.alumnos.user"],
+    });
+
+    const emails = [];
+    if (ramo?.secciones?.length) {
+      ramo.secciones.forEach((seccion) => {
+        if (seccion?.alumnos?.length) {
+          seccion.alumnos.forEach((alumno) => {
+            if (alumno?.user?.email) emails.push(alumno.user.email);
+          });
+        }
+      });
+    }
+
+    const unique = [...new Set(emails.map((e) => String(e).trim()).filter(Boolean))];
+    if (unique.length > 0) return unique;
+  } catch (e) {
+    console.warn("getUniqueAlumnoEmailsByRamoIdRobust: fallo en relaciones", e?.message || e);
+  }
+
+  // 2) Fallback vía SQL directo (evita problemas de carga/relación)
+  try {
+    const rows = await AppDataSource.query(
+      `SELECT DISTINCT u.email
+       FROM users u
+       JOIN alumnos a ON a.id = u.id
+       JOIN seccion_alumnos sa ON sa.alumno_id = a.id
+       JOIN secciones s ON s.id = sa.seccion_id
+       WHERE s.ramo_id = $1
+         AND u.email IS NOT NULL
+         AND TRIM(u.email) <> ''`,
+      [ramoId]
+    );
+
+    const unique = [...new Set((rows || []).map((r) => r?.email).filter(Boolean).map((e) => String(e).trim()))];
+    return unique;
+  } catch (e) {
+    console.warn("getUniqueAlumnoEmailsByRamoIdRobust: fallo SQL fallback", e?.message || e);
+    return [];
+  }
+}
+
 const pautaRepository = AppDataSource.getRepository(Pauta);
 const evaluacionRepository = AppDataSource.getRepository(Evaluacion);
 const evaluacionIntegradoraRepository = AppDataSource.getRepository(EvaluacionIntegradora);
@@ -23,6 +73,11 @@ export async function createPautaService(data, evaluacionId, evaluacionIntegrado
         if(evaluacion.estado !== "pendiente"){
             return {error: "error al agregar una pauta a una evaluacion aplicada"};
         }
+
+      // Si se intenta crear la pauta ya publicada, exigir que la evaluación ya esté publicada primero
+      if (Boolean(data?.publicada) && !Boolean(evaluacion?.pautaPublicada)) {
+        return { error: "Primero debes publicar la evaluación antes de publicar la pauta" };
+      }
         pauta = pautaRepository.create({...data, evaluacionId});
     } else {
         return {error: "Debe enviar evaluacionId o evaluacionIntegradoraId"};
@@ -45,6 +100,33 @@ export async function createPautaService(data, evaluacionId, evaluacionIntegrado
         const updateResult = await evaluacionIntegradoraRepository.update(evaluacionIntegradoraId, { idPauta: savedPauta.id });
         console.log("Resultado del update en integradora:", updateResult);
     }
+
+    // Si se creó ya publicada, notificar inmediatamente (solo para evaluaciones normales)
+    if (evaluacionId && Boolean(savedPauta.publicada)) {
+      try {
+        const evaluacion = await evaluacionRepository.findOne({ where: { id: evaluacionId }, relations: ["ramo"] });
+        if (evaluacion && Boolean(evaluacion.pautaPublicada)) {
+          const ramoId = evaluacion?.ramo?.id;
+          if (ramoId) {
+            const uniqueEmails = await getUniqueAlumnoEmailsByRamoIdRobust(ramoId);
+            const created = await notificarAlumnos(
+              uniqueEmails,
+              "Pauta publicada",
+              `Se publicó la pauta de la evaluación: "${evaluacion.titulo}". Ya puedes revisarla.`,
+              evaluacion.id
+            );
+            console.log(
+              `Notificaciones creadas (creación pauta publicada): ${created.count || 0} alumnos notificados para ramo ${ramoId}`
+            );
+          }
+        }
+      } catch (err) {
+        console.warn(
+          "Advertencia: no se pudieron notificar alumnos tras crear pauta publicada:",
+          err.message || err
+        );
+      }
+    }
     
     return savedPauta;
 }
@@ -55,8 +137,8 @@ export async function getPautaByIdService(id, user){
     });
     if (!pauta) return {error : "pauta no encontrada"};
 
-    if(user.role === "estudiante" && !pauta.publicada){
-        return {error : "la puata no ha sido publicada"};
+    if((user.role === "alumno" || user.role === "estudiante") && !pauta.publicada){
+      return {error : "la pauta no ha sido publicada"};
     }
     return pauta;
 }
@@ -70,6 +152,28 @@ export async function updatePautaService(id, data, user) {
   if (!pauta) return { error: "Pauta no encontrada" };
   if (user.role !== "profesor" && user.role !== "jefecarrera") return { error: "No autorizado" };
 
+  const wasPublicada = Boolean(pauta.publicada);
+
+  // Si se está intentando publicar ahora, validar ANTES de guardar
+  const publishingNow = !wasPublicada && data?.publicada === true;
+  let evaluacionForNotif = null;
+  if (publishingNow) {
+    const evaluacionId = pauta?.evaluacion?.id ?? pauta?.evaluacionId;
+    if (!evaluacionId) {
+      return { error: "evaluacion no encontrada" };
+    }
+
+    evaluacionForNotif = await evaluacionRepository.findOne({
+      where: { id: evaluacionId },
+      relations: ["ramo"],
+    });
+
+    if (!evaluacionForNotif) return { error: "evaluacion no encontrada" };
+    if (!Boolean(evaluacionForNotif.pautaPublicada)) {
+      return { error: "Primero debes publicar la evaluación antes de publicar la pauta" };
+    }
+  }
+
   // Actualizar los campos que vienen en data
   pauta.criterios = data.criterios || pauta.criterios;
   pauta.distribucionPuntaje = data.distribucionPuntaje || pauta.distribucionPuntaje;
@@ -78,43 +182,26 @@ export async function updatePautaService(id, data, user) {
   const updatedPauta = await pautaRepository.save(pauta);
   console.log("Pauta actualizada:", updatedPauta);
 
-  
-  try {
-    const evaluacion = await evaluacionRepository.findOne({ where: { id: pauta.evaluacion.id }, relations: ["ramo"] });
-    const ramoId = evaluacion?.ramo?.id;
+  // Notificar SOLO cuando se publica (transición false -> true)
+  if (publishingNow && Boolean(updatedPauta.publicada)) {
+    try {
+      const evaluacion = evaluacionForNotif;
+      const ramoId = evaluacion?.ramo?.id;
+      if (ramoId) {
+        const uniqueEmails = await getUniqueAlumnoEmailsByRamoIdRobust(ramoId);
 
-    if (ramoId) {
-      const ramoRepo = AppDataSource.getRepository(Ramos);
-      const ramo = await ramoRepo.findOne({
-        where: { id: ramoId },
-        relations: ["secciones", "secciones.alumnos", "secciones.alumnos.user"],
-      });
+        const created = await notificarAlumnos(
+          uniqueEmails,
+          "Pauta publicada",
+          `Se publicó la pauta de la evaluación: "${evaluacion.titulo}". Ya puedes revisarla.`,
+          evaluacion.id
+        );
 
-      const emails = [];
-      if (ramo && ramo.secciones && ramo.secciones.length > 0) {
-        ramo.secciones.forEach((seccion) => {
-          if (seccion.alumnos && seccion.alumnos.length > 0) {
-            seccion.alumnos.forEach((alumno) => {
-              if (alumno.user && alumno.user.email) emails.push(alumno.user.email);
-            });
-          }
-        });
+        console.log(`Notificaciones creadas: ${created.count || 0} alumnos notificados para ramo ${ramoId}`);
       }
-
-
-      const uniqueEmails = [...new Set(emails)];
-
-      const created = await notificarAlumnos(
-        uniqueEmails,
-        "Nueva pauta publicada",
-        `Se ha publicado la pauta para ${evaluacion.titulo}`,
-        evaluacion.id
-      );
-
-      console.log(`Notificaciones creadas: ${created.count || 0} alumnos notificados para ramo ${ramoId}`);
+    } catch (err) {
+      console.warn("Advertencia: no se pudieron notificar alumnos tras publicar la pauta:", err.message || err);
     }
-  } catch (err) {
-    console.warn("Advertencia: no se pudieron notificar alumnos tras publicar la pauta:", err.message || err);
   }
 
   return updatedPauta;
@@ -152,7 +239,7 @@ export async function getPautaIntegradoraService(evaluacionIntegradoraId, user) 
     });
     if (!pauta) return {error: "pauta integradora no encontrada"};
 
-    if(user?.role === "estudiante" && !pauta.publicada){
+    if((user?.role === "alumno" || user?.role === "estudiante") && !pauta.publicada){
       return {error: "la pauta no ha sido publicada"};
     }
     return pauta;

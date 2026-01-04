@@ -1,11 +1,11 @@
-import BloquearDias from '../components/BloquearDias';
+import BloquearDiasMejorado from '../components/BloquearDiasMejorado';
 import Navbar from '../components/Navbar';
 
 function BloqueoPage() {
   return (
     <div>
       <Navbar />
-      <BloquearDias />
+      <BloquearDiasMejorado />
     </div>
   );
 }

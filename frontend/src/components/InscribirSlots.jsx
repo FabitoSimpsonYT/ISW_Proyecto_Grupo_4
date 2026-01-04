@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import Swal from 'sweetalert2';
+import ToastNotificationService from '../services/toastNotification.service';
 import { getEvaluacionesDisponiblesSlots } from '../services/inscripcionSlots.service.js';
 import { getSlotsEvento, inscribirSlot } from '../services/slot.service.js';
 
@@ -23,7 +23,7 @@ export default function InscribirSlots() {
       setEvaluaciones(porSlots);
     } catch (err) {
       console.error('Error cargando evaluaciones:', err);
-      Swal.fire('Error', 'No se pudieron cargar las evaluaciones disponibles', 'error');
+      ToastNotificationService.error('No se pudieron cargar las evaluaciones disponibles');
     } finally {
       setLoading(false);
     }
@@ -42,11 +42,11 @@ export default function InscribirSlots() {
       setSlots(disponibles);
       
       if (disponibles.length === 0) {
-        Swal.fire('Atención', 'No hay horarios disponibles para esta evaluación', 'warning');
+        ToastNotificationService.error('No hay horarios disponibles para esta evaluación');
       }
     } catch (err) {
       console.error('Error cargando slots:', err);
-      Swal.fire('Error', 'No se pudieron cargar los horarios', 'error');
+      ToastNotificationService.error('No se pudieron cargar los horarios');
     } finally {
       setLoadingSlots(false);
     }

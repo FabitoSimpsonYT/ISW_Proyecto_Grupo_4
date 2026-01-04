@@ -39,6 +39,7 @@ export async function authMiddleware(req, res, next) {
       ...payload,
       id: resolvedId,
       rut: payload.sub ?? payload.rut ?? null,
+      rol: payload.role || payload.rol || 'usuario',
     };
 
     next();

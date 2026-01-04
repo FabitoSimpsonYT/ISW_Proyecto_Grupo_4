@@ -1,6 +1,6 @@
 // src/components/ChatWebSocket.jsx
 import { useState, useEffect, useRef } from 'react';
-import Swal from 'sweetalert2';
+import toast from 'react-hot-toast';
 
 export default function ChatWebSocket({ eventoId, ramoId }) {
   const [mensajes, setMensajes] = useState([]);
@@ -87,7 +87,7 @@ export default function ChatWebSocket({ eventoId, ramoId }) {
             break;
 
           case 'error':
-            Swal.fire({ icon: 'error', text: data.error, toast: true, position: 'top-end', timer: 3000 });
+            toast.error(data.error || 'Error desconocido');
             break;
 
           default:
@@ -100,7 +100,7 @@ export default function ChatWebSocket({ eventoId, ramoId }) {
 
     wsRef.current.onerror = (error) => {
       console.error('WebSocket error:', error);
-      Swal.fire({ icon: 'error', text: 'Error de conexión', toast: true, position: 'top-end', timer: 3000 });
+      toast.error('Error de conexión');
     };
 
     wsRef.current.onclose = () => {
@@ -122,7 +122,7 @@ export default function ChatWebSocket({ eventoId, ramoId }) {
     
     if (!mensaje.trim()) return;
     if (!conectado) {
-      Swal.fire({ icon: 'warning', text: 'No estás conectado al chat', toast: true, position: 'top-end', timer: 2000 });
+      toast.error('No estás conectado al chat');
       return;
     }
 

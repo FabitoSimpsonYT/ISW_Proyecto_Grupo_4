@@ -37,7 +37,12 @@ router.get("/:id",
   getProfesorByIdHandler
 );
 
-router.put("/", 
+router.patch("/", 
+  checkRole(["admin", "profesor", "jefecarrera"]), 
+  validateRequest(updateProfesorValidation), 
+  updateProfesorHandler
+);
+router.patch("/:id", 
   checkRole(["admin", "profesor", "jefecarrera"]), 
   validateRequest(updateProfesorValidation), 
   updateProfesorHandler

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import Swal from "sweetalert2";
+import toast from 'react-hot-toast';
 import { createEvaluacionIntegradora } from "../services/evaluacionIntegradora.service.js";
 
 export default function ModalCrearIntegradora({ codigoRamo, isOpen, onClose, onSuccess }) {

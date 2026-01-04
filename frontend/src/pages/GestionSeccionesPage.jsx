@@ -2,10 +2,12 @@ import { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 import { getAllAlumnos } from "../services/users.service.js";
 import { useParams, useNavigate } from "react-router-dom";
-import { getRamosByCodigo, getAlumnosBySeccion, getSeccionesByRamo, createSeccion, inscribirAlumnoEnSeccion } from "../services/ramos.service.js";
+import { getRamosByCodigo, getAlumnosBySeccion, getSeccionesByRamo, createSeccion, inscribirAlumnoEnSeccion, deleteSeccion } from "../services/ramos.service.js";
 import { useNavbar } from "../context/NavbarContext";
+import { useAuth } from "../context/AuthContext.jsx";
 
 export default function GestionSeccionesPage() {
+  const { user } = useAuth();
   const { isNavbarOpen } = useNavbar ? useNavbar() : { isNavbarOpen: false };
   const { codigoRamo } = useParams();
   const navigate = useNavigate();
@@ -26,15 +28,31 @@ export default function GestionSeccionesPage() {
   const [verInscritosData, setVerInscritosData] = useState([]);
   const [verInscritosSeccion, setVerInscritosSeccion] = useState(null);
 
+  // Carga secciones junto con sus alumnos y retorna el arreglo para reuso
+  const loadSeccionesConAlumnos = async () => {
+    const ramoData = await getRamosByCodigo(codigoRamo);
+    setRamo(ramoData);
+    const seccionesData = ramoData.secciones || [];
+    const seccionesConAlumnos = await Promise.all(
+      seccionesData.map(async (seccion) => {
+        try {
+          const alumnos = await getAlumnosBySeccion(codigoRamo, seccion.numero);
+          return { ...seccion, alumnos: alumnos || [], cantidadAlumnos: alumnos?.length || 0 };
+        } catch (e) {
+          return { ...seccion, alumnos: [], cantidadAlumnos: 0 };
+        }
+      })
+    );
+    setSecciones(seccionesConAlumnos);
+    return seccionesConAlumnos;
+  };
+
   // Función reutilizable para cargar secciones
   const fetchSecciones = async () => {
     setLoading(true);
     setError("");
     try {
-      const ramoData = await getRamosByCodigo(codigoRamo);
-      setRamo(ramoData);
-      const seccionesData = ramoData.secciones || [];
-      setSecciones(seccionesData);
+      await loadSeccionesConAlumnos();
     } catch (e) {
       if (e instanceof SyntaxError) {
         setError("Respuesta inesperada del servidor. Intenta recargar la página o inicia sesión nuevamente.");
@@ -55,6 +73,8 @@ export default function GestionSeccionesPage() {
     setShowAlumnosModal(true);
     setAddError("");
     try {
+      // Refrescar todas las secciones con alumnos para mostrar la sección real de cada alumno
+      await loadSeccionesConAlumnos();
       // Cargar alumnos inscritos en la sección usando el service
       const alumnosInscritos = await getAlumnosBySeccion(codigoRamo, seccion.numero);
       setAlumnosModalData(alumnosInscritos || []);
@@ -137,17 +157,92 @@ export default function GestionSeccionesPage() {
     setAddError("");
     try {
       const rut = alumno.user ? alumno.user.rut : alumno.rut;
+      const nombreAlumno = alumno.user 
+        ? `${alumno.user.nombres} ${alumno.user.apellidoPaterno} ${alumno.user.apellidoMaterno}`
+        : `${alumno.nombres} ${alumno.apellidoPaterno} ${alumno.apellidoMaterno}`;
+      
+      // Verificar si el alumno ya está en otra sección del mismo ramo
+      let seccionActual = null;
+      for (const seccion of secciones) {
+        if (seccion.id !== modalSeccion.id) {
+          try {
+            const alumnosSeccion = await getAlumnosBySeccion(codigoRamo, seccion.numero);
+            const estaEnSeccion = alumnosSeccion.some(a => {
+              const rutAlumno = a.user ? a.user.rut : a.rut;
+              return rutAlumno === rut;
+            });
+            if (estaEnSeccion) {
+              seccionActual = seccion;
+              break;
+            }
+          } catch (e) {
+            // Continuar con la siguiente sección si hay error
+          }
+        }
+      }
+
+      // Si el alumno está en otra sección, pedir confirmación
+      if (seccionActual) {
+        const result = await Swal.fire({
+          icon: 'question',
+          title: '¿Mover alumno?',
+          html: `<p><strong>${nombreAlumno}</strong> ya está inscrito en la <strong>Sección ${seccionActual.numero}</strong>.</p>
+                 <p>¿Deseas moverlo a la <strong>Sección ${modalSeccion.numero}</strong>?</p>`,
+          showCancelButton: true,
+          confirmButtonColor: '#3085d6',
+          cancelButtonColor: '#d33',
+          confirmButtonText: 'Sí, mover',
+          cancelButtonText: 'Cancelar'
+        });
+
+        if (!result.isConfirmed) {
+          return; // Usuario canceló, no hacer nada
+        }
+      }
+
+      // Proceder a inscribir (el backend maneja automáticamente la desinscripción de la sección anterior)
       await inscribirAlumnoEnSeccion(codigoRamo, modalSeccion.id, rut);
+      
       // Refrescar lista desde backend para evitar duplicados y asegurar persistencia
       const alumnosInscritos = await getAlumnosBySeccion(codigoRamo, modalSeccion.numero);
       setAlumnosModalData(alumnosInscritos || []);
+      // Sincronizar secciones en memoria para que los botones reflejen la sección real
+      setSecciones(prev => prev.map(seccion => {
+        const coincideModal = (seccion.id && modalSeccion.id && seccion.id === modalSeccion.id) || seccion.numero === modalSeccion.numero;
+        if (coincideModal) {
+          return {
+            ...seccion,
+            alumnos: alumnosInscritos || [],
+            cantidadAlumnos: alumnosInscritos?.length || 0
+          };
+        }
+        const coincideAnterior = seccionActual && ((seccion.id && seccion.id === seccionActual.id) || seccion.numero === seccionActual.numero);
+        if (coincideAnterior) {
+          const filtrados = (seccion.alumnos || []).filter(a => {
+            const aRut = (a.user && a.user.rut) || a.rut;
+            return aRut !== rut;
+          });
+          return { ...seccion, alumnos: filtrados, cantidadAlumnos: filtrados.length };
+        }
+        // Eliminar el rut de cualquier otra sección por seguridad
+        const filtrados = (seccion.alumnos || []).filter(a => {
+          const aRut = (a.user && a.user.rut) || a.rut;
+          return aRut !== rut;
+        });
+        return { ...seccion, alumnos: filtrados, cantidadAlumnos: filtrados.length };
+      }));
+      
+      const mensaje = seccionActual 
+        ? `El alumno fue movido exitosamente de la Sección ${seccionActual.numero} a la Sección ${modalSeccion.numero}`
+        : `El alumno fue inscrito exitosamente en la sección`;
+      
       Swal.fire({
         icon: 'success',
-        title: 'Alumno agregado',
-        text: `El alumno fue inscrito exitosamente en la sección`,
+        title: seccionActual ? 'Alumno movido' : 'Alumno agregado',
+        text: mensaje,
         toast: true,
         position: 'top-end',
-        timer: 2000,
+        timer: 3000,
         showConfirmButton: false
       });
     } catch (e) {
@@ -155,7 +250,7 @@ export default function GestionSeccionesPage() {
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: 'No se pudo agregar el alumno',
+        text: e.message || 'No se pudo agregar el alumno',
         toast: true,
         position: 'top-end',
         timer: 2000,
@@ -170,20 +265,25 @@ export default function GestionSeccionesPage() {
   };
 
   return (
-    <div className={`p-6 bg-[#e9f7fb] min-h-screen transition-all duration-300 ${isNavbarOpen ? 'ml-64' : 'ml-0'}`}>
-      <div className="flex flex-col gap-4 mb-4">
-        <h2 className="text-2xl font-bold">Gestión de Secciones</h2>
+    <div className={`min-h-screen bg-gray-50 transition-all duration-300 ${isNavbarOpen ? 'ml-64' : 'ml-0'}`}>
+      <header className="bg-[#1e3a5f] text-white shadow-lg">
+        <div className="container mx-auto px-4 py-4">
+          <div>
+            <h1 className="text-2xl font-bold">📚 Gestión de Secciones</h1>
+            <p className="text-sm text-gray-300">{user?.email || 'Usuario'}</p>
+          </div>
+        </div>
+      </header>
+
+      <div className="container mx-auto p-6">
         <button
           onClick={handleVolverRamos}
-          className="self-start px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium mb-4"
         >
           ← Volver a Ramos
         </button>
-      </div>
-      {/* Línea separadora */}
-      <div className="mt-6 bg-white h-4 rounded"></div>
-      {/* Título y Botón en una fila */}
-      <div className="mt-6 flex justify-between items-center mr-8">
+        {/* Título y Botón en una fila */}
+        <div className="mt-6 flex justify-between items-center">
         <h3 className="text-xl font-semibold">Lista de secciones:</h3>
           <button
             className="bg-[#0E2C66] hover:bg-[#143A80] text-white font-bold py-2 px-6 rounded transition-colors"
@@ -219,10 +319,9 @@ export default function GestionSeccionesPage() {
           >
             + Crear Nueva Sección
           </button>
-      </div>
-      <div className="mt-2 bg-[#d5e8f6] h-3 rounded"></div>
-      {/* Tabla de secciones */}
-      <div className="mt-6 bg-white shadow-md rounded-lg overflow-hidden mr-8">
+        </div>
+        {/* Tabla de secciones */}
+        <div className="mt-6 bg-white shadow-md rounded-lg overflow-hidden">
         {loading ? (
           <div className="text-[#0E2C66] text-center py-8">Cargando secciones...</div>
         ) : error ? (
@@ -248,17 +347,48 @@ export default function GestionSeccionesPage() {
                       className="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded text-xs"
                       onClick={() => handleGestionarAlumnos(seccion)}
                     >
-                      Añadir alumno
+                      Añadir alumnos
                     </button>
                     <button
                       className="bg-blue-500 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs"
                       onClick={() => handleVerInscritos(seccion)}
                     >
-                      Ver inscritos
+                      Ver inscritos {seccion.cantidadAlumnos > 0 && `(${seccion.cantidadAlumnos})`}
                     </button>
                     <button
                       className="bg-red-500 hover:bg-red-700 text-white px-2 py-1 rounded text-xs"
-                      onClick={() => alert('Aquí se implementará la lógica para eliminar sección')}
+                      onClick={async () => {
+                        const confirm = await Swal.fire({
+                          icon: 'warning',
+                          title: '¿Eliminar sección?',
+                          text: `Se eliminará la sección ${seccion.numero} y sus inscripciones.`,
+                          showCancelButton: true,
+                          confirmButtonColor: '#d33',
+                          cancelButtonColor: '#3085d6',
+                          confirmButtonText: 'Eliminar',
+                          cancelButtonText: 'Cancelar'
+                        });
+                        if (!confirm.isConfirmed) return;
+                        try {
+                          await deleteSeccion(seccion.id, codigoRamo);
+                          await fetchSecciones();
+                          Swal.fire({
+                            icon: 'success',
+                            title: 'Sección eliminada',
+                            text: `Se eliminó la sección ${seccion.numero}`,
+                            toast: true,
+                            position: 'top-end',
+                            timer: 2500,
+                            showConfirmButton: false
+                          });
+                        } catch (err) {
+                          Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: err.message || 'No se pudo eliminar la sección'
+                          });
+                        }
+                      }}
                     >
                       Eliminar sección
                     </button>
@@ -316,22 +446,63 @@ export default function GestionSeccionesPage() {
                           <tr><td colSpan="3" className="text-center text-gray-500 py-2">No hay resultados</td></tr>
                         ) : resultAlumnos.map((alumno, idx) => {
                           const user = alumno.user || {};
-                          const yaInscrito = alumnosModalData.some(a => {
-                            const aUser = a.user || {};
-                            return aUser.id === user.id;
-                          });
+                          const rut = user.rut || alumno.rut;
+                          
+                          // Buscar en qué sección está el alumno
+                          let seccionInscrito = null;
+                          for (const seccion of secciones) {
+                            const alumnosSeccion = seccion.alumnos || [];
+                            const estaEnSeccion = alumnosSeccion.some(a => {
+                              const aUser = a.user || {};
+                              return (aUser.rut || a.rut) === rut;
+                            });
+                            if (estaEnSeccion) {
+                              seccionInscrito = seccion.numero;
+                              break;
+                            }
+                          }
+                          
+                          // También verificar en alumnosModalData por si acabamos de agregarlo
+                          if (!seccionInscrito) {
+                            const yaInscrito = alumnosModalData.some(a => {
+                              const aUser = a.user || {};
+                              return aUser.id === user.id;
+                            });
+                            if (yaInscrito) {
+                              seccionInscrito = modalSeccion.numero;
+                            }
+                          }
+                          
+                          const estaEnSeccionActual = seccionInscrito === modalSeccion.numero;
+                          const estaEnOtraSeccion = seccionInscrito && !estaEnSeccionActual;
+                          
                           return (
                             <tr key={alumno.id} className={`hover:bg-blue-50 transition ${idx % 2 === 0 ? 'bg-[#f4f8ff]' : 'bg-white'}`}>
                               <td className="px-4 py-2 border">{user.nombres} {user.apellidoPaterno} {user.apellidoMaterno}</td>
                               <td className="px-4 py-2 border">{user.rut}</td>
                               <td className="px-4 py-2 border text-center">
-                                {yaInscrito ? (
+                                {estaEnSeccionActual ? (
                                   <button
-                                    className="bg-red-500 hover:bg-red-700 text-white px-2 py-1 rounded text-xs"
-                                    onClick={() => alert('Aquí se implementará la lógica para eliminar alumno')}
+                                    disabled
+                                    className="bg-gray-400 text-gray-200 px-2 py-1 rounded text-xs cursor-not-allowed"
                                   >
-                                    Eliminar
+                                    En sección {seccionInscrito || modalSeccion.numero}
                                   </button>
+                                ) : estaEnOtraSeccion ? (
+                                  <div className="flex gap-2 justify-center">
+                                    <button
+                                      disabled
+                                      className="bg-gray-400 text-gray-200 px-2 py-1 rounded text-xs cursor-not-allowed"
+                                    >
+                                      En sección {seccionInscrito}
+                                    </button>
+                                    <button
+                                      className="bg-blue-500 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs"
+                                      onClick={() => handleAgregarAlumno(alumno)}
+                                    >
+                                      Mover a esta sección
+                                    </button>
+                                  </div>
                                 ) : (
                                   <button
                                     className="bg-green-500 hover:bg-green-700 text-white px-2 py-1 rounded text-xs"
@@ -395,7 +566,7 @@ export default function GestionSeccionesPage() {
                           return (
                             <tr key={user.id || idx} className={`transition ${idx % 2 === 0 ? 'bg-[#f4f8ff]' : 'bg-white'} hover:bg-[#dbe7ff]`}>
                               <td className="px-4 py-2 border font-mono font-bold text-blue-600">{idx + 1}</td>
-                              <td className="px-4 py-2 border text-gray-800">{user.nombres} {user.apellidoPaterno} {user.apellidoMaterno}</td>
+                              <td className="px-4 py-2 border text-gray-800">{user.apellidoPaterno} {user.apellidoMaterno}, {user.nombres}</td>
                               <td className="px-4 py-2 border text-gray-600">{user.rut}</td>
                             </tr>
                           );
@@ -408,6 +579,7 @@ export default function GestionSeccionesPage() {
           </div>
         </>
       )}
+      </div>
     </div>
   );
 }

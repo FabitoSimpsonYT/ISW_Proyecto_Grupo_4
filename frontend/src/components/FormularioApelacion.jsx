@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { showWarningAlert } from "@/utils/alertUtils";
-import { getEvaluacionesDisponibles } from "../services/apelaciones.service";
+import { getEvaluacionesDisponibles, getEvaluacionesProximas, getProfesoresInscritos } from "../services/apelaciones.service";
 
 export default function FormularioApelacion({
   modo,
@@ -27,6 +27,9 @@ export default function FormularioApelacion({
 
   const [evaluaciones, setEvaluaciones] = useState([]);
   const [pautaSeleccionada, setPautaSeleccionada] = useState("");
+  const [evaluacionesProximas, setEvaluacionesProximas] = useState([]);
+  const [evaluacionProximaSeleccionada, setEvaluacionProximaSeleccionada] = useState("");
+  const [profesores, setProfesores] = useState([]);
 
   const [estado, setEstado] = useState("");
   const [respuestaDocente, setRespuestaDocente] = useState("");
@@ -89,6 +92,32 @@ useEffect(() => {
   }
 }, [tipo, esCrear, esEditar, apelacionInicial]);
 
+   // Cargar evaluaciones próximas para inasistencia tipo evaluación
+   useEffect(() => {
+    if (tipo === "inasistencia" && subtipoInasistencia === "evaluacion" && (esCrear || esEditar)) {
+      getEvaluacionesProximas()
+        .then((res) => {
+          setEvaluacionesProximas(res.data || []);
+        })
+        .catch((err) =>
+          console.error("Error cargando evaluaciones próximas:", err)
+        );
+    }
+  }, [tipo, subtipoInasistencia, esCrear, esEditar]);
+
+  // Cargar profesores inscritos para el alumno
+  useEffect(() => {
+    if (esAlumno) {
+      getProfesoresInscritos()
+        .then((res) => {
+          setProfesores(res.data || []);
+        })
+        .catch((err) =>
+          console.error("Error cargando profesores inscritos:", err)
+        );
+    }
+  }, [esAlumno]);
+
 
     useEffect(() => {
   if (
@@ -116,7 +145,8 @@ useEffect(() => {
   let mensaje_guardar =
     "No puedes moficiar la apelación porque el plazo ha finalizado.";
 
-  if (estado === "aceptada" || estado === "rechazada") {
+  // Solo bloquear si es alumno y la apelación ya fue resuelta
+  if (esAlumno && (apelacionInicial?.estado === "aceptada" || apelacionInicial?.estado === "rechazada")) {
     puedeGuardar = false;
     mensaje_guardar =
       "No puedes editar la apelacion porque la apelación ya fue resuelta.";
@@ -126,6 +156,22 @@ useEffect(() => {
     e.preventDefault();
 
     if (esAlumno) {
+      // Validaciones
+      if (!profesorCorreo.trim()) {
+        showWarningAlert("Advertencia", "El correo del profesor es obligatorio.");
+        return;
+      }
+
+      if (esCrear && !tipo) {
+        showWarningAlert("Advertencia", "Debes seleccionar el tipo de apelación.");
+        return;
+      }
+
+      if (tipo === "inasistencia" && esCrear && !subtipoInasistencia) {
+        showWarningAlert("Advertencia", "Debes seleccionar el motivo de inasistencia.");
+        return;
+      }
+
       if (!mensaje.trim()) {
         showWarningAlert("Advertencia", "El mensaje es obligatorio.");
         return;
@@ -136,19 +182,34 @@ useEffect(() => {
         return;
       }
 
+      if (tipo === "inasistencia" && subtipoInasistencia === "evaluacion" && !evaluacionProximaSeleccionada) {
+        showWarningAlert("Advertencia", "Debes seleccionar una evaluación próxima para justificar la inasistencia.");
+        return;
+      }
+
       const formData = new FormData();
 
       if (esCrear) {
         formData.append("tipo", tipo);
         if (tipo === "inasistencia" && subtipoInasistencia) {
           formData.append("subtipoInasistencia", subtipoInasistencia);
+          if (subtipoInasistencia === "evaluacion" && evaluacionProximaSeleccionada) {
+            formData.append("evaluacionProximaId", evaluacionProximaSeleccionada);
+          }
         }
-      } if (tipo === "evaluacion") {
-          formData.append("pautaEvaluadaId", pautaSeleccionada);
+      } 
+      
+      if (tipo === "evaluacion") {
+        formData.append("pautaEvaluadaId", pautaSeleccionada);
       }
 
       formData.append("mensaje", mensaje.trim());
       formData.append("profesorCorreo", profesorCorreo.trim());
+
+      // Manejo de archivos
+      if (removeArchivo) {
+        formData.append("removeArchivo", "true");
+      }
 
       if (archivo && tipo !== "evaluacion") {
         formData.append("archivo", archivo);
@@ -176,11 +237,23 @@ useEffect(() => {
         return;
       }
 
-      onSubmit({
-        estado,
-        respuestaDocente: respuestaDocente || null,
-        fechaCitacion: estado === "cita" ? fechaCitacion : null,
-      });
+      // Construir el objeto solo con los campos necesarios
+      const data = { estado };
+      
+      // Solo incluir respuestaDocente si tiene contenido o es obligatorio
+      if (estado === "rechazada") {
+        // Para rechazada, la respuesta es obligatoria
+        data.respuestaDocente = respuestaDocente.trim();
+      } else if (respuestaDocente && respuestaDocente.trim()) {
+        // Para otros estados, solo si hay contenido
+        data.respuestaDocente = respuestaDocente.trim();
+      }
+      
+      if (estado === "cita" && fechaCitacion) {
+        data.fechaCitacion = fechaCitacion;
+      }
+
+      onSubmit(data);
     }
   };
 
@@ -191,12 +264,44 @@ useEffect(() => {
         <label className="block text-sm font-semibold text-gray-600 mb-2">
           Correo del Profesor
         </label>
-        <input
-          className="w-full p-3 rounded-lg border border-gray-300 bg-gray-50"
-          value={profesorCorreo}
-          onChange={(e) => setProfesorCorreo(e.target.value)}
-          disabled={esProfesor}
-        />
+        {esAlumno ? (
+          profesores.length > 0 ? (
+            <>
+              <input
+                list="profesores-list"
+                className="w-full p-3 rounded-lg border border-gray-300 bg-gray-50"
+                value={profesorCorreo}
+                onChange={(e) => setProfesorCorreo(e.target.value)}
+                placeholder="Selecciona o escribe el correo del profesor..."
+              />
+
+              <datalist id="profesores-list">
+                {profesores.map((prof) => (
+                  <option
+                    key={prof.id}
+                    value={prof.email}
+                    label={`${prof.nombre} - ${prof.email}${prof.ramos && prof.ramos.length > 0 ? ` (${prof.ramos.map(r => r.codigo).join(', ')})` : ''}`}
+                  />
+                ))}
+              </datalist>
+            </>
+          ) : (
+            <input
+              className="w-full p-3 rounded-lg border border-gray-300 bg-gray-50"
+              value={profesorCorreo}
+              onChange={(e) => setProfesorCorreo(e.target.value)}
+              placeholder="correo@profesor.cl"
+            />
+          )
+        ) : (
+          <input
+            className="w-full p-3 rounded-lg border border-gray-300 bg-gray-50"
+            value={profesorCorreo}
+            onChange={(e) => setProfesorCorreo(e.target.value)}
+            disabled={esProfesor}
+            placeholder="correo@profesor.cl"
+          />
+        )}
       </div>
 
       {/* TIPO */}
@@ -231,8 +336,34 @@ useEffect(() => {
           >
             <option value="">Selecciona...</option>
             <option value="evaluacion">Reagendar evaluación</option>
-            <option value="porcentaje">Justificación porcentaje</option>
+            <option value="justificacion">Justificación</option>
           </select>
+        </div>
+      )}
+
+      {/* SELECCIONAR EVALUACIÓN PRÓXIMA PARA INASISTENCIA */}
+      {tipo === "inasistencia" && subtipoInasistencia === "evaluacion" && (esCrear || esEditar) && (
+        <div className="border-b border-gray-200 pb-4">
+          <label className="block text-sm font-semibold text-gray-600 mb-2">
+            Selecciona la evaluación próxima
+          </label>
+          <select
+            className="w-full p-3 rounded-lg border border-gray-300 bg-gray-50"
+            value={evaluacionProximaSeleccionada}
+            onChange={(e) => setEvaluacionProximaSeleccionada(e.target.value)}
+          >
+            <option value="">-- Selecciona una evaluación --</option>
+            {evaluacionesProximas.map((ev) => (
+              <option key={ev.id} value={String(ev.id)}>
+                {ev.codigoRamo} - {ev.titulo} - {new Date(ev.fechaProgramada).toLocaleDateString("es-CL")}
+              </option>
+            ))}
+          </select>
+          {evaluacionesProximas.length === 0 && (
+            <p className="text-xs text-gray-500 mt-2">
+              No hay evaluaciones próximas disponibles
+            </p>
+          )}
         </div>
       )}
 
@@ -302,28 +433,32 @@ useEffect(() => {
           />
 
           {archivoExistente && !archivo && !removeArchivo && (
-            <div
-              className="bg-blue-50 border border-blue-200 text-blue-700 text-sm p-3 rounded space-y-2 cursor-pointer hover:bg-blue-100 transition"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <div className="flex items-center gap-2">
-                📎 <span className="underline">Archivo actual adjunto</span>
+            <div className="bg-blue-50 border border-blue-200 text-blue-700 text-sm p-3 rounded space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  📎 <span className="underline">Archivo actual adjunto</span>
+                </div>
+                
+                <button
+                  type="button"
+                  className="text-xs text-red-600 hover:text-red-800 underline font-semibold"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setRemoveArchivo(true);
+                    setArchivo(null);
+                  }}
+                >
+                  Quitar archivo
+                </button>
               </div>
 
               <button
                 type="button"
-                className="text-xs text-red-600 underline"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setRemoveArchivo(true);
-                }}
+                className="block text-xs text-blue-600 underline"
+                onClick={() => fileInputRef.current?.click()}
               >
-                Quitar archivo
-              </button>
-
-              <span className="block text-xs text-blue-600">
                 Haz clic aquí para seleccionar un nuevo archivo y reemplazarlo.
-              </span>
+              </button>
             </div>
           )}
 
@@ -332,10 +467,13 @@ useEffect(() => {
               ⚠️ El archivo será eliminado al guardar.
               <button
                 type="button"
-                className="block text-xs underline mt-1"
-                onClick={() => setRemoveArchivo(false)}
+                className="block text-xs underline mt-1 hover:text-red-900"
+                onClick={() => {
+                  setRemoveArchivo(false);
+                  setArchivoExistente(apelacionInicial?.archivo || null);
+                }}
               >
-                Cancelar
+                Cancelar eliminación
               </button>
             </div>
           )}

@@ -86,6 +86,44 @@ export const getEvaluacionesDisponibles = async () => {
   }
 };
 
+export const getEvaluacionesProximas = async () => {
+  try {
+    const res = await fetch(`${API_URL}/EvaluacionesProximas`, {
+      method: "GET",
+      headers: authHeaders(),
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data?.message || "Error al obtener evaluaciones próximas");
+    }
+
+    return await res.json();
+  } catch (err) {
+    console.error("Error obteniendo evaluaciones próximas:", err);
+    return { data: [] };
+  }
+};
+
+export const getProfesoresInscritos = async () => {
+  try {
+    const res = await fetch(`${API_URL}/ProfesoresInscritos`, {
+      method: "GET",
+      headers: authHeaders(),
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data?.message || "Error al obtener profesores inscritos");
+    }
+
+    return await res.json();
+  } catch (err) {
+    console.error("Error obteniendo profesores inscritos:", err);
+    return { data: [] };
+  }
+};
+
 
 // ---------------------------------------------------------
 // Ver apelaciones como profesor
@@ -123,20 +161,30 @@ export const getApelacionById = async (id) => {
 // Profesor responde apelación
 // ---------------------------------------------------------
 export const responderApelacion = async (id, data) => {
-  try {
-    const res = await fetch(`${API_URL}/${id}`, {
-      method: "PUT",
-      headers: {
-        ...authHeaders(),
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
-    });
+  const res = await fetch(`${API_URL}/${id}`, {
+    method: "PUT",
+    headers: {
+      ...authHeaders(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
 
-    return await res.json();
-  } catch (err) {
-    console.error("Error respondiendo apelación:", err);
+  let responseData;
+  try {
+    responseData = await res.json();
+  } catch {
+    responseData = null;
   }
+
+  if (!res.ok) {
+    const error = new Error(responseData?.message || "Error al responder apelación");
+    error.status = res.status;
+    error.data = responseData;
+    throw error;
+  }
+
+  return responseData;
 };
 
 
@@ -152,17 +200,27 @@ export const descargarArchivo = (id) => {
 
 
 // ---------------------------------------------------------
-// Eliminar apelación (profesor)
+// Eliminar apelación (profesor o alumno)
 // ---------------------------------------------------------
 export const eliminarApelacion = async (id) => {
-  try {
-    const res = await fetch(`${API_URL}/${id}`, {
-      method: "DELETE",
-      headers: authHeaders(),
-    });
+  const res = await fetch(`${API_URL}/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
 
-    return await res.json();
-  } catch (err) {
-    console.error("Error eliminando apelación:", err);
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    data = null;
   }
+
+  if (!res.ok) {
+    const error = new Error(data?.message || "Error al eliminar apelación");
+    error.status = res.status;
+    error.data = data;
+    throw error;
+  }
+
+  return data;
 };

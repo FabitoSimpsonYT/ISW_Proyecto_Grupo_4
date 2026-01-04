@@ -1,95 +1,107 @@
-# 🚀 Proyecto Ingeniería de Software IECI 2025-2
+# ISW Proyecto Grupo 4
 
-Este repositorio contiene el proyecto semestral de Metodología del Desarrollo usando Node.js, Express y PostgreSQL. 
+Proyecto de Ingeniería de Software con arquitectura fullstack (Backend + Frontend).
 
----
+## 📁 Estructura del Proyecto
 
-Grupo conformado por:
-
-* Fabián Mora
-* Fernanda Gonzalez
-* Francisco Moya
-* Juan Perez
-
----
-
-**Tema asignado: Gestion de Evaluaciones de Estudiantes de Derecho**
-
-Sigue estos pasos para clonar, configurar y ejecutar el servidor localmente.
-
----
-
-## 📦 Requisitos
-
-Antes de comenzar, asegúrate de tener instalado en tu sistema:
-
-- [Node.js](https://nodejs.org/) (versión 22.XX.X LTS)
-- [PostgreSQL](https://www.postgresql.org/) (versión 16.X.X)
-- [Git](https://git-scm.com/)
-
----
-
-## 🔧 Clonar y ejecutar el proyecto
-
-### 1. Clona el repositorio
-```bash
-git clone https://https://github.com/FabitoSimpsonYT/Proyecto-MDD-2025-1-Grupo3/
-cd Proyecto-MDD-2025-1-Grupo3/
+```
+ISW_Proyecto_Grupo_4/
+├── Backend/          # API REST con Node.js
+└── frontend/         # Aplicación React con Vite
 ```
 
-### 2. Accede a la carpeta backend e instala las dependencias
+## 🚀 Instalación y Configuración
+
+### Backend
+
+1. Navega a la carpeta del backend:
 ```bash
-cd backend/
-npm install
+cd Backend
 ```
 
-### 3. Renombra el archivo `.env.example` a `.env` y configura las variables de entorno
-```bash
-PORT = 3000
-
-HOST = localhost
-DB_USERNAME = NOMBRE_DE_USUARIO
-PASSWORD = CONTRASEÑA
-DATABASE = BASE_DE_DATOS
-
-SESSION_SECRET = CODIGO_ULTRA_SECRETO_DE_JWT
-```
-
-### 4. Configura postgres
-- Asegúrate de que tu base de datos tenga las mismas credenciales ingresadas en `.env`.
-
-### 5. Inicia el servidor
-```bash
-npm start
-```
-
-El backend se ejecutará en http://localhost:3000.
-
-------------------------------------------------------
-
-## 💻 Ejecutar el frontend
-
-### 1. Abre una nueva consola
-
-Asegúrate de mantener corriendo el backend en la consola anterior.
-
-### 2. Accede a la carpeta del frontend
-
-```bash
-cd frontend/
-```
-
-### 3. Instala las dependencias
-
+2. Instala las dependencias:
 ```bash
 npm install
 ```
 
-### 4. Inicia la aplicación frontend
+3. Configura las variables de entorno:
+```bash
+cp .env.example .env
+```
 
+4. Edita el archivo `.env` con tu configuración:
+```env
+# Base de datos
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=tu_base_datos
+DB_USERNAME=postgres
+DB_PASSWORD=tu_contraseña
+
+# JWT
+JWT_SECRET=tu_secreto_seguro
+COOKIE_KEY=tu_clave_cookie
+
+# Otros
+PORT=3000
+FRONTEND_URL=http://localhost:5173
+```
+
+5. Inicia el servidor:
 ```bash
 npm run dev
 ```
 
-La aplicación se abrirá automáticamente en tu navegador, usualmente en `http://localhost:5173` (o el puerto que indique tu terminal).
+### Frontend
 
+1. Navega a la carpeta del frontend:
+```bash
+cd frontend
+```
+
+2. Instala las dependencias:
+```bash
+npm install
+```
+
+3. Configura las variables de entorno:
+```bash
+cp .env.example .env
+```
+
+4. Edita el archivo `.env`:
+```env
+VITE_BASE_URL=http://localhost:3000/api
+```
+
+5. Inicia la aplicación:
+```bash
+npm run dev
+```
+
+## 🔐 Variables de Entorno
+
+Los archivos `.env` contienen información sensible y **NO** deben subirse al repositorio.
+
+- Usa `.env.example` como plantilla
+- Cada desarrollador debe crear su propio `.env` local
+- Los archivos `.env` están incluidos en `.gitignore`
+
+## 📚 Tecnologías
+
+### Backend
+- Node.js
+- Express
+- PostgreSQL
+- JWT Authentication
+
+### Frontend
+- React 18
+- Vite
+- React Router DOM
+- Axios
+- TailwindCSS
+
+## 👥 Contribuidores
+
+Universidad del Bío-Bío - 2025

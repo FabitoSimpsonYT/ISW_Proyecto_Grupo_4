@@ -33,7 +33,7 @@ router.get("/:id",
   getAlumnoByIdHandler
 );
 
-router.put("/", 
+router.patch('/:id', 
   authMiddleware,
   checkRole(["admin", "alumno", "jefecarrera"]), 
   validateRequest(updateAlumnoValidation), 

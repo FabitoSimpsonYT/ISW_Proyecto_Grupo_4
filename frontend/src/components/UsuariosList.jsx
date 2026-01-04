@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { showSuccessAlert, showErrorAlert, showConfirmAlert } from "@/utils/alertUtils";
 import { getAllUsers, getAllAlumnos, promoverProfesorAJefeCarrera, degradarJefeCarreraAProfesor, getJefeCarreraActual, deleteAdmin, deleteProfesor, deleteAlumno } from "../services/users.service.js";
 
-export default function UsuariosList({ reload }) {
+export default function UsuariosList({ reload, onEdit }) {
   const { user } = useAuth();
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -120,8 +120,20 @@ export default function UsuariosList({ reload }) {
         // Determinar qué función de eliminación usar según el rol
         if (user.role === 'admin') {
           await deleteAdmin(user.id);
-        } else if (user.role === 'profesor' || user.role === 'jefecarrera') {
+        } else if (user.role === 'profesor') {
           await deleteProfesor(user.id);
+        } else if (user.role === 'jefecarrera') {
+          // Intentar eliminar como profesor; si no existe perfil de profesor, intentar eliminar como admin
+          try {
+            await deleteProfesor(user.id);
+          } catch (err) {
+            // Si backend indica que no existe el profesor, intentar eliminar usuario genérico (admin)
+            if (err?.message && err.message.toLowerCase().includes('profesor no encontrado')) {
+              await deleteAdmin(user.id);
+            } else {
+              throw err;
+            }
+          }
         } else if (user.role === 'alumno') {
           await deleteAlumno(user.id);
         }
@@ -149,6 +161,14 @@ export default function UsuariosList({ reload }) {
     let usuariosLista;
     if (selectedRango === 'jefecarrera') {
       usuariosLista = jefeCarreraActual ? [{ user: jefeCarreraActual }] : [];
+    } else if (selectedRango === 'profesores') {
+      // Incluir al jefe de carrera en la lista de profesores para búsquedas
+      usuariosLista = (usuarios.profesores || []).slice();
+      if (jefeCarreraActual && jefeCarreraActual.user) {
+        // Evitar duplicados si el jefe también aparece en profesores
+        const existe = usuariosLista.some(u => (u.user || u).id === jefeCarreraActual.id);
+        if (!existe) usuariosLista.push({ user: jefeCarreraActual });
+      }
     } else {
       usuariosLista = usuarios[selectedRango] || [];
     }
@@ -226,6 +246,16 @@ export default function UsuariosList({ reload }) {
                         className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-3 rounded text-sm transition-colors"
                       >
                         Degradar
+                      </button>
+                    )}
+
+                    {/* Botón Editar */}
+                    {onEdit && (
+                      <button
+                        onClick={() => onEdit(usuario)}
+                        className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-3 rounded text-sm transition-colors"
+                      >
+                        Editar
                       </button>
                     )}
 

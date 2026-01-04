@@ -16,9 +16,19 @@ export const Ramos = new EntitySchema({
     },
     codigo: {
       type: "varchar",
-      length: 10,
+      length: 13,
       nullable: false,
       unique: true,
+    },
+    anio: {
+      type: "int",
+      nullable: true,
+      default: 2025,
+    },
+    periodo: {
+      type: "int",
+      nullable: true,
+      default: 1,
     },
     created_at: {
       type: "timestamp",

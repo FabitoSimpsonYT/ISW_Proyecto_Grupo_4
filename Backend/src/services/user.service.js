@@ -51,9 +51,12 @@ export async function findUserByRut(rut) {
   return await userRepository.findOneBy({ rut });
 }
 
-export async function updateUserById(id, data) {
+export async function updateUserById(id, data, options = {}) {
   const user = await userRepository.findOneBy({ id });
   if (!user) throw new Error("Usuario no encontrado");
+
+  const requireCurrentPassword = options.requireCurrentPassword || false;
+
   if (data.email && data.email !== user.email) {
     const existing = await userRepository.findOneBy({ email: data.email });
     if (existing && String(existing.id) !== String(user.id)) {
@@ -63,7 +66,28 @@ export async function updateUserById(id, data) {
     }
     user.email = data.email;
   }
-  if (data.password) user.password = await bcrypt.hash(data.password, 10);
+
+  if (data.password) {
+    if (requireCurrentPassword) {
+      if (!data.currentPassword) {
+        const err = new Error("Debes proporcionar la contraseña actual.");
+        err.code = "CURRENT_PASSWORD_REQUIRED";
+        throw err;
+      }
+      const matches = await bcrypt.compare(data.currentPassword, user.password);
+      if (!matches) {
+        const err = new Error("La contraseña actual no es correcta.");
+        err.code = "CURRENT_PASSWORD_INVALID";
+        throw err;
+      }
+    }
+    user.password = await bcrypt.hash(data.password, 10);
+  }
+
+  if (data.telefono) {
+    user.telefono = data.telefono;
+  }
+
   await userRepository.save(user);
   return user;
 }

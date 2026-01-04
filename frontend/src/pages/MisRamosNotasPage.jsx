@@ -1,14 +1,16 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useNavbar } from "../context/NavbarContext.jsx";
 import { getMisRamos, getProfesorByRut } from "../services/ramos.service.js";
 import { getEvaluacionesByCodigoRamo, getPautaEvaluadaByAlumno, getPautaEvaluadaCompleta } from "../services/evaluacion.service.js";
 import { getPromedioFinal } from "../services/alumnoPromedioRamo.service.js";
 import { getEvaluacionIntegradora } from "../services/evaluacionIntegradora.service.js";
 import { getPautaEvaluadaIntegradora } from "../services/pautaEvaluada.service.js";
-import { BotonRetroalimentacion } from "../components/BotonRetroalimentacion.jsx";
+import ComentariosPauta from '../components/ComentariosPauta';
 
 export default function MisRamosNotasPage() {
+  const { isNavbarOpen } = useNavbar();
   const [ramos, setRamos] = useState([]);
   const [isLoadingRamos, setIsLoadingRamos] = useState(false);
   const [errorRamos, setErrorRamos] = useState("");
@@ -25,6 +27,7 @@ export default function MisRamosNotasPage() {
   const [isLoadingPauta, setIsLoadingPauta] = useState(false);
   const [promedioRamo, setPromedioRamo] = useState(null);
   const [isLoadingPromedio, setIsLoadingPromedio] = useState(false);
+  const [selectedPeriodo, setSelectedPeriodo] = useState("");
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -74,6 +77,40 @@ export default function MisRamosNotasPage() {
       isMounted = false;
     };
   }, [user]);
+
+  // Extraer períodos únicos de los ramos (formato YYYY-P)
+  const periodosUnicos = useMemo(() => {
+    const periodos = new Set();
+    ramos.forEach(ramo => {
+      // El código viene en formato 620515-2025-2, extraer año-período
+      const partes = ramo.codigo?.split('-');
+      if (partes && partes.length >= 3) {
+        const yearPeriod = `${partes[1]}-${partes[2]}`;
+        periodos.add(yearPeriod);
+      }
+    });
+    return Array.from(periodos).sort().reverse();
+  }, [ramos]);
+
+  // Establecer el período más reciente por defecto
+  useEffect(() => {
+    if (periodosUnicos.length > 0 && !selectedPeriodo) {
+      setSelectedPeriodo(periodosUnicos[0]); // El primero es el más reciente (ya ordenado en reversa)
+    }
+  }, [periodosUnicos]);
+
+  // Filtrar ramos por período seleccionado
+  const ramosFiltrados = useMemo(() => {
+    if (!selectedPeriodo) return ramos;
+    return ramos.filter(ramo => {
+      const partes = ramo.codigo?.split('-');
+      if (partes && partes.length >= 3) {
+        const yearPeriod = `${partes[1]}-${partes[2]}`;
+        return yearPeriod === selectedPeriodo;
+      }
+      return false;
+    });
+  }, [ramos, selectedPeriodo]);
 
   const getProfesorNombre = (rutProfesor) => {
     if (!rutProfesor || !profesores[rutProfesor]) {
@@ -279,15 +316,28 @@ export default function MisRamosNotasPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#e9f7fb]">
+    <div className={`min-h-screen bg-[#e9f7fb] transition-all duration-300 ${isNavbarOpen ? 'ml-64' : 'ml-0'}`}>
       <div>
-        <div className="mx-auto max-w-6xl p-6">
-          {!selectedRamo ? (
+        <div className="mx-auto max-w-6xl p-6">{!selectedRamo ? (
             <div className="space-y-6">
               {/* Encabezado */}
               <div className="mt-2">
-                <div className="bg-[#143A80] rounded-lg px-6 py-4 w-full">
+                <div className="bg-[#143A80] rounded-lg px-6 py-4 w-full flex items-center justify-between">
                   <h1 className="text-3xl font-bold text-white">Mis Ramos</h1>
+                  {periodosUnicos.length > 0 && (
+                    <select
+                      value={selectedPeriodo}
+                      onChange={(e) => setSelectedPeriodo(e.target.value)}
+                      className="px-4 py-2 rounded-lg font-medium bg-white text-[#143A80] border border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 cursor-pointer"
+                    >
+                      <option value="">Todos los períodos</option>
+                      {periodosUnicos.map(periodo => (
+                        <option key={periodo} value={periodo}>
+                          {periodo}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
                 <p className="mt-2 text-[#143A80] font-medium">
                   {user?.role === "alumno"
@@ -306,13 +356,13 @@ export default function MisRamosNotasPage() {
                 <div className="rounded-2xl border border-blue-200 bg-blue-50 p-6 text-blue-700">
                   Cargando ramos…
                 </div>
-              ) : ramos.length === 0 ? (
+              ) : ramosFiltrados.length === 0 ? (
                 <div className="rounded-2xl border border-blue-200 bg-blue-50 p-6 text-blue-700">
                   No tienes ramos inscritos.
                 </div>
               ) : (
                 <div className="space-y-5">
-                  {ramos.map((ramo) => (
+                  {ramosFiltrados.map((ramo) => (
                     <button
                       type="button"
                       key={ramo.id || ramo.codigo}
@@ -487,16 +537,7 @@ export default function MisRamosNotasPage() {
                                       Ver más
                                     </button>
                                   )}
-                                  {nota && (
-                                    <BotonRetroalimentacion
-                                      codigoRamo={selectedRamo?.codigo}
-                                      alumnoRut={user?.rut}
-                                      evaluacionId={!evaluacion.esIntegradora ? evaluacion.id : null}
-                                      evaluacionIntegradoraId={evaluacion.esIntegradora ? evaluacion.id : null}
-                                      label="Chat"
-                                      variante="mis-notas"
-                                    />
-                                  )}
+                                  {/* Botón de chat eliminado */}
                                 </div>
                               </td>
                             </tr>
@@ -578,12 +619,17 @@ export default function MisRamosNotasPage() {
       {/* Modal de Pauta Evaluada */}
       {selectedPauta && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-[#143A80] text-white px-6 py-4 flex justify-between items-center">
-              <h2 className="text-2xl font-bold">Detalle de Evaluación</h2>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-[#143A80] text-white rounded-t-2xl">
+              <div>
+                <h2 className="text-xl font-bold text-white">Comentarios del profesor</h2>
+                <p className="text-sm text-blue-100 mt-1">
+                  {selectedPauta.evaluacion?.titulo || selectedPauta.evaluacion?.nombre || "Evaluación"}
+                </p>
+              </div>
               <button
                 onClick={handleClosePautaModal}
-                className="text-white hover:bg-[#0f2a5a] p-2 rounded-lg transition"
+                className="text-blue-100 hover:text-white text-xl font-bold"
               >
                 ✕
               </button>
@@ -598,122 +644,76 @@ export default function MisRamosNotasPage() {
                 <p className="text-red-600">No hay pauta evaluada para esta evaluación</p>
               </div>
             ) : (
-              <div className="p-6 space-y-6">
-                {/* Información de la Evaluación */}
-                <div>
-                  <h3 className="text-lg font-bold text-[#143A80] mb-3">Evaluación</h3>
-                  <div className="bg-blue-50 rounded-lg p-4 space-y-2">
-                    <div>
-                      <span className="font-semibold text-[#143A80]">Nombre:</span>
-                      <p className="text-[#143A80]/80">{selectedPauta.evaluacion?.nombre || selectedPauta.evaluacion?.titulo || "-"}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6 max-h-[80vh]">
+                {/* Columna izquierda: Pauta y calificación */}
+                <div className="bg-blue-50/80 border border-blue-100 rounded-xl p-4 overflow-y-auto ghost-scroll space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-bold text-[#0F2F52]">Mi nota</h3>
+                  </div>
+
+                  <div className="bg-white rounded-lg p-4 border border-blue-100 space-y-3">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-sm text-slate-600 font-semibold">Ramo</span>
+                      <span className="text-slate-800">{selectedRamo?.nombre || "-"}</span>
                     </div>
-                    <div>
-                      <span className="font-semibold text-[#143A80]">Tipo:</span>
-                      <p className="text-[#143A80]/80">
-                        {selectedPauta.esIntegradora ? "Evaluación Integradora" : "Evaluación Regular"}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-[#143A80]">Fecha Programada:</span>
-                      <p className="text-[#143A80]/80">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-sm text-slate-600 font-semibold">Fecha programada</span>
+                      <span className="text-slate-800">
                         {selectedPauta.evaluacion?.fechaProgramada
                           ? new Date(selectedPauta.evaluacion.fechaProgramada).toLocaleDateString("es-CL")
                           : "-"}
-                      </p>
+                      </span>
                     </div>
-                    {selectedPauta.evaluacion?.fechaCierre && (
-                      <div>
-                        <span className="font-semibold text-[#143A80]">Fecha de Cierre:</span>
-                        <p className="text-[#143A80]/80">
-                          {new Date(selectedPauta.evaluacion.fechaCierre).toLocaleDateString("es-CL")}
-                        </p>
-                      </div>
-                    )}
-                    {selectedPauta.evaluacion?.descripcion && (
-                      <div>
-                        <span className="font-semibold text-[#143A80]">Descripción:</span>
-                        <p className="text-[#143A80]/80">{selectedPauta.evaluacion.descripcion}</p>
-                      </div>
-                    )}
+                    <div className="flex flex-col gap-1">
+                      <span className="text-sm text-slate-600 font-semibold">Nota final</span>
+                      <span className="text-2xl font-bold text-[#0F2F52]">
+                        {selectedPauta.notaFinal || selectedPauta.pautaCompleta?.calificacionFinal || selectedPauta.pautaCompleta?.nota || "-"}
+                      </span>
+                    </div>
                   </div>
+
+                  {selectedPauta.pautaCompleta?.pauta?.distribucionPuntaje && (
+                    <div className="bg-white rounded-lg p-4 border border-blue-100">
+                      <h4 className="font-semibold text-[#0F2F52] mb-3">Desglose por criterios</h4>
+                      <div className="overflow-x-auto rounded-lg border border-blue-100 bg-white">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-[#143A80] text-white">
+                              <th className="px-3 py-2 text-left font-semibold">Criterio</th>
+                              <th className="px-3 py-2 text-center font-semibold">Puntaje Obtenido</th>
+                              <th className="px-3 py-2 text-center font-semibold">Puntaje Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {Object.entries(selectedPauta.pautaCompleta.pauta.distribucionPuntaje).map(([criterio, puntajeTotal]) => {
+                              const puntajeObtenido = selectedPauta.pautaCompleta.puntajesObtenidos?.[criterio] || 0;
+                              return (
+                                <tr key={criterio} className="border-b border-blue-100 hover:bg-blue-50 transition">
+                                  <td className="px-3 py-2 text-[#143A80] font-medium">{criterio}</td>
+                                  <td className="px-3 py-2 text-center font-semibold text-blue-600">{Math.round(puntajeObtenido)}</td>
+                                  <td className="px-3 py-2 text-center text-[#143A80]/70">{Math.round(puntajeTotal)}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {/* Calificación */}
-                <div>
-                  <h3 className="text-lg font-bold text-[#143A80] mb-3">Calificación</h3>
-                  <div className="bg-green-50 rounded-lg p-6">
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="text-center">
-                        <p className="text-sm text-[#143A80]/70 mb-2">Puntaje Obtenido</p>
-                        <p className="text-3xl font-bold text-blue-700">
-                          {selectedPauta.pautaCompleta?.puntajesObtenidos
-                            ? Math.round(Object.values(selectedPauta.pautaCompleta.puntajesObtenidos).reduce((sum, val) => sum + parseFloat(val || 0), 0))
-                            : "-"}
-                        </p>
-                      </div>
-                      <div className="text-center border-l border-l border-green-200">
-                        <p className="text-sm text-[#143A80]/70 mb-2">Puntaje Total</p>
-                        <p className="text-3xl font-bold text-blue-700">
-                          {selectedPauta.pautaCompleta?.pauta?.distribucionPuntaje 
-                            ? Math.round(Object.values(selectedPauta.pautaCompleta.pauta.distribucionPuntaje)
-                                .reduce((sum, val) => sum + parseFloat(val || 0), 0))
-                            : "-"}
-                        </p>
-                      </div>
-                      <div className="text-center border-l border-green-200">
-                        <p className="text-sm text-[#143A80]/70 mb-2">Nota Final</p>
-                        <p className="text-3xl font-bold text-green-700">
-                          {selectedPauta.notaFinal || 
-                           selectedPauta.pautaCompleta?.calificacionFinal || 
-                           selectedPauta.pautaCompleta?.nota || "-"}
-                        </p>
-                      </div>
-                    </div>
+                {/* Columna derecha: Comentarios */}
+                <div className="bg-white border border-blue-100 rounded-xl p-4 overflow-y-auto ghost-scroll flex flex-col">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-bold text-[#0F2F52]">Comentarios</h3>
+                    <span className="text-sm text-slate-500 font-medium">Vista alumno</span>
                   </div>
+                  {selectedPauta?.pautaCompleta?.id ? (
+                    <ComentariosPauta pautaEvaluadaId={selectedPauta.pautaCompleta.id} />
+                  ) : (
+                    <p className="text-slate-600">No hay comentarios disponibles.</p>
+                  )}
                 </div>
-
-                {/* Tabla de Criterios con Puntajes */}
-                {selectedPauta.pautaCompleta?.pauta?.distribucionPuntaje && (
-                  <div>
-                    <h3 className="text-lg font-bold text-[#143A80] mb-3">Desglose por Criterios</h3>
-                    <div className="overflow-x-auto rounded-lg border border-blue-200 bg-white">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="bg-[#143A80] text-white">
-                            <th className="px-4 py-3 text-left font-semibold">Criterio</th>
-                            <th className="px-4 py-3 text-center font-semibold">Puntaje Obtenido</th>
-                            <th className="px-4 py-3 text-center font-semibold">Puntaje Total</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {Object.entries(selectedPauta.pautaCompleta.pauta.distribucionPuntaje).map(([criterio, puntajeTotal]) => {
-                            const puntajeObtenido = selectedPauta.pautaCompleta.puntajesObtenidos?.[criterio] || 0;
-                            return (
-                              <tr
-                                key={criterio}
-                                className="border-b border-blue-200 hover:bg-blue-50 transition"
-                              >
-                                <td className="px-4 py-3 text-[#143A80] font-medium">{criterio}</td>
-                                <td className="px-4 py-3 text-center">
-                                  <span className="font-semibold text-blue-600">{Math.round(puntajeObtenido)}</span>
-                                </td>
-                                <td className="px-4 py-3 text-center text-[#143A80]/70">{Math.round(puntajeTotal)}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {/* Botón Cerrar */}
-                <button
-                  onClick={handleClosePautaModal}
-                  className="w-full bg-[#143A80] text-white font-semibold py-3 rounded-lg hover:bg-[#0f2a5a] transition"
-                >
-                  Cerrar
-                </button>
               </div>
             )}
           </div>

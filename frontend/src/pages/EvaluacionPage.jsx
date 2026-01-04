@@ -3,10 +3,12 @@ import { useLocation, useNavigate, Navigate } from "react-router-dom";
 import EvaluacionList from "../components/EvaluacionList.jsx";
 import EvaluacionForm from "../components/EvaluacionForm.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useNavbar } from "../context/NavbarContext.jsx";
 import { getMisRamos } from "../services/ramos.service.js";
 
 export default function EvaluacionPage() {
   const { user } = useAuth();
+  const { isNavbarOpen } = useNavbar();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -32,6 +34,7 @@ export default function EvaluacionPage() {
   const [selectedEvaluacion, setSelectedEvaluacion] = useState(null);
   const [reload, setReload] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [selectedPeriodo, setSelectedPeriodo] = useState("");
 
   const handleSaved = () => {
     setSelectedEvaluacion(null);
@@ -77,6 +80,27 @@ export default function EvaluacionPage() {
     }
   }, [location.search, ramos]);
 
+  // Extraer períodos únicos de los ramos (formato YYYY-P)
+  const periodosUnicos = useMemo(() => {
+    const periodos = new Set();
+    ramos.forEach(ramo => {
+      // El código viene en formato 620515-2025-2, extraer año-período
+      const partes = ramo.codigo?.split('-');
+      if (partes && partes.length >= 3) {
+        const yearPeriod = `${partes[1]}-${partes[2]}`;
+        periodos.add(yearPeriod);
+      }
+    });
+    return Array.from(periodos).sort().reverse();
+  }, [ramos]);
+
+  // Establecer el período más reciente por defecto
+  useEffect(() => {
+    if (periodosUnicos.length > 0 && !selectedPeriodo) {
+      setSelectedPeriodo(periodosUnicos[0]); // El primero es el más reciente (ya ordenado en reversa)
+    }
+  }, [periodosUnicos]);
+
   const handleNuevaEvaluacion = () => {
     try {
       setSelectedEvaluacion(null);
@@ -103,16 +127,43 @@ export default function EvaluacionPage() {
     navigate("/evaluaciones");
   };
 
+  // Filtrar ramos por período seleccionado
+  const ramosFiltrados = useMemo(() => {
+    if (!selectedPeriodo) return ramos;
+    return ramos.filter(ramo => {
+      const partes = ramo.codigo?.split('-');
+      if (partes && partes.length >= 3) {
+        const yearPeriod = `${partes[1]}-${partes[2]}`;
+        return yearPeriod === selectedPeriodo;
+      }
+      return false;
+    });
+  }, [ramos, selectedPeriodo]);
+
   return (
-    <div className="min-h-screen bg-[#e9f7fb]">
+    <div className={`min-h-screen bg-[#e9f7fb] transition-all duration-300 ${isNavbarOpen ? 'ml-64' : 'ml-0'}`}>
       <div>
         <div className="mx-auto max-w-6xl p-6">
         {!selectedRamo ? (
           <div className="space-y-6">
             {/* Encabezado expandido estilo Gestión de Usuarios, sin ícono */}
             <div className="mt-2">
-              <div className="bg-[#143A80] rounded-lg px-6 py-4 w-full">
+              <div className="bg-[#143A80] rounded-lg px-6 py-4 w-full flex items-center justify-between">
                 <h1 className="text-3xl font-bold text-white">Mis Ramos</h1>
+                {periodosUnicos.length > 0 && (
+                  <select
+                    value={selectedPeriodo}
+                    onChange={(e) => setSelectedPeriodo(e.target.value)}
+                    className="px-4 py-2 rounded-lg font-medium bg-white text-[#143A80] border border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 cursor-pointer"
+                  >
+                    <option value="">Todos los períodos</option>
+                    {periodosUnicos.map(periodo => (
+                      <option key={periodo} value={periodo}>
+                        {periodo}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
               <p className="mt-2 text-[#143A80] font-medium">Selecciona un ramo para gestionar sus evaluaciones</p>
             </div>
@@ -129,7 +180,7 @@ export default function EvaluacionPage() {
               </div>
             ) : (
               <div className="space-y-5">
-                {ramos.map((ramo) => (
+                {ramosFiltrados.map((ramo) => (
                   <button
                     type="button"
                     key={ramo.id || ramo.codigo}
@@ -177,15 +228,15 @@ export default function EvaluacionPage() {
             )}
 
             {(user?.role === "profesor" || user?.role === "jefecarrera") && showForm && (
-              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
-                <div className="flex items-center justify-between gap-4 mb-4">
-                  <h2 className="text-xl font-bold text-[#143A80]">
+              <div className="rounded-2xl border border-blue-200 bg-transparent p-4">
+                <div className="flex items-center justify-between gap-4 mb-4 bg-[#113C63] text-white px-4 py-3 rounded-xl">
+                  <h2 className="text-xl font-bold">
                     {selectedEvaluacion ? "Editar Evaluación" : "Nueva Evaluación"}
                   </h2>
                   <button
                     type="button"
                     onClick={() => setShowForm(false)}
-                    className="text-red-600 hover:text-red-800 font-bold text-xl"
+                    className="text-white hover:text-red-200 font-bold text-xl"
                   >
                     ✕
                   </button>

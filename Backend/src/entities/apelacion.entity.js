@@ -17,6 +17,10 @@ export const Apelacion = new EntitySchema({
       enum: ["evaluacion", "inasistencia", "emergencia"],
       nullable: false,
     },
+    subtipoInasistencia: {
+      type: String,
+      nullable: true,
+    },
     mensaje: {
       type: String,
       nullable: false,
@@ -38,7 +42,10 @@ export const Apelacion = new EntitySchema({
       type: "timestamp",
       nullable: true,
     },
-
+    evaluacionProximaId: {
+      type: Number,
+      nullable: true,
+    },
     fechaLimiteEdicion: {
       type: "timestamp",
       nullable: true,
@@ -50,7 +57,6 @@ export const Apelacion = new EntitySchema({
     createdAt: {
       type: "timestamp",
       default: () => "CURRENT_TIMESTAMP",
-      update: false,
     },
     updatedAt: {
       type: "timestamp",

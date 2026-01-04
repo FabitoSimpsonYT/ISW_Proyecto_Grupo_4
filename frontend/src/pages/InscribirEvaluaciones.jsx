@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import Swal from 'sweetalert2';
+import toast from 'react-hot-toast';
 import { getEventosAlumno, getEventosDisponiblesParaSlot } from '../services/evento.service.js';
 import { getSlotsDisponibles } from '../services/booking.service.js';
 import { getSlotsEvento } from '../services/slot.service.js';
@@ -25,7 +25,7 @@ export default function InscribirEvaluaciones() {
       setEventos(data);
     } catch (err) {
       console.error('Error cargando eventos alumno:', err);
-      Swal.fire('Error', 'No se pudieron cargar eventos', 'error');
+      toast.error('No se pudieron cargar eventos');
     }
   };
 
@@ -81,17 +81,17 @@ export default function InscribirEvaluaciones() {
       }
       const ok = res?.mensaje || res?.success || res?.status === 201;
       if (ok) {
-        Swal.fire('¡Inscripción exitosa!', '', 'success');
+        toast.success('¡Inscripción exitosa!');
         setShowModal(false);
         cargar();
       } else {
-        Swal.fire('Error', (res?.error || res?.message) || 'No se pudo inscribir', 'error');
+        toast.error((res?.error || res?.message) || 'No se pudo inscribir');
       }
     } catch (err) {
       const server = err?.response?.data;
       const msg = server?.message || server?.error || err?.message || 'No se pudo inscribir';
       console.error('Inscripción error:', err, server);
-      Swal.fire('Error', msg, 'error');
+      toast.error(msg);
     }
   };
 

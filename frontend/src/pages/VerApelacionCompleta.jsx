@@ -5,7 +5,7 @@ import {
   getApelacionById,
   responderApelacion,
 } from "../services/apelaciones.service";
-import { useNavbar } from "../context/NavBarContext";
+import { useNavbar } from "../context/NavbarContext";
 
 import ApelacionInfo from "../components/ApelacionInfo";
 import FormularioApelacion from "../components/FormularioApelacion";

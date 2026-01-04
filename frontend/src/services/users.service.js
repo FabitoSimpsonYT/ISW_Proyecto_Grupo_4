@@ -153,3 +153,31 @@ export async function deleteAlumno(id) {
     throw error.response?.data || { message: 'Error al eliminar alumno' };
   }
 }
+
+// Actualizar usuarios
+export async function updateAdmin(id, data) {
+  try {
+    const response = await axios.patch(`/admin/${id}`, data);
+    return response.data.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error al actualizar admin' };
+  }
+}
+
+export async function updateProfesor(id, data) {
+  try {
+    const response = await axios.patch(`/profesores/${id}`, data);
+    return response.data.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error al actualizar profesor' };
+  }
+}
+
+export async function updateAlumno(id, data) {
+  try {
+    const response = await axios.patch(`/alumnos/${id}`, data);
+    return response.data.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error al actualizar alumno' };
+  }
+}

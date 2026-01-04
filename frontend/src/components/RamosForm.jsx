@@ -7,6 +7,8 @@ export default function RamosForm({ ramoEdit, onSaved }) {
   const initialState = {
     nombre: '',
     codigo: '',
+    anio: '',
+    periodo: '',
     rutProfesor: '',
     originalCodigo: null // Para guardar el código original cuando se edita
   };
@@ -44,16 +46,46 @@ export default function RamosForm({ ramoEdit, onSaved }) {
   
   useEffect(() => {
     if (ramoEdit) {
+      let anioEdit = '';
+      let periodoEdit = '';
+      const rutAsignado = ramoEdit.rutProfesor || ramoEdit.profesor?.user?.rut || ramoEdit.profesor?.rut || '';
+      if (ramoEdit.codigo) {
+        const partesCodigo = ramoEdit.codigo.split('-');
+        if (partesCodigo.length >= 3) {
+          anioEdit = partesCodigo[1] || '';
+          periodoEdit = partesCodigo[2] || '';
+        }
+      }
       setRamo({
         nombre: ramoEdit.nombre || '',
-        codigo: ramoEdit.codigo || '',
-        rutProfesor: ramoEdit.rutProfesor || '',
+        codigo: (ramoEdit.codigo || '').split('-')[0] || '',
+        anio: anioEdit,
+        periodo: periodoEdit,
+        rutProfesor: rutAsignado,
         originalCodigo: ramoEdit.codigo || null // Guardar el código original
       });
+      
+      // Mostrar el profesor actual aunque la lista aún no cargue; luego intentar resolver el nombre
+      if (rutAsignado && rutAsignado.trim() !== '') {
+        setProfSearch(rutAsignado);
+        if (profesores.length > 0) {
+          const profesorAsignado = profesores.find(prof => {
+            const user = prof.user || prof;
+            return user.rut === rutAsignado;
+          });
+          if (profesorAsignado) {
+            const user = profesorAsignado.user || profesorAsignado;
+            setProfSearch(`${user.nombres} ${user.apellidoPaterno} ${user.apellidoMaterno}`);
+          }
+        }
+      } else {
+        setProfSearch('');
+      }
     } else {
       setRamo(initialState);
+      setProfSearch('');
     }
-  }, [ramoEdit]);
+  }, [ramoEdit, profesores]);
   
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -88,6 +120,7 @@ export default function RamosForm({ ramoEdit, onSaved }) {
   };
 
   const validateForm = () => {
+    // 1. Nombre del ramo
     if (!ramo.nombre.trim()) {
       setError('El nombre del ramo es obligatorio');
       return false;
@@ -96,15 +129,36 @@ export default function RamosForm({ ramoEdit, onSaved }) {
       setError('El nombre debe tener al menos 3 caracteres');
       return false;
     }
+    // 2. Código del ramo (6 dígitos)
     if (!ramo.codigo.trim()) {
       setError('El código del ramo es obligatorio');
       return false;
     }
-    // Validar formato del código: 6 dígitos
-    const codigoRegex = /^[0-9]{6}$/;
-    if (!codigoRegex.test(ramo.codigo)) {
-      setError('El código debe contener exactamente 6 números');
+    if (!/^\d{6}$/.test(ramo.codigo.trim())) {
+      setError('El código debe tener 6 dígitos numéricos (ej: 620515)');
       return false;
+    }
+    // 3. Año
+    if (!/^\d{4}$/.test(String(ramo.anio).trim())) {
+      setError('El año debe ser un número de 4 dígitos (ej: 2025)');
+      return false;
+    }
+    // 4. Periodo
+    if (!(ramo.periodo === '1' || ramo.periodo === '2' || ramo.periodo === 1 || ramo.periodo === 2)) {
+      setError('El periodo debe ser 1 o 2');
+      return false;
+    }
+    // 5. Profesor (opcional): si se ingresó, debe ser de la lista
+    const rutProfesorTrim = ramo.rutProfesor.trim();
+    if (rutProfesorTrim) {
+      const existe = profesores.some((prof) => {
+        const user = prof.user || prof;
+        return user.rut === rutProfesorTrim;
+      });
+      if (!existe) {
+        setError('Debes seleccionar un profesor válido de la lista');
+        return false;
+      }
     }
     return true;
   };
@@ -119,11 +173,19 @@ export default function RamosForm({ ramoEdit, onSaved }) {
 
     setLoading(true);
     try {
+      // Construir código completo con año y periodo
+      const codigoCompleto = `${ramo.codigo}-${ramo.anio}-${ramo.periodo}`;
+      
+      // Enviar los campos por separado
       const dataToSend = {
         nombre: ramo.nombre,
-        codigo: ramo.codigo
+        codigo: codigoCompleto,
+        anio: parseInt(ramo.anio, 10),
+        periodo: parseInt(ramo.periodo, 10)
       };
-
+      
+      console.log('📤 Enviando ramo al backend:', dataToSend);
+      
       if (ramo.rutProfesor.trim()) {
         dataToSend.rutProfesor = ramo.rutProfesor;
       }
@@ -132,7 +194,6 @@ export default function RamosForm({ ramoEdit, onSaved }) {
       if (ramo.originalCodigo) {
         await updateRamo(ramo.originalCodigo, dataToSend);
         showSuccessAlert('Éxito', 'Ramo actualizado correctamente');
-        // Agregar pequeño delay para asegurar que los datos se procesaron en el backend
         await new Promise(resolve => setTimeout(resolve, 500));
       } else {
         await createRamo(dataToSend);
@@ -149,8 +210,29 @@ export default function RamosForm({ ramoEdit, onSaved }) {
     }
   };
 
+  // Opciones de año válidas (año actual y anterior). Si el ramo editado tiene otro año válido, lo incluimos.
+  const currentYear = new Date().getFullYear();
+  const yearOptions = [currentYear - 1, currentYear];
+  const anioNumber = parseInt(ramo.anio, 10);
+  if (!Number.isNaN(anioNumber) && !yearOptions.includes(anioNumber)) {
+    yearOptions.unshift(anioNumber);
+  }
+
+  // Periodos permitidos según año seleccionado y fecha actual
+  const today = new Date();
+  const isAfterJulyFirst = today.getMonth() > 6 || (today.getMonth() === 6 && today.getDate() >= 1);
+  const isCurrentYearSelected = anioNumber === currentYear;
+  const periodOptions = isCurrentYearSelected && !isAfterJulyFirst ? ['1'] : ['1', '2'];
+
+  // Si el periodo seleccionado ya no es válido, limpiarlo
+  useEffect(() => {
+    if (ramo.periodo && !periodOptions.includes(String(ramo.periodo))) {
+      setRamo(prev => ({ ...prev, periodo: '' }));
+    }
+  }, [ramo.anio, periodOptions.join('-')]);
+
   return (
-    <form onSubmit={handleSubmit} className="p-6 border rounded-lg bg-gray-50 shadow-md space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <h2 className="text-2xl font-bold text-gray-800">
         {ramo.originalCodigo ? 'Editar Ramo' : 'Crear Nuevo Ramo'}
       </h2>
@@ -185,13 +267,54 @@ export default function RamosForm({ ramoEdit, onSaved }) {
           name="codigo"
           value={ramo.codigo}
           onChange={handleChange}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+          className={`w-full px-4 py-2 border border-gray-300 rounded-lg font-mono ${
+            ramo.originalCodigo 
+              ? 'bg-gray-100 cursor-not-allowed' 
+              : 'focus:outline-none focus:ring-2 focus:ring-blue-500'
+          }`}
           placeholder="ej: 620515"
-          pattern="[0-9]{6}"
           maxLength="6"
+          disabled={!!ramo.originalCodigo}
           required
         />
-        <p className="text-xs text-gray-500 mt-1">Formato: 6 dígitos numéricos</p>
+        <p className="text-xs text-gray-500 mt-1">6 dígitos numéricos</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            Año:
+          </label>
+          <select
+            name="anio"
+            value={ramo.anio}
+            onChange={handleChange}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            required
+          >
+            <option value="">Seleccionar...</option>
+            {yearOptions.map((year) => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            Periodo:
+          </label>
+          <select
+            name="periodo"
+            value={ramo.periodo}
+            onChange={handleChange}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+          >
+            <option value="">Seleccionar...</option>
+            {periodOptions.map(p => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="relative">

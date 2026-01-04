@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import Swal from 'sweetalert2';
+import toast from 'react-hot-toast';
 
 // Simulación de servicios
 const getBloqueos = async () => {
@@ -59,7 +59,7 @@ export default function BloquearDias() {
       const res = await getBloqueos();
       setBloqueos(res?.data || res || []);
     } catch (err) {
-      Swal.fire('Error', 'No se pudieron cargar los bloqueos', 'error');
+      toast.error('No se pudieron cargar los bloqueos');
     } finally {
       setLoading(false);
     }
@@ -69,7 +69,7 @@ export default function BloquearDias() {
     e.preventDefault();
 
     if (!formData.fechaInicio || !formData.fechaFin) {
-      Swal.fire('Error', 'Debes especificar fecha de inicio y fin', 'warning');
+      toast.error('Debes especificar fecha de inicio y fin');
       return;
     }
 
@@ -77,12 +77,12 @@ export default function BloquearDias() {
     const fin = new Date(formData.fechaFin);
 
     if (fin < inicio) {
-      Swal.fire('Error', 'La fecha de fin debe ser posterior a la fecha de inicio', 'warning');
+      toast.error('La fecha de fin debe ser posterior a la fecha de inicio');
       return;
     }
 
     if (!formData.razon.trim()) {
-      Swal.fire('Error', 'Debes especificar el motivo del bloqueo', 'warning');
+      toast.error('Debes especificar el motivo del bloqueo');
       return;
     }
 
@@ -166,7 +166,7 @@ export default function BloquearDias() {
       setLoading(true);
       await eliminarBloqueo(bloqueo.id);
       
-      Swal.fire('¡Eliminado!', 'El bloqueo ha sido removido', 'success');
+      toast.success('El bloqueo ha sido removido');
       cargarBloqueos();
     } catch (err) {
       Swal.fire('Error', err.message || 'No se pudo eliminar el bloqueo', 'error');

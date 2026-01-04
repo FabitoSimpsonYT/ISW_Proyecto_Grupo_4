@@ -7,9 +7,18 @@ export const getSlotsEvento = async (eventoId) => {
 
 // Inscribir al alumno logueado en un slot
 export const inscribirSlot = async (slotId) => {
-  return await api(`/slots/slot/${slotId}/inscribir`, {
-    method: 'POST'
-  });
+  try {
+    return await api(`/slots/slot/${slotId}/inscribir`, {
+      method: 'POST'
+    });
+  } catch (error) {
+    console.error('[inscribirSlot] Error:', error.response?.data || error.message);
+    throw new Error(
+      error.response?.data?.message || 
+      error.response?.data?.error || 
+      'Error al inscribirse en el slot'
+    );
+  }
 };
 
 // ✅ ESTA ES LA FUNCIÓN QUE TE DABA ERROR

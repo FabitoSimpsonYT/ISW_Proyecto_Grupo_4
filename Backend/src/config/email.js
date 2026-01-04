@@ -3,7 +3,7 @@ import config from './config.js';
 
 const transporter = nodemailer.createTransport({
   host: config.email.host,
-  port: config.email.port,
+  port: Number(config.email.port) || 587,
   secure: false,
   auth: {
     user: config.email.user,
@@ -13,8 +13,13 @@ const transporter = nodemailer.createTransport({
 
 export const sendEmail = async (to, subject, html) => {
   try {
+    if (!config?.email?.host || !config?.email?.user || !config?.email?.password) {
+      throw new Error(
+        "Email no configurado. Define EMAIL_HOST, EMAIL_PORT, EMAIL_USER y EMAIL_PASSWORD en Backend/.env"
+      );
+    }
     const info = await transporter.sendMail({
-      from: `"Sistema de Agendamiento" <${config.email.user}>`,
+      from: `"Plataforma de Derecho " <${config.email.user}>`,
       to,
       subject,
       html,
