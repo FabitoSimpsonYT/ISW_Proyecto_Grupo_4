@@ -290,7 +290,7 @@ export const getApelacionPorId = async (req, res) => {
     const apelacionRepo = AppDataSource.getRepository(Apelacion);
     const apelacion = await apelacionRepo.findOne({
       where: { id },
-      relations: ["profesor", "alumno", "pautaEvaluada"],
+      relations: ["profesor", "alumno", "pautaEvaluada", "pautaEvaluada.evaluacion"],
     });
 
     if (!apelacion) return res.status(404).json({ message: "Apelación no encontrada." });
@@ -313,7 +313,16 @@ export const getApelacionPorId = async (req, res) => {
       apelacion.puedeEditar = horasRestantes >= 24;
     }
 
-    res.status(200).json({ message: "Apelación encontrada", data: apelacion });
+    // Enriquecer la respuesta con el título de la evaluación
+    const data = {
+      ...apelacion,
+      pautaEvaluada: apelacion.pautaEvaluada ? {
+        ...apelacion.pautaEvaluada,
+        evaluacionTitulo: apelacion.pautaEvaluada.evaluacion?.titulo || null,
+      } : null,
+    };
+
+    res.status(200).json({ message: "Apelación encontrada", data });
   } catch (err) {
     console.error("Error al obtener apelación:", err);
     res.status(500).json({ message: "Error al obtener la apelación" });
@@ -333,20 +342,21 @@ export const getApelacionesDelProfesor = async (req, res) => {
     }
 
     const apelacionRepo = AppDataSource.getRepository(Apelacion);
+    const alumnoRepo = AppDataSource.getRepository("Alumno");
 
     let apelaciones;
 
     // Si es jefe de carrera, puede ver todas las apelaciones
     if (userRole === "jefecarrera") {
       apelaciones = await apelacionRepo.find({
-        relations: ["profesor", "alumno", "pautaEvaluada"],
+        relations: ["profesor", "alumno", "pautaEvaluada", "pautaEvaluada.evaluacion"],
         order: { createdAt: "DESC" },
       });
     } else {
       // Si es profesor normal, solo ve sus apelaciones
       apelaciones = await apelacionRepo.find({
         where: { profesor: { id: profesorId } },
-        relations: ["profesor", "alumno", "pautaEvaluada"],
+        relations: ["profesor", "alumno", "pautaEvaluada", "pautaEvaluada.evaluacion"],
         order: { createdAt: "DESC" },
       });
     }
@@ -358,30 +368,62 @@ export const getApelacionesDelProfesor = async (req, res) => {
       });
     }
 
-    const data = apelaciones.map(a => ({
-      id: a.id,
-      tipo: a.tipo,
-      mensaje: a.mensaje,
-      archivo: a.archivo,
-      estado: a.estado,
-      respuestaDocente: a.respuestaDocente,
-      fechaCitacion: a.fechaCitacion,
-      puedeEditar: a.puedeEditar,
-      fechaLimiteEdicion: a.fechaLimiteEdicion,
-      creadoEl: a.createdAt,
-      actualizadoEl: a.updatedAt,
-      pautaEvaluada:a.pautaEvaluada ? {
-        id: a.pautaEvaluada.id,
-        notaFinal: a.pautaEvaluada.notaFinal,
-        codigoRamo: a.pautaEvaluada.codigoRamo,
+    const data = await Promise.all(apelaciones.map(async (a) => {
+      // Obtener información del ramo del alumno
+      let ramoInfo = null;
+      if (a.alumno) {
+        const alumno = await alumnoRepo.findOne({
+          where: { id: a.alumno.id },
+          relations: ["secciones", "secciones.ramo"],
+        });
+        
+        // Buscar el ramo correspondiente según el tipo de apelación
+        if (alumno && alumno.secciones && alumno.secciones.length > 0) {
+          if (a.pautaEvaluada && a.pautaEvaluada.codigoRamo) {
+            const seccionConRamo = alumno.secciones.find(s => s.ramo?.codigo === a.pautaEvaluada.codigoRamo);
+            if (seccionConRamo && seccionConRamo.ramo) {
+              ramoInfo = {
+                codigo: seccionConRamo.ramo.codigo,
+                nombre: seccionConRamo.ramo.nombre,
+              };
+            }
+          } else if (alumno.secciones.length > 0 && alumno.secciones[0].ramo) {
+            // Si no hay información del ramo en la pauta, usar el primer ramo inscrito
+            ramoInfo = {
+              codigo: alumno.secciones[0].ramo.codigo,
+              nombre: alumno.secciones[0].ramo.nombre,
+            };
+          }
+        }
       }
-    : null,
-      alumno: a.alumno ? {
-        id: a.alumno.id,
-        nombre: `${a.alumno.nombres} ${a.alumno.apellidoPaterno} ${a.alumno.apellidoMaterno}`,
-        email: a.alumno.email,
-        telefono: a.alumno.telefono,
-      } : null,
+
+      return {
+        id: a.id,
+        tipo: a.tipo,
+        mensaje: a.mensaje,
+        archivo: a.archivo,
+        estado: a.estado,
+        respuestaDocente: a.respuestaDocente,
+        fechaCitacion: a.fechaCitacion,
+        puedeEditar: a.puedeEditar,
+        fechaLimiteEdicion: a.fechaLimiteEdicion,
+        creadoEl: a.createdAt,
+        actualizadoEl: a.updatedAt,
+        pautaEvaluada:a.pautaEvaluada ? {
+          id: a.pautaEvaluada.id,
+          notaFinal: a.pautaEvaluada.notaFinal,
+          codigoRamo: a.pautaEvaluada.codigoRamo,
+          evaluacionTitulo: a.pautaEvaluada.evaluacion?.titulo || null,
+        }
+      : null,
+        alumno: a.alumno ? {
+          id: a.alumno.id,
+          nombre: `${a.alumno.nombres} ${a.alumno.apellidoPaterno} ${a.alumno.apellidoMaterno}`,
+          email: a.alumno.email,
+          telefono: a.alumno.telefono,
+          ramo: ramoInfo,
+        } : null,
+      };
     }));
 
     res.status(200).json({
@@ -841,6 +883,7 @@ export const getEvaluacionesDisponibles = async (req, res) => {
     }
 
     const pautaRepo = AppDataSource.getRepository(PautaEvaluada);
+    const alumnoRepo = AppDataSource.getRepository("Alumno");
 
     const pautas = await pautaRepo.find({
       where: {
@@ -849,11 +892,28 @@ export const getEvaluacionesDisponibles = async (req, res) => {
       order: { id: "DESC" },
     });
 
+    // Obtener información del alumno con sus ramos
+    const alumno = await alumnoRepo.findOne({
+      where: { id: alumnoId },
+      relations: ["secciones", "secciones.ramo"],
+    });
+
+    // Crear un mapa de código de ramo a nombre de ramo
+    const ramoMap = new Map();
+    if (alumno && alumno.secciones) {
+      for (const seccion of alumno.secciones) {
+        if (seccion.ramo) {
+          ramoMap.set(seccion.ramo.codigo, seccion.ramo.nombre);
+        }
+      }
+    }
+
     const disponibles = pautas
       .filter(p => p.notaFinal !== null)
       .map(p => ({
         id: p.id,
         codigoRamo: p.codigoRamo,
+        nombreRamo: ramoMap.get(p.codigoRamo) || p.codigoRamo,
         notaFinal: p.notaFinal,
       }));
 
@@ -1003,7 +1063,10 @@ export const getProfesoresInscritos = async (req, res) => {
       });
     }
 
-    const profesores = Array.from(profesoresMap.values());
+    const profesores = Array.from(profesoresMap.values()).map(prof => ({
+      ...prof,
+      ramosDisplay: prof.ramos.map(r => r.nombre).join(', '),
+    }));
 
     return res.status(200).json({
       message: "Profesores inscritos obtenidos",

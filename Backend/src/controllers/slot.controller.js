@@ -395,3 +395,58 @@ export const agregarAlumnoASlot = async (req, res) => {
     client.release();
   }
 };
+<<<<<<< HEAD
+<<<<<<< HEAD
+
+// Crear un slot individual manualmente
+export const crearSlotIndividual = async (req, res) => {
+  const client = await getClient();
+  try {
+    const { eventoId, fechaHoraInicio, fechaHoraFin } = req.body;
+
+    if (!eventoId || !fechaHoraInicio || !fechaHoraFin) {
+      return res.status(400).json({ success: false, message: 'eventoId, fechaHoraInicio y fechaHoraFin son requeridos' });
+    }
+
+    // Validar que el evento existe
+    const eventoRes = await client.query('SELECT id FROM eventos WHERE id = $1', [eventoId]);
+    if (eventoRes.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Evento no encontrado' });
+    }
+
+    // Validar que las fechas sean válidas
+    const inicio = new Date(fechaHoraInicio);
+    const fin = new Date(fechaHoraFin);
+
+    if (isNaN(inicio.getTime()) || isNaN(fin.getTime())) {
+      return res.status(400).json({ success: false, message: 'Fechas inválidas' });
+    }
+
+    if (fin <= inicio) {
+      return res.status(400).json({ success: false, message: 'La hora de fin debe ser posterior a la de inicio' });
+    }
+
+    // Crear el slot
+    const result = await client.query(
+      `INSERT INTO slots (evento_id, fecha_hora_inicio, fecha_hora_fin, disponible) 
+       VALUES ($1, $2, $3, true) 
+       RETURNING *`,
+      [eventoId, fechaHoraInicio, fechaHoraFin]
+    );
+
+    return res.status(201).json({ 
+      success: true, 
+      message: 'Slot creado exitosamente', 
+      data: result.rows[0] 
+    });
+  } catch (error) {
+    console.error('Error crearSlotIndividual:', error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  } finally {
+    client.release();
+  }
+};
+=======
+>>>>>>> 235ac91d7ef2c47d55753f14ff7f1316b51f7726
+=======
+>>>>>>> f2be98ee68a3d90c41ca4e44b71f3ed421398afe

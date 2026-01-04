@@ -20,6 +20,8 @@ export default function GestionarSlotsProfesor() {
   const [fechasExpandidas, setFechasExpandidas] = useState({});
   const [filtroEstado, setFiltroEstado] = useState('todos');
   const [panelEvaluacionesAbierto, setPanelEvaluacionesAbierto] = useState(false);
+  const [modalCrearSlotAbierto, setModalCrearSlotAbierto] = useState(false);
+  const [formCrearSlot, setFormCrearSlot] = useState({ fecha: '', horaInicio: '08:00', horaFin: '09:00' });
 
   useEffect(() => {
     cargarEvaluaciones();
@@ -65,9 +67,12 @@ export default function GestionarSlotsProfesor() {
       const evalsArray = Array.isArray(data) ? data : (data?.data || []);
       console.log('[GestionarSlotsProfesor] Array de eventos:', evalsArray);
       
-      // Filtrar solo evaluaciones que tienen slots
-      const evalsConSlots = evalsArray.filter(ev => ev.slots && ev.slots.length > 0);
-      console.log('[GestionarSlotsProfesor] Eventos con slots:', evalsConSlots);
+      // Filtrar evaluaciones que son de tipo slot (duracion_por_alumno > 0)
+      // Mostrar eventos aunque no tengan slots generados aún (pueden estar en proceso)
+      const evalsConSlots = evalsArray.filter(ev => 
+        ev.duracion_por_alumno && ev.duracion_por_alumno > 0
+      );
+      console.log('[GestionarSlotsProfesor] Eventos tipo slot:', evalsConSlots);
       
       setEvaluaciones(evalsConSlots);
 
@@ -298,6 +303,43 @@ export default function GestionarSlotsProfesor() {
     }
   };
 
+  const crearSlotIndividual = async (e) => {
+    e.preventDefault();
+    
+    if (!formCrearSlot.fecha || !formCrearSlot.horaInicio || !formCrearSlot.horaFin) {
+      toast.error('Completa todos los campos');
+      return;
+    }
+
+    if (formCrearSlot.horaFin <= formCrearSlot.horaInicio) {
+      toast.error('La hora de fin debe ser posterior a la de inicio');
+      return;
+    }
+
+    try {
+      const fechaHoraInicio = `${formCrearSlot.fecha}T${formCrearSlot.horaInicio}:00`;
+      const fechaHoraFin = `${formCrearSlot.fecha}T${formCrearSlot.horaFin}:00`;
+
+      const response = await apiRoot({
+        url: `/slots/${evaluacionSeleccionada.id}/crear`,
+        method: 'POST',
+        data: {
+          eventoId: evaluacionSeleccionada.id,
+          fechaHoraInicio,
+          fechaHoraFin
+        }
+      });
+
+      toast.success('Slot creado exitosamente');
+      setModalCrearSlotAbierto(false);
+      setFormCrearSlot({ fecha: '', horaInicio: '08:00', horaFin: '09:00' });
+      cargarEvaluaciones();
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Error al crear el slot');
+    }
+  };
+
   if (cargando) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -394,14 +436,24 @@ export default function GestionarSlotsProfesor() {
                       </h2>
                       <p className="text-xs sm:text-sm text-gray-600 mt-1">{evaluacionSeleccionada.ramo_codigo} • {evaluacionSeleccionada.slots?.length || 0} slots totales</p>
                     </div>
-                    <motion.button
-                      onClick={() => eliminarEvaluacionCompleta(evaluacionSeleccionada)}
-                      className="px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold flex items-center gap-2 text-xs sm:text-sm whitespace-nowrap transition w-full sm:w-auto justify-center sm:justify-start"
-                      whileHover={{ scale: 1.02 }}
-                      title="Eliminar toda la evaluación y sus slots"
-                    >
-                      <FiTrash2 className="w-4 sm:w-5 h-4 sm:h-5" /> <span className="hidden sm:inline">Eliminar Evaluación</span><span className="sm:hidden">Eliminar</span>
-                    </motion.button>
+                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                      <motion.button
+                        onClick={() => setModalCrearSlotAbierto(true)}
+                        className="px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold flex items-center gap-2 text-xs sm:text-sm whitespace-nowrap transition w-full sm:w-auto justify-center"
+                        whileHover={{ scale: 1.02 }}
+                        title="Crear un slot manualmente"
+                      >
+                        <FiPlus className="w-4 sm:w-5 h-4 sm:h-5" /> <span className="hidden sm:inline">Agregar Slot</span><span className="sm:hidden">Agregar</span>
+                      </motion.button>
+                      <motion.button
+                        onClick={() => eliminarEvaluacionCompleta(evaluacionSeleccionada)}
+                        className="px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold flex items-center gap-2 text-xs sm:text-sm whitespace-nowrap transition w-full sm:w-auto justify-center sm:justify-start"
+                        whileHover={{ scale: 1.02 }}
+                        title="Eliminar toda la evaluación y sus slots"
+                      >
+                        <FiTrash2 className="w-4 sm:w-5 h-4 sm:h-5" /> <span className="hidden sm:inline">Eliminar Evaluación</span><span className="sm:hidden">Eliminar</span>
+                      </motion.button>
+                    </div>
                   </div>
 
                   {/* Filtro de estado */}
@@ -708,6 +760,96 @@ export default function GestionarSlotsProfesor() {
             >
               Cancelar
             </motion.button>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Modal Crear Slot */}
+      {modalCrearSlotAbierto && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <motion.div
+            className="bg-white rounded-lg shadow-2xl p-4 sm:p-6 max-w-md w-full"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg sm:text-xl font-bold text-gray-900">
+                ➕ Crear Slot
+              </h3>
+              <button
+                onClick={() => {
+                  setModalCrearSlotAbierto(false);
+                  setFormCrearSlot({ fecha: '', horaInicio: '08:00', horaFin: '09:00' });
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <FiX className="w-5 sm:w-6 h-5 sm:h-6" />
+              </button>
+            </div>
+
+            <form onSubmit={crearSlotIndividual} className="space-y-4">
+              <div>
+                <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
+                  Fecha
+                </label>
+                <input
+                  type="date"
+                  value={formCrearSlot.fecha}
+                  onChange={(e) => setFormCrearSlot({ ...formCrearSlot, fecha: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
+                    Hora Inicio
+                  </label>
+                  <input
+                    type="time"
+                    value={formCrearSlot.horaInicio}
+                    onChange={(e) => setFormCrearSlot({ ...formCrearSlot, horaInicio: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
+                    Hora Fin
+                  </label>
+                  <input
+                    type="time"
+                    value={formCrearSlot.horaFin}
+                    onChange={(e) => setFormCrearSlot({ ...formCrearSlot, horaFin: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <motion.button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold text-xs sm:text-sm transition"
+                  whileHover={{ scale: 1.02 }}
+                >
+                  ✅ Crear
+                </motion.button>
+                <motion.button
+                  type="button"
+                  onClick={() => {
+                    setModalCrearSlotAbierto(false);
+                    setFormCrearSlot({ fecha: '', horaInicio: '08:00', horaFin: '09:00' });
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-300 text-gray-900 rounded-lg hover:bg-gray-400 font-semibold text-xs sm:text-sm transition"
+                  whileHover={{ scale: 1.02 }}
+                >
+                  ✕ Cancelar
+                </motion.button>
+              </div>
+            </form>
           </motion.div>
         </div>
       )}
