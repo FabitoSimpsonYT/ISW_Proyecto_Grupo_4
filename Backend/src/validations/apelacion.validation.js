@@ -28,10 +28,9 @@ export const updateEstadoValidation = Joi.object({
         then: Joi.string()
           .trim()
           .min(3)
-          .required()
+          .optional()
+          .allow('')
           .messages({
-            "any.required": "La citación requiere un mensaje explicativo.",
-            "string.empty": "El mensaje de citación no puede estar vacío.",
             "string.min": "El mensaje debe tener al menos 3 caracteres."
           }),
       },
@@ -41,8 +40,18 @@ export const updateEstadoValidation = Joi.object({
           .trim()
           .min(3)
           .optional()
+          .allow('')
           .messages({
-            "string.empty": "El mensaje no puede estar vacío.",
+            "string.min": "El mensaje debe tener al menos 3 caracteres."
+          }),
+      },
+      {
+        is: "revisada",
+        then: Joi.string()
+          .trim()
+          .optional()
+          .allow('')
+          .messages({
             "string.min": "El mensaje debe tener al menos 3 caracteres."
           }),
       }
@@ -102,6 +111,26 @@ export const createApelacionValidation = Joi.object({
     otherwise: Joi.forbidden().messages({
       "any.unknown": "No se permite pautaEvaluadaId para este tipo de apelación."
     })
+  }),
+  subtipoInasistencia: Joi.when('tipo', {
+    is: 'inasistencia',
+    then: Joi.string()
+      .valid("evaluacion", "justificacion")
+      .optional()
+      .messages({
+        "any.only": "El subtipo debe ser 'evaluacion' o 'justificacion'.",
+      }),
+    otherwise: Joi.forbidden().messages({
+      "any.unknown": "No se permite subtipoInasistencia para este tipo de apelación."
+    })
+  }),
+  evaluacionProximaId: Joi.when('tipo', {
+    is: 'inasistencia',
+    then: Joi.number().integer().optional().messages({
+      "number.base": "El ID de la evaluación próxima debe ser un número.",
+    }),
+    otherwise: Joi.forbidden().messages({
+      "any.unknown": "No se permite evaluacionProximaId para este tipo de apelación."
+    })
   })
 });
-

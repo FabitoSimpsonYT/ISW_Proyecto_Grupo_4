@@ -3,21 +3,24 @@ import { showErrorAlert, showSuccessAlert } from "@/utils/alertUtils";
 import { createEvaluacion, updateEvaluacion, getEvaluacionesByCodigoRamo } from "../services/evaluacion.service.js";
 import { createEvaluacionIntegradora, updateEvaluacionIntegradora } from "../services/evaluacionIntegradora.service.js";
 import { getAllPautas } from "../services/pauta.service.js";
+import CustomDatePicker from "./CustomDatePicker.jsx";
+import CustomTimePicker from "./CustomTimePicker.jsx";
+import CustomSelect from "./CustomSelect.jsx";
 
-export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamoFields = false, isIntegradora = false }) {
+export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamoFields = false, isIntegradora = false, bloqueos = [] }) {
     const initialState = {
         titulo: "",
         fechaProgramada: "",
         horaInicio: "",
         horaFin: "",
-        ponderacion: 0,
+        ponderacion: "",
         contenidos: "",
         estado: "pendiente",
         pauta: { id: null },
         pautaPublicada: false,
         ramo_id: "",
         codigoRamo: "",
-        puntajeTotal: 0,
+        puntajeTotal: "",
     };
 
     const [evaluacion, setEvaluacion] = useState(initialState);
@@ -25,6 +28,29 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
     const [errors, setErrors] = useState({});
     const [isLoading, setIsLoading] = useState(false);
     const [pautas, setPautas] = useState([]);
+    const [ponderacionDisponible, setPonderacionDisponible] = useState(100);
+
+    useEffect(() => {
+        const calcularPonderacionDisponible = async () => {
+            if (evaluacion.codigoRamo) {
+                try {
+                    const evaluaciones = await getEvaluacionesByCodigoRamo(evaluacion.codigoRamo);
+                    const evaluacionesNormales = evaluaciones.filter(ev => {
+                        const esIntegradora = ev.esIntegradora || ev.evaluacionIntegradoraId;
+                        const esActual = evaluacion.id && ev.id === evaluacion.id;
+                        return !esIntegradora && !esActual;
+                    });
+                    const sumaPonderaciones = evaluacionesNormales.reduce((sum, ev) => sum + (Number(ev.ponderacion) || 0), 0);
+                    setPonderacionDisponible(100 - sumaPonderaciones);
+                } catch (error) {
+                    setPonderacionDisponible(100);
+                }
+            } else {
+                setPonderacionDisponible(100);
+            }
+        };
+        calcularPonderacionDisponible();
+    }, [evaluacion.codigoRamo, evaluacion.id]);
 
     const normalizeFechaInput = (value) => {
         if (!value) return "";
@@ -40,6 +66,27 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
         }
         const n = Number(pautaValue);
         return Number.isFinite(n) ? { id: n } : { id: null };
+    };
+
+    const parseLocalDate = (value) => {
+        if (!value) return null;
+        if (value instanceof Date) {
+            return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+        }
+
+        const str = String(value).trim();
+        // Caso típico de <input type="date">: YYYY-MM-DD (se interpreta como UTC si usas new Date(str))
+        const m = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (m) {
+            const year = Number(m[1]);
+            const monthIndex = Number(m[2]) - 1;
+            const day = Number(m[3]);
+            return new Date(year, monthIndex, day);
+        }
+
+        // Fallback para otros formatos
+        const dt = new Date(str);
+        return isNaN(dt.getTime()) ? null : dt;
     };
 
     
@@ -63,6 +110,7 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
             const next = {
                 ...initialState,
                 ...evaluacionEdit,
+                estado: evaluacionEdit.estado || "pendiente",
             };
 
             next.fechaProgramada = normalizeFechaInput(next.fechaProgramada);
@@ -148,13 +196,13 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
             err.fechaProgramada = "La fecha programada es obligatoria";
         } else if (!isEditing) {
             // Solo validar que sea futura si estamos creando
-            const fecha = new Date(eval_data.fechaProgramada);
+            const fecha = parseLocalDate(eval_data.fechaProgramada);
             const hoy = new Date();
             hoy.setHours(0, 0, 0, 0);
             const manana = new Date(hoy);
             manana.setDate(manana.getDate() + 1);
 
-            if (isNaN(fecha.getTime())) {
+            if (!fecha) {
                 err.fechaProgramada = "La fecha debe ser válida";
             } else if (fecha < manana) {
                 err.fechaProgramada = "La fecha debe ser igual o posterior a mañana";
@@ -263,8 +311,11 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
             return;
         }
 
-        if (type === "number") {
-            setEvaluacion({ ...evaluacion, [name]: Number(value) });
+        const numericFields = ["ponderacion", "puntajeTotal"];
+
+        if (type === "number" || numericFields.includes(name)) {
+            const numericOrEmpty = value === "" ? "" : Number(value);
+            setEvaluacion({ ...evaluacion, [name]: numericOrEmpty });
         } else {
             setEvaluacion({ ...evaluacion, [name]: value });
         }
@@ -319,12 +370,12 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
                 fechaProgramada: evaluacion.fechaProgramada,
                 horaInicio: evaluacion.horaInicio,
                 horaFin: evaluacion.horaFin,
-                ponderacion: evaluacion.ponderacion,
+                ponderacion: evaluacion.ponderacion === "" || evaluacion.ponderacion === null ? null : Number(evaluacion.ponderacion),
                 contenidos: evaluacion.contenidos,
                 estado: evaluacion.estado,
                 pauta: pautaFinal,
                 pautaPublicada: evaluacion.pautaPublicada,
-                puntajeTotal: evaluacion.puntajeTotal,
+                puntajeTotal: evaluacion.puntajeTotal === "" || evaluacion.puntajeTotal === null ? null : Number(evaluacion.puntajeTotal),
             };
 
             // Solo agregar codigoRamo y ramo_id si tienen valor
@@ -341,13 +392,29 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
                                 console.log("Actualizando evaluación...");
                                 let updateResult;
                                 try {
+                                    // Detectar si solo se está editando el puntaje
+                                    const camposEnviados = Object.keys(payload).filter(key => 
+                                        payload[key] !== null && 
+                                        payload[key] !== undefined && 
+                                        key !== 'pauta' && 
+                                        key !== 'pautaPublicada'
+                                    );
+                                    const soloEditandoPuntaje = camposEnviados.length === 1 && camposEnviados.includes('puntajeTotal');
+                                    
                                     if (isIntegradora) {
                                             updateResult = await updateEvaluacionIntegradora(evaluacion.id, payload);
                                     } else {
                                             updateResult = await updateEvaluacion(evaluacion.id, payload);
                                     }
                                     console.log("Resultado de actualización:", updateResult);
-                                    showSuccessAlert("Evaluación actualizada", "La evaluación y sus pautas asociadas han sido actualizadas correctamente.");
+                                    
+                                    // Mensaje diferente según si se eliminaron pautas
+                                    if (soloEditandoPuntaje && evaluacionEdit?.idPauta) {
+                                        showSuccessAlert("Evaluación actualizada", "El puntaje total ha sido actualizado. La pauta y las notas asociadas han sido eliminadas.");
+                                    } else {
+                                        showSuccessAlert("Evaluación actualizada", "La evaluación ha sido actualizada correctamente.");
+                                    }
+                                    
                                     if (onSaved) onSaved(updateResult);
                                 } catch (error) {
                                     showErrorAlert("Error", `Error al actualizar la evaluación: ${error.message || 'Intenta nuevamente'}`);
@@ -390,12 +457,7 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
     const hasFieldError = (fieldName) => !!errors[fieldName];
 
     return (
-        <form onSubmit={handleSubmit} className="p-6 border rounded bg-gray-50 space-y-5">
-            <h2 className="text-xl font-semibold text-gray-800">
-                {evaluacion.id ? "Editar Evaluación" : "Nueva Evaluación"}
-            </h2>
-
-
+        <form onSubmit={handleSubmit} className="p-6 border rounded bg-transparent space-y-5">
             {/* Título */}
             <div>
                 <label className="block mb-1 font-semibold text-gray-700">Título: *</label>
@@ -409,7 +471,7 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
                             ? "border-red-500 bg-red-50"
                             : "border-gray-300 focus:border-blue-500"
                     }`}
-                    placeholder="Título de la evaluación"
+                    placeholder="Ej: CERTAMEN, PROYECTO, EVALUACIÓN ORAL, CONTROL, TALLER, QUIZ"
                 />
                 {hasFieldError("titulo") && (
                     <p className="text-red-600 text-sm mt-1">{getFieldError("titulo")}</p>
@@ -419,16 +481,14 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
             {/* Fecha Programada */}
             <div>
                 <label className="block mb-1 font-semibold text-gray-700">Fecha Programada: *</label>
-                <input
-                    type="date"
-                    name="fechaProgramada"
+                <CustomDatePicker
                     value={evaluacion.fechaProgramada}
-                    onChange={handleChange}
-                    className={`border p-2 w-full rounded transition ${
-                        hasFieldError("fechaProgramada")
-                            ? "border-red-500 bg-red-50"
-                            : "border-gray-300 focus:border-blue-500"
-                    }`}
+                    onChange={(date) => {
+                        setEvaluacion({ ...evaluacion, fechaProgramada: date });
+                        setErrors({ ...errors, fechaProgramada: "" });
+                    }}
+                    bloqueos={bloqueos}
+                    className={hasFieldError("fechaProgramada") ? "border-red-500 bg-red-50" : ""}
                 />
                 {hasFieldError("fechaProgramada") && (
                     <p className="text-red-600 text-sm mt-1">{getFieldError("fechaProgramada")}</p>
@@ -439,16 +499,13 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
             <div className="grid grid-cols-2 gap-4">
                 <div>
                     <label className="block mb-1 font-semibold text-gray-700">Hora Inicio: *</label>
-                    <input
-                        type="time"
-                        name="horaInicio"
+                    <CustomTimePicker
                         value={evaluacion.horaInicio}
-                        onChange={handleChange}
-                        className={`border p-2 w-full rounded transition ${
-                            hasFieldError("horaInicio")
-                                ? "border-red-500 bg-red-50"
-                                : "border-gray-300 focus:border-blue-500"
-                        }`}
+                        onChange={(time) => {
+                            setEvaluacion({ ...evaluacion, horaInicio: time });
+                            setErrors({ ...errors, horaInicio: "" });
+                        }}
+                        className={hasFieldError("horaInicio") ? "border-red-500 bg-red-50" : ""}
                     />
                     {hasFieldError("horaInicio") && (
                         <p className="text-red-600 text-sm mt-1">{getFieldError("horaInicio")}</p>
@@ -456,16 +513,13 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
                 </div>
                 <div>
                     <label className="block mb-1 font-semibold text-gray-700">Hora Fin: *</label>
-                    <input
-                        type="time"
-                        name="horaFin"
+                    <CustomTimePicker
                         value={evaluacion.horaFin}
-                        onChange={handleChange}
-                        className={`border p-2 w-full rounded transition ${
-                            hasFieldError("horaFin")
-                                ? "border-red-500 bg-red-50"
-                                : "border-gray-300 focus:border-blue-500"
-                        }`}
+                        onChange={(time) => {
+                            setEvaluacion({ ...evaluacion, horaFin: time });
+                            setErrors({ ...errors, horaFin: "" });
+                        }}
+                        className={hasFieldError("horaFin") ? "border-red-500 bg-red-50" : ""}
                     />
                     {hasFieldError("horaFin") && (
                         <p className="text-red-600 text-sm mt-1">{getFieldError("horaFin")}</p>
@@ -475,19 +529,28 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
 
             {/* Ponderación */}
             <div>
-                <label className="block mb-1 font-semibold text-gray-700">Ponderación (%): *</label>
+                <label className="block mb-1 font-semibold text-gray-700">
+                    Ponderación (%): * 
+                    <span className="ml-2 text-sm text-blue-600 font-normal">
+                        (Disponible: {ponderacionDisponible}%)
+                    </span>
+                </label>
                 <input
-                    type="number"
+                    type="text"
                     name="ponderacion"
                     value={evaluacion.ponderacion}
-                    onChange={handleChange}
+                    onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                            handleChange(e);
+                        }
+                    }}
                     className={`border p-2 w-full rounded transition ${
                         hasFieldError("ponderacion")
                             ? "border-red-500 bg-red-50"
                             : "border-gray-300 focus:border-blue-500"
                     }`}
-                    min="0"
-                    max="100"
+                    placeholder="0-100"
                 />
                 {hasFieldError("ponderacion") && (
                     <p className="text-red-600 text-sm mt-1">{getFieldError("ponderacion")}</p>
@@ -541,16 +604,21 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
                 <div className={!hideRamoFields ? "" : "col-span-3"}>
                     <label className="block mb-1 font-semibold text-gray-700">Puntaje Total: *</label>
                     <input
-                        type="number"
+                        type="text"
                         name="puntajeTotal"
                         value={evaluacion.puntajeTotal}
-                        onChange={handleChange}
+                        onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                                handleChange(e);
+                            }
+                        }}
                         className={`border p-2 w-full rounded transition ${
                             hasFieldError("puntajeTotal")
                                 ? "border-red-500 bg-red-50"
                                 : "border-gray-300 focus:border-blue-500"
                         }`}
-                        min="1"
+                        placeholder="Ej: 70"
                     />
                     {hasFieldError("puntajeTotal") && (
                         <p className="text-red-600 text-sm mt-1">{getFieldError("puntajeTotal")}</p>
@@ -574,28 +642,6 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
                 />
                 {hasFieldError("contenidos") && (
                     <p className="text-red-600 text-sm mt-1">{getFieldError("contenidos")}</p>
-                )}
-            </div>
-
-            {/* Estado */}
-            <div>
-                <label className="block mb-1 font-semibold text-gray-700">Estado:</label>
-                <select
-                    name="estado"
-                    value={evaluacion.estado}
-                    onChange={handleChange}
-                    className={`border p-2 w-full rounded transition ${
-                        hasFieldError("estado")
-                            ? "border-red-500 bg-red-50"
-                            : "border-gray-300 focus:border-blue-500"
-                    }`}
-                >
-                    <option value="pendiente">Pendiente</option>
-                    <option value="aplicada">Aplicada</option>
-                    <option value="finalizada">Finalizada</option>
-                </select>
-                {hasFieldError("estado") && (
-                    <p className="text-red-600 text-sm mt-1">{getFieldError("estado")}</p>
                 )}
             </div>
 
@@ -627,8 +673,13 @@ export default function EvaluacionForm({ evaluacionEdit, onSaved, ramo, hideRamo
                 className={`w-full py-3 px-4 rounded font-semibold transition ${
                     isLoading
                         ? "bg-gray-400 cursor-not-allowed text-gray-600"
-                        : "bg-blue-500 hover:bg-blue-600 text-white hover:shadow-lg"
+                        : "text-white hover:shadow-lg"
                 }`}
+                style={{
+                    backgroundColor: isLoading ? undefined : '#143A80',
+                }}
+                onMouseEnter={(e) => !isLoading && (e.target.style.backgroundColor = '#0E2C66')}
+                onMouseLeave={(e) => !isLoading && (e.target.style.backgroundColor = '#143A80')}
             >
                 {isLoading
                     ? "Guardando..."

@@ -6,6 +6,7 @@ import { Evaluacion } from "../entities/evaluaciones.entity.js";
 import { EvaluacionIntegradora } from "../entities/evaluacionIntegradora.entity.js";
 import { Alumno } from "../entities/alumno.entity.js";
 import { PautaEvaluada } from "../entities/pautaEvaluada.entity.js";
+import { Notificacion } from "../entities/notificacionuno.entity.js";
 
 const retroalimentacionRepo = AppDataSource.getRepository(Retroalimentacion);
 const userRepo = AppDataSource.getRepository(User);
@@ -14,6 +15,7 @@ const evaluacionRepo = AppDataSource.getRepository(Evaluacion);
 const evaluacionIntegradoraRepo = AppDataSource.getRepository(EvaluacionIntegradora);
 const alumnoRepo = AppDataSource.getRepository(Alumno);
 const pautaEvaluadaRepo = AppDataSource.getRepository(PautaEvaluada);
+const notificacionRepo = AppDataSource.getRepository(Notificacion);
 
 /**
  * Crear mensaje de retroalimentación
@@ -68,6 +70,130 @@ export async function crearMensajeRetroalimentacion(data) {
     });
 
     const guardada = await retroalimentacionRepo.save(retroalimentacion);
+    
+    // Si el emisor es profesor o jefecarrera, crear notificación para el alumno
+    if ((usuario.role === "profesor" || usuario.role === "jefecarrera") && rutReceptor) {
+      try {
+        // Buscar el usuario del alumno
+        const usuarioAlumno = await userRepo.findOne({
+          where: { rut: rutReceptor }
+        });
+        
+        if (usuarioAlumno) {
+          // Obtener información de la evaluación y ramo para el mensaje
+          let evaluacionInfo = null;
+          let ramoInfo = null;
+          
+          if (evaluacionId) {
+            evaluacionInfo = await evaluacionRepo.findOne({
+              where: { id: evaluacionId },
+              relations: ["ramo"]
+            });
+            ramoInfo = evaluacionInfo?.ramo;
+          } else if (evaluacionIntegradoraId) {
+            evaluacionInfo = await evaluacionIntegradoraRepo.findOne({
+              where: { id: evaluacionIntegradoraId }
+            });
+            // Obtener el ramo usando codigoRamo
+            if (codigoRamo) {
+              ramoInfo = await ramoRepo.findOne({
+                where: { codigo: codigoRamo }
+              });
+            }
+          }
+          
+          const ramoNombre = ramoInfo?.nombre || "el ramo";
+          const evaluacionNombre = evaluacionInfo?.titulo || "la evaluación";
+          
+          // Crear la notificación
+          const notificacion = notificacionRepo.create({
+            titulo: "Nuevo comentario del profesor",
+            mensaje: `Has recibido un comentario en ${ramoNombre} - ${evaluacionNombre}: "${mensaje.substring(0, 100)}${mensaje.length > 100 ? '...' : ''}"`,
+            evaluacion: evaluacionId ? { id: evaluacionId } : null,
+            usuario: { id: usuarioAlumno.id },
+            tipo: "comentario",
+            metadata: JSON.stringify({
+              evaluacionId,
+              evaluacionIntegradoraId,
+              codigoRamo,
+              ramoNombre,
+              evaluacionNombre
+            })
+          });
+          
+          await notificacionRepo.save(notificacion);
+          console.log(`Notificación de comentario creada para alumno ${rutReceptor}`);
+        }
+      } catch (notifError) {
+        console.error("Error al crear notificación de comentario:", notifError);
+        // No bloqueamos el flujo si falla la notificación
+      }
+    }
+
+    // Si el emisor es alumno, crear notificación para el profesor
+    if (usuario.role === "alumno" && rutReceptor) {
+      try {
+        const usuarioProfesor = await userRepo.findOne({ where: { rut: rutReceptor } });
+
+        if (usuarioProfesor) {
+          // Obtener información de evaluación, ramo y alumno para el mensaje
+          let evaluacionInfo = null;
+          let ramoInfo = null;
+
+          if (evaluacionId) {
+            evaluacionInfo = await evaluacionRepo.findOne({
+              where: { id: evaluacionId },
+              relations: ["ramo"],
+            });
+            ramoInfo = evaluacionInfo?.ramo;
+          } else if (evaluacionIntegradoraId) {
+            evaluacionInfo = await evaluacionIntegradoraRepo.findOne({ where: { id: evaluacionIntegradoraId } });
+            if (codigoRamo) {
+              ramoInfo = await ramoRepo.findOne({ where: { codigo: codigoRamo } });
+            }
+          }
+
+          const ramoNombre = ramoInfo?.nombre || "el ramo";
+          const evaluacionNombre = evaluacionInfo?.titulo || "la evaluación";
+          const fechaEvaluacion = evaluacionInfo?.fechaProgramada || evaluacionInfo?.fecha || "";
+
+          // Obtener el nombre del alumno (emisor del mensaje)
+          const alumnoNombre = usuario?.nombre || usuario?.nombres || alumno?.user?.nombre || alumno?.user?.nombres || "El alumno";
+          
+          console.log("Creando notificación para profesor:", {
+            usuarioProfesor: usuarioProfesor.rut,
+            alumnoNombre,
+            ramoNombre,
+            evaluacionNombre,
+            fechaEvaluacion
+          });
+
+          const notificacionProfesor = notificacionRepo.create({
+            titulo: "Nuevo comentario de un alumno",
+            mensaje: `${alumnoNombre} comentó en ${evaluacionNombre} (${fechaEvaluacion}) del ramo ${ramoNombre}: "${mensaje.substring(0, 100)}${mensaje.length > 100 ? '...' : ''}"`,
+            evaluacion: evaluacionId ? { id: evaluacionId } : null,
+            usuario: { id: usuarioProfesor.id },
+            tipo: "comentario_alumno",
+            metadata: JSON.stringify({
+              evaluacionId,
+              evaluacionIntegradoraId,
+              codigoRamo,
+              ramoNombre,
+              evaluacionNombre,
+              fechaEvaluacion,
+              alumnoRut,
+              alumnoNombre,
+            }),
+          });
+
+          await notificacionRepo.save(notificacionProfesor);
+          console.log(`Notificación de comentario creada para profesor ${rutReceptor}`);
+        }
+      } catch (notifError) {
+        console.error("Error al crear notificación para profesor:", notifError);
+      }
+    }
+    
     return { success: true, data: guardada };
   } catch (error) {
     console.error("Error al crear mensaje de retroalimentación:", error);

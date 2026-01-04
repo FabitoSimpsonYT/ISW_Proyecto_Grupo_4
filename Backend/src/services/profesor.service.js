@@ -115,15 +115,18 @@ export async function updateProfesor(id, profesorData) {
   if (profesorData.password) {
     profesorData.password = await bcrypt.hash(profesorData.password, 10);
   }
-  
+  // Separar campos de perfil (especialidad) para no intentar actualizar columnas
+  // inexistentes en la tabla `user`. Enviar solo los campos de usuario a userRepository.
+  const { especialidad, ...userFields } = profesorData;
+
   await userRepository.update(id, {
-    ...profesorData,
-    role: "profesor" 
+    ...userFields,
+    role: "profesor"
   });
 
-  if (profesorData.especialidad) {
+  if (especialidad) {
     await profesorRepository.update(id, {
-      especialidad: profesorData.especialidad
+      especialidad: especialidad
     });
   }
 

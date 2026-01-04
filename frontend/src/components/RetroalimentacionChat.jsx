@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRetroalimentacion } from '../hooks/useRetroalimentacion';
 import { useAuth } from '../context/AuthContext';
 import { getPautaByEvaluacion, getPautaByEvaluacionIntegradora } from '../services/pautaEvaluada.service';
+import socketService from '../services/socket.service';
 import './RetroalimentacionChat.css';
 
 export const RetroalimentacionChat = ({ 
@@ -17,6 +18,7 @@ export const RetroalimentacionChat = ({
   evaluacionId = null,
   evaluacionIntegradoraId = null,
   isProfesor = false,
+  onClose = null, // Callback para cuando se cierre el modal
 }) => {
   const { user } = useAuth();
   const [inputValue, setInputValue] = useState('');
@@ -76,6 +78,15 @@ export const RetroalimentacionChat = ({
     }
   }, [alumnoRut, evaluacion?.id, evaluacionIntegradoraId]);
 
+  // Limpiar suscripción cuando se cierre el modal
+  const handleClose = useCallback(() => {
+    console.log('[RetroalimentacionChat] Cerrando modal, limpiando suscripción de retroalimentación');
+    // El useRetroalimentacion se encargará de la limpieza
+    if (onClose) {
+      onClose();
+    }
+  }, [onClose]);
+
   const handleEnviar = async () => {
     console.log('💬 [Chat] handleEnviar llamado con:', inputValue);
     
@@ -129,7 +140,7 @@ export const RetroalimentacionChat = ({
         </div>
         <div className="status-badge">
           <span className={`status-dot ${otroUsuarioConectado ? 'conectado' : 'desconectado'}`}></span>
-          {otroUsuarioConectado ? 'Conectado' : 'Desconectado'}
+          {otroUsuarioConectado ? '🟢 En línea' : '⚫ Desconectado'}
         </div>
       </div>
 

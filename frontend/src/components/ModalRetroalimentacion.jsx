@@ -34,6 +34,7 @@ export const ModalRetroalimentacion = ({
           profesorEmail={profesorEmail}
           evaluacionIntegradoraId={evaluacionIntegradoraId}
           isProfesor={isProfesor}
+          onClose={onClose}
         />
       </div>
     </div>

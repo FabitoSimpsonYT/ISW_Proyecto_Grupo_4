@@ -1,18 +1,22 @@
 import pg from 'pg';
 import config from './config.js';
+import { HOST, DB_PORT, DB_USERNAME, PASSWORD, DATABASE } from './configEnv.js';
 
 const { Pool } = pg;
 
-const pool = new Pool({
-  host: config.db.host,
-  port: config.db.port,
-  database: config.db.database,
-  user: config.db.user,
-  password: config.db.password,
+// Usar configEnv como fallback si config.js tiene valores undefined
+const dbConfig = {
+  host: config.db.host || HOST || 'localhost',
+  port: config.db.port || DB_PORT || 5432,
+  database: config.db.database || DATABASE || 'test3',
+  user: config.db.user || DB_USERNAME || 'postgres',
+  password: config.db.password || PASSWORD || 'casa5235',
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
-});
+};
+
+const pool = new Pool(dbConfig);
 
 pool.on('connect', () => {
   console.log('✅ Conectado a PostgreSQL');

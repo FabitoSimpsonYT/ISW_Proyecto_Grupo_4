@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { getEventosDisponiblesParaSlot } from '../services/evento.service';
 import { getSlotsEvento, inscribirSlot } from '../services/slot.service';
-import Swal from 'sweetalert2';
+import toast from 'react-hot-toast';
 
 export default function InscribirSlotsAlumno() {
   const [eventos, setEventos] = useState([]);
   const [slots, setSlots] = useState([]);
   const [eventoSeleccionado, setEventoSeleccionado] = useState(null);
+  const [slotsVisibles, setSlotsVisibles] = useState(false);
   const [loadingSlots, setLoadingSlots] = useState(false);
 
   useEffect(() => {
@@ -16,7 +17,14 @@ export default function InscribirSlotsAlumno() {
   }, []);
 
   const handleSeleccionarEvento = async (eventoId) => {
+    // Si ya tenemos slots cargados y el evento es el mismo, solo toggle la visibilidad
+    if (eventoSeleccionado === eventoId) {
+      setSlotsVisibles(!slotsVisibles);
+      return;
+    }
+
     setEventoSeleccionado(eventoId);
+    setSlotsVisibles(true);
     setLoadingSlots(true);
     try {
       const res = await getSlotsEvento(eventoId);
@@ -35,12 +43,28 @@ export default function InscribirSlotsAlumno() {
 
   const handleInscribir = async (slotId) => {
     try {
+      console.log('[InscribirSlotAlumno] Intento de inscripción en slot:', slotId);
       await inscribirSlot(slotId);
-      Swal.fire('¡Listo!', 'Te has inscrito correctamente en el slot.', 'success');
+      console.log('[InscribirSlotAlumno] Inscripción exitosa');
+      toast.success('Te has inscrito correctamente en el slot.');
       handleSeleccionarEvento(eventoSeleccionado);
-    } catch {
-      Swal.fire('Error', 'No se pudo inscribir en el slot.', 'error');
+    } catch (error) {
+      console.error('[InscribirSlotAlumno] Error:', error);
+      toast.error(error.message || 'No se pudo inscribir en el slot.');
     }
+  };
+
+  // Agrupar slots por fecha
+  const agruparSlotsPorFecha = (slots) => {
+    const agrupados = {};
+    slots.forEach(slot => {
+      const fecha = slot.fecha ? new Date(slot.fecha).toLocaleDateString('es-ES') : 'Sin fecha';
+      if (!agrupados[fecha]) {
+        agrupados[fecha] = [];
+      }
+      agrupados[fecha].push(slot);
+    });
+    return agrupados;
   };
 
   return (
@@ -66,6 +90,8 @@ export default function InscribirSlotsAlumno() {
                   <div className="text-gray-700 text-xs sm:text-sm mb-1"><b>Tipo:</b> {ev.tipo_nombre || ev.tipoEvento}</div>
                   <div className="text-gray-700 text-xs sm:text-sm mb-1"><b>Descripción:</b> {ev.descripcion || '-'}</div>
                   <div className="text-gray-700 text-xs sm:text-sm mb-1"><b>Fecha:</b> {ev.fecha_inicio ? new Date(ev.fecha_inicio).toLocaleDateString() : '-'} {ev.fecha_inicio ? 'a' : ''} {ev.fecha_fin ? new Date(ev.fecha_fin).toLocaleDateString() : ''}</div>
+                  <div className="text-gray-700 text-xs sm:text-sm mb-1"><b>Horas:</b> {ev.fecha_inicio ? new Date(ev.fecha_inicio).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'} a {ev.fecha_fin ? new Date(ev.fecha_fin).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}</div>
+                  <div className="text-gray-700 text-xs sm:text-sm mb-1"><b>Duración:</b> {ev.duracion_por_alumno || '-'} minutos</div>
                   <div className="text-gray-700 text-xs sm:text-sm mb-1"><b>Modalidad:</b> {ev.modalidad}</div>
                   <div className="flex gap-2 mt-2 flex-wrap">
                     <button
@@ -73,7 +99,7 @@ export default function InscribirSlotsAlumno() {
                       onClick={() => handleSeleccionarEvento(ev.id)}
                       disabled={ev.inscritoEnSlot}
                     >
-                      {ev.inscritoEnSlot ? 'Ya inscrito' : 'Ver slots'}
+                      {ev.inscritoEnSlot ? 'Ya inscrito' : (eventoSeleccionado === ev.id && slotsVisibles ? 'Ocultar slots' : 'Ver slots')}
                     </button>
                   </div>
                 </div>
@@ -81,12 +107,18 @@ export default function InscribirSlotsAlumno() {
             </div>
           </div>
           {loadingSlots && <p className="text-center text-lg text-gray-500">Cargando slots...</p>}
-          {!loadingSlots && eventoSeleccionado && (
+          {!loadingSlots && eventoSeleccionado && slotsVisibles && (
             <div>
               <h3 className="font-bold text-lg sm:text-xl mb-4 sm:mb-6 text-[#0E2C66] text-center">Slots disponibles</h3>
               {slots.length === 0 && <p className="text-center text-gray-500">No hay slots disponibles para esta evaluación.</p>}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
-                {slots.map(slot => {
+              <div className="space-y-6">
+                {Object.entries(agruparSlotsPorFecha(slots)).map(([fecha, slotsDelDia]) => (
+                  <div key={fecha}>
+                    <h4 className="font-bold text-base sm:text-lg mb-3 pb-2 border-b-2 border-[#0E2C66] text-[#0E2C66]">
+                      📅 {fecha}
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
+                      {slotsDelDia.map(slot => {
                   let estado = 'disponible';
                   if (slot.inscrito) estado = 'reserva';
                   else if (slot.cupo_actual >= slot.cupo_maximo) estado = 'ocupado';
@@ -94,7 +126,7 @@ export default function InscribirSlotsAlumno() {
                     <div
                       key={slot.id}
                       className={`rounded-xl border-2 p-3 sm:p-4 flex flex-col gap-2 shadow transition text-center
-                        ${estado === 'reserva' ? 'border-blue-600 bg-blue-100' : ''}
+                        ${estado === 'reserva' ? 'border-green-600 bg-green-50' : ''}
                         ${estado === 'ocupado' ? 'border-gray-300 bg-gray-100 opacity-60' : ''}
                         ${estado === 'disponible' ? 'border-green-400 bg-green-50' : ''}
                       `}
@@ -107,7 +139,7 @@ export default function InscribirSlotsAlumno() {
                       <div className="text-gray-700 text-xs sm:text-sm mb-1"><b>Modalidad:</b> {slot.modalidad}</div>
                       <div className="text-gray-700 text-xs sm:text-sm mb-1"><b>Cupo:</b> {slot.cupo_actual} / {slot.cupo_maximo}</div>
                       {estado === 'reserva' && (
-                        <span className="text-blue-700 font-bold text-xs px-2 py-1 rounded bg-blue-100 inline-block">Tu reserva</span>
+                        <span className="text-green-700 font-bold text-xs px-2 py-1 rounded bg-green-200 inline-block">✓ Este slot está en mi agenda</span>
                       )}
                       {estado === 'ocupado' && (
                         <span className="text-gray-500 font-bold text-xs px-2 py-1 rounded bg-gray-200 inline-block">Ocupado</span>
@@ -124,7 +156,7 @@ export default function InscribirSlotsAlumno() {
                             Inscribirse
                           </button>
                         ) : estado === 'reserva' ? (
-                          <span className="text-blue-700 font-bold">Ya inscrito</span>
+                          <span className="text-green-700 font-bold text-sm">Inscrito en este slot</span>
                         ) : (
                           <button
                             className="bg-gray-400 text-white px-4 py-2 rounded-lg font-bold cursor-not-allowed opacity-70"
@@ -135,12 +167,15 @@ export default function InscribirSlotsAlumno() {
                         )}
                       </div>
                     </div>
-                  );
-                })}
+                      );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
               <div className="flex flex-wrap gap-4 sm:gap-6 mt-6 sm:mt-8 justify-center text-xs sm:text-sm">
                 <div className="flex items-center gap-2"><span className="w-4 h-4 rounded bg-green-400 inline-block"></span>Disponible</div>
-                <div className="flex items-center gap-2"><span className="w-4 h-4 rounded bg-blue-600 inline-block"></span>Tu reserva</div>
+                <div className="flex items-center gap-2"><span className="w-4 h-4 rounded bg-green-600 inline-block"></span>Tu reserva</div>
                 <div className="flex items-center gap-2"><span className="w-4 h-4 rounded bg-gray-400 inline-block"></span>Ocupado</div>
               </div>
             </div>

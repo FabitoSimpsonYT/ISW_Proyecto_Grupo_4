@@ -40,9 +40,8 @@ export const Evaluacion = new EntitySchema({
         },
         estado:{
             type:"enum",
-            enum: ["pendiente", "aplicada", "finalizada"],
+            enum: ["pendiente", "confirmado", "cancelado", "reagendar", "aplicada", "finalizada"],
             default:"pendiente",
-            
         },
         pautaPublicada:{
             type: "boolean",
@@ -64,6 +63,15 @@ export const Evaluacion = new EntitySchema({
         idPauta: {
             type: "int",
             nullable: true,
+        },
+        motivo_cambio: {
+            type: "text",
+            nullable: true,
+        },
+        tipo_evaluacion: {
+            type: "enum",
+            enum: ["escrita", "slots"],
+            default: "escrita",
         },
         created_at: {
             type: "timestamp",

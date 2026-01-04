@@ -2,24 +2,14 @@
 import { useState } from 'react';
 import AgendaAlumno from '../components/AgendaAlumno';
 import AgendaProfesor from '../components/AgendaProfesor';
-import ChatWebSocket from '../components/ChatWebSocket';
 
 export default function GestionEvaluacionesPage() {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const [mostrarChat, setMostrarChat] = useState(false);
-  const [chatEventoId, setChatEventoId] = useState(null);
-  const [chatRamoId, setChatRamoId] = useState(null);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     window.location.href = '/login';
-  };
-
-  const abrirChat = (eventoId, ramoId) => {
-    setChatEventoId(eventoId);
-    setChatRamoId(ramoId);
-    setMostrarChat(true);
   };
 
   return (
@@ -36,13 +26,6 @@ export default function GestionEvaluacionesPage() {
             </div>
             <div className="flex gap-3">
               <button
-                onClick={() => setMostrarChat(!mostrarChat)}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg flex items-center gap-2"
-              >
-                💬 Chat
-                {mostrarChat && <span className="text-xs">(Abierto)</span>}
-              </button>
-              <button
                 onClick={handleLogout}
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg flex items-center gap-2"
               >
@@ -54,36 +37,15 @@ export default function GestionEvaluacionesPage() {
       </header>
 
       <div className="container mx-auto p-4">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6">
           {/* Agenda Principal */}
-          <div className={`${mostrarChat ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
+          <div>
             {user.role === 'profesor' ? (
-              <AgendaProfesor onAbrirChat={abrirChat} />
+              <AgendaProfesor />
             ) : (
-              <AgendaAlumno onAbrirChat={abrirChat} />
+              <AgendaAlumno />
             )}
           </div>
-
-          {/* Chat */}
-          {mostrarChat && (
-            <div className="lg:col-span-1">
-              <div className="sticky top-4">
-                {chatEventoId && chatRamoId ? (
-                  <ChatWebSocket eventoId={chatEventoId} ramoId={chatRamoId} />
-                ) : (
-                  <div className="bg-white rounded-lg shadow p-6 text-center">
-                    <p className="text-gray-500 mb-4">Selecciona un evento para abrir el chat</p>
-                    <button
-                      onClick={() => setMostrarChat(false)}
-                      className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-                    >
-                      Cerrar
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
@@ -97,7 +59,8 @@ export default function GestionEvaluacionesPage() {
           <li>✅ Validación de conflictos</li>
           <li>✅ Sistema de cupos</li>
           <li>✅ Días feriados</li>
-          <li>✅ Chat WebSocket</li>
+          <li>✅ Retroalimentación en tiempo real</li>
+          <li>✅ Comentarios en notas</li>
           <li>✅ Notificaciones email</li>
           <li>✅ Calendario interactivo</li>
           <li>✅ Autenticación JWT</li>

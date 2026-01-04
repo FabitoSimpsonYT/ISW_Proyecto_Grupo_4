@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { showSuccessAlert } from "@/utils/alertUtils";
 // Validación de correo para profesores/administradores y alumnos
 function validateEmail(email, tipo) {
   // Profesores y administradores: deben terminar en @ubiobio.cl
-  if (tipo === "profesor" || tipo === "admin") {
+  if (tipo === "profesor" || tipo === "admin" || tipo === "jefecarrera") {
     return /^[^\s@]+@ubiobio\.cl$/.test(email);
   }
   // Alumnos: nombre.apellidoAAMM@alumnos.ubiobio.cl
@@ -12,12 +12,22 @@ function validateEmail(email, tipo) {
   }
   return false;
 }
-import { createAdmin, createProfesor, createAlumno } from "../services/users.service.js";
+import { createAdmin, createProfesor, createAlumno, updateAdmin, updateProfesor, updateAlumno } from "../services/users.service.js";
 
-export default function RegistroUsuariosForm({ onSaved }) {
+export default function RegistroUsuariosForm({ onSaved, usuarioEdit }) {
   const [tipo, setTipo] = useState("profesor");
+  // Normaliza valores de rol que pueden venir como etiquetas en español
+  const normalizeRole = (role) => {
+    if (!role) return 'profesor';
+    const r = String(role).toLowerCase();
+    if (r.includes('admin')) return 'admin';
+    if (r.includes('profesor')) return 'profesor';
+    if (r.includes('alum')) return 'alumno';
+    return r;
+  };
     const [error, setError] = useState('');
     const [telefonoError, setTelefonoError] = useState('');
+    const [rutError, setRutError] = useState('');
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     nombres: '',
@@ -35,6 +45,28 @@ export default function RegistroUsuariosForm({ onSaved }) {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
+
+  // Cargar datos del usuario a editar
+  useEffect(() => {
+    if (usuarioEdit) {
+      // Los datos pueden venir directamente en usuarioEdit o dentro de usuarioEdit.user
+      const userData = usuarioEdit.user || usuarioEdit;
+      // Normalizar rol para que coincida con las claves esperadas por la validación
+      // Priorizar `usuarioEdit.tipo` si viene presente (ej. 'jefecarrera')
+      setTipo(normalizeRole(usuarioEdit.tipo || userData.role || 'profesor'));
+      setFormData({
+        nombres: userData.nombres || '',
+        apellidoPaterno: userData.apellidoPaterno || '',
+        apellidoMaterno: userData.apellidoMaterno || '',
+        rut: userData.rut || '',
+        email: userData.email || '',
+        password: '', // No mostrar contraseña
+        telefono: userData.telefono || '',
+        especialidad: usuarioEdit.especialidad || '',
+        generacion: usuarioEdit.generacion || ''
+      });
+    }
+  }, [usuarioEdit]);
 
   const validateRut = (rut) => {
     // Validar formato básico: debe tener un guión
@@ -188,19 +220,21 @@ export default function RegistroUsuariosForm({ onSaved }) {
 
     // Formatear RUT antes de validar
     const rutFormateado = formatRut(formData.rut);
-    // Formatear nombres y correo
+    // Formatear nombres, correo y teléfono
     // Capitaliza solo la primera letra de cada palabra si está después de un espacio
     const capitalizeWords = (str) =>
       str.replace(/(^|\s)([a-záéíóúüñ])/gi, (match, space, letter) =>
         space + letter.toUpperCase()
       ).replace(/(?<=\s)([A-ZÁÉÍÓÚÜÑ])([A-ZÁÉÍÓÚÜÑ]+)/g, (m, first, rest) => first + rest.toLowerCase());
+    const telefonoFormateado = formatTelefono(formData.telefono);
     const formDataConRutFormateado = {
       ...formData,
       rut: rutFormateado,
       nombres: capitalizeWords(formData.nombres.trim()),
       apellidoPaterno: capitalizeWords(formData.apellidoPaterno.trim()),
       apellidoMaterno: capitalizeWords(formData.apellidoMaterno.trim()),
-      email: formData.email.trim().toLowerCase()
+      email: formData.email.trim().toLowerCase(),
+      telefono: telefonoFormateado
     };
 
     // Validar con el RUT formateado
@@ -245,11 +279,11 @@ export default function RegistroUsuariosForm({ onSaved }) {
       return;
     }
         setTelefonoError('');
-    if (!formDataConRutFormateado.password.trim()) {
+    if (!formDataConRutFormateado.password.trim() && !usuarioEdit) {
       setError('La contraseña es obligatoria');
       return;
     }
-    if (formDataConRutFormateado.password.length < 6) {
+    if (formDataConRutFormateado.password && formDataConRutFormateado.password.length < 6) {
       setError('La contraseña debe tener al menos 6 caracteres');
       return;
     }
@@ -272,37 +306,70 @@ export default function RegistroUsuariosForm({ onSaved }) {
 
     setLoading(true);
     try {
+      // Formatear teléfono
+      const telefonoFormateado = formatTelefono(formDataConRutFormateado.telefono);
+      
       // Preparar datos específicos según el tipo de usuario
       let dataToSend = {
         nombres: formDataConRutFormateado.nombres,
         apellidoPaterno: formDataConRutFormateado.apellidoPaterno,
         apellidoMaterno: formDataConRutFormateado.apellidoMaterno,
-        rut: formDataConRutFormateado.rut,
+        // No enviar RUT en actualizaciones (backend no lo permite en el schema)
+        ...(usuarioEdit ? {} : { rut: formDataConRutFormateado.rut }),
         email: formDataConRutFormateado.email,
-        password: formDataConRutFormateado.password,
-        telefono: formDataConRutFormateado.telefono
+        telefono: telefonoFormateado
       };
-
-      if (tipo === "admin") {
-        await createAdmin(dataToSend);
-      } else if (tipo === "profesor") {
-        await createProfesor({ ...dataToSend, especialidad: formDataConRutFormateado.especialidad });
-      } else if (tipo === "alumno") {
-        await createAlumno({ ...dataToSend, generacion: formDataConRutFormateado.generacion });
+      
+      // Solo agregar contraseña si se proporciona
+      if (formDataConRutFormateado.password.trim()) {
+        dataToSend.password = formDataConRutFormateado.password;
       }
 
-      showSuccessAlert('Éxito', `${tipo.charAt(0).toUpperCase() + tipo.slice(1)} creado correctamente`);
-      setFormData({
-        nombres: '',
-        apellidoPaterno: '',
-        apellidoMaterno: '',
-        rut: '',
-        email: '',
-        password: '',
-        telefono: '',
-        especialidad: '',
-        generacion: ''
-      });
+      if (usuarioEdit) {
+        // Modo edición - obtener el ID correcto
+        const userId = usuarioEdit.user?.id || usuarioEdit.id;
+        
+          if (tipo === "admin") {
+            await updateAdmin(userId, dataToSend);
+          } else if (tipo === "profesor" || tipo === "jefecarrera") {
+            // Jefe de carrera se modela como profesor en el backend
+            // Preferir el valor enviado en el formulario, si está vacío usar el valor existente en usuarioEdit
+            const especialVal = (formDataConRutFormateado.especialidad && formDataConRutFormateado.especialidad.trim()) || usuarioEdit?.especialidad;
+            if (especialVal) dataToSend.especialidad = especialVal;
+            await updateProfesor(userId, dataToSend);
+          } else if (tipo === "alumno") {
+            const genVal = (formDataConRutFormateado.generacion && formDataConRutFormateado.generacion.trim()) || usuarioEdit?.generacion;
+            if (genVal) dataToSend.generacion = genVal;
+            await updateAlumno(userId, dataToSend);
+          }
+        showSuccessAlert('Éxito', `${tipo.charAt(0).toUpperCase() + tipo.slice(1)} actualizado correctamente`);
+      } else {
+        // Modo creación
+        dataToSend.password = formDataConRutFormateado.password;
+        if (tipo === "admin") {
+          await createAdmin(dataToSend);
+        } else if (tipo === "profesor") {
+          await createProfesor({ ...dataToSend, especialidad: formDataConRutFormateado.especialidad });
+        } else if (tipo === "alumno") {
+          await createAlumno({ ...dataToSend, generacion: formDataConRutFormateado.generacion });
+        }
+
+        showSuccessAlert('Éxito', `${tipo.charAt(0).toUpperCase() + tipo.slice(1)} creado correctamente`);
+      }
+      
+      if (!usuarioEdit) {
+        setFormData({
+          nombres: '',
+          apellidoPaterno: '',
+          apellidoMaterno: '',
+          rut: '',
+          email: '',
+          password: '',
+          telefono: '',
+          especialidad: '',
+          generacion: ''
+        });
+      }
       onSaved();
     } catch (error) {
       setError(error.message || `Error al crear ${tipo}`);
@@ -313,20 +380,33 @@ export default function RegistroUsuariosForm({ onSaved }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="p-6 border rounded-lg bg-gray-50 shadow-md space-y-4">
-      <h2 className="text-2xl font-bold text-gray-800">Crear Nuevo Usuario</h2>
+    <form onSubmit={handleSubmit} className="p-6 space-y-4">
+      <h2 className="text-2xl font-bold text-gray-800">
+        {usuarioEdit ? `Editar ${tipo.charAt(0).toUpperCase() + tipo.slice(1)}` : 'Crear Nuevo Usuario'}
+      </h2>
 
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de Usuario:</label>
-        <select
-          value={tipo}
-          onChange={(e) => setTipo(e.target.value)}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="admin">Administrador</option>
-          <option value="profesor">Profesor</option>
-          <option value="alumno">Alumno</option>
-        </select>
+        <div className="relative">
+          <select
+            value={tipo}
+            onChange={(e) => setTipo(e.target.value)}
+            disabled={!!usuarioEdit}
+            className={`appearance-none w-full p-3 pr-10 rounded-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
+              usuarioEdit ? 'cursor-not-allowed opacity-70' : 'hover:border-gray-400'
+            }`}
+          >
+            <option value="admin">Administrador</option>
+            <option value="profesor">Profesor</option>
+            <option value="alumno">Alumno</option>
+          </select>
+
+          <div className={`pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 ${usuarioEdit ? 'opacity-60' : ''}`}>
+            <svg className="w-5 h-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -375,12 +455,31 @@ export default function RegistroUsuariosForm({ onSaved }) {
             type="text"
             name="rut"
             value={formData.rut}
-            onChange={handleChange}
+            onChange={(e) => {
+              // Limpiar mensaje general y de RUT cuando el usuario edita
+              setError('');
+              setRutError('');
+              handleChange(e);
+            }}
+            onBlur={(e) => {
+              const formatted = formatRut(e.target.value || '');
+              setFormData(prev => ({ ...prev, rut: formatted }));
+              if (formatted && !validateRut(formatted)) {
+                setRutError('El RUT no es válido. Verifica el dígito verificador');
+              } else {
+                setRutError('');
+              }
+            }}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
             placeholder="12345678-9"
             required
           />
           <p className="text-xs text-gray-500 mt-1">Acepta: 12345678-9, 12.345.678-9 o 123456789</p>
+          {rutError && (
+            <div className="mt-2 text-sm text-red-700 bg-red-100 border border-red-300 px-3 py-2 rounded-lg">
+              {rutError}
+            </div>
+          )}
         </div>
       </div>
 
@@ -398,35 +497,40 @@ export default function RegistroUsuariosForm({ onSaved }) {
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Contraseña:</label>
-          <input
-            type="password"
-            name="password"
-            value={formData.password}
-            onChange={handleChange}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="••••••"
-            required
-          />
-          <p className="text-xs text-gray-500 mt-1">Mínimo 6 caracteres</p>
-        </div>
-        <div>
+        {!usuarioEdit && (
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Contraseña:</label>
+            <input
+              type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="••••••"
+              required
+            />
+            <p className="text-xs text-gray-500 mt-1">Mínimo 6 caracteres</p>
+          </div>
+        )}
+        <div className={!usuarioEdit ? '' : 'col-span-2'}>
           <label className="block text-sm font-semibold text-gray-700 mb-2">Teléfono:</label>
           <input
             type="tel"
             name="telefono"
             value={formData.telefono}
             onChange={(e) => {
-              const valor = e.target.value;
-              const formateado = formatTelefono(valor);
-              setFormData({ ...formData, telefono: formateado });
+              setFormData({ ...formData, telefono: e.target.value });
+            }}
+            onBlur={(e) => {
+              // Al perder foco, formatear el teléfono. Por defecto se asume celular (+569...) a menos que se especifique explícitamente.
+              const formatted = formatTelefono(e.target.value || '');
+              setFormData({ ...formData, telefono: formatted });
             }}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
             placeholder="+56912345678"
             required
           />
-          <p className="text-xs text-gray-500 mt-1">Formato: +56912345678</p>
+          <p className="text-xs text-gray-500 mt-1">Si no escribes un prefijo explícito, se formatea como celular (+569...)</p>
         </div>
       </div>
 
@@ -460,17 +564,6 @@ export default function RegistroUsuariosForm({ onSaved }) {
         </div>
       )}
 
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">Correo Jefe de Carrera:</label>
-        <input
-          type="email"
-          name="correoJefeCarrera"
-          value={formData.correoJefeCarrera || ''}
-          onChange={handleChange}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="jefe.carrera@ubiobio.cl"
-        />
-      </div>
 
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-4">
@@ -483,7 +576,7 @@ export default function RegistroUsuariosForm({ onSaved }) {
         disabled={loading}
         className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-300"
       >
-        {loading ? 'Creando...' : `Crear ${tipo.charAt(0).toUpperCase() + tipo.slice(1)}`}
+        {loading ? (usuarioEdit ? 'Actualizando...' : 'Creando...') : (usuarioEdit ? `Actualizar ${tipo.charAt(0).toUpperCase() + tipo.slice(1)}` : `Crear ${tipo.charAt(0).toUpperCase() + tipo.slice(1)}`)}
       </button>
     </form>
   );

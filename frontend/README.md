@@ -20,13 +20,15 @@ npm install
 
 2. Configurar variables de entorno:
 ```bash
-.env
+cp .env.example .env
 ```
 
-3. Editar el archivo `.env` con la URL 
+3. Editar el archivo `.env` con la configuración de tu entorno:
 ```
-VITE_BASE_URL=http://localhost:5173/api
+VITE_BASE_URL=http://localhost:3000/api
 ```
+
+**Nota:** El archivo `.env` no se sube al repositorio por seguridad. Usa `.env.example` como plantilla.
 
 ## Ejecución
 

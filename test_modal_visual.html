@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modal Visual Test - Eventos</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            margin-bottom: 30px;
+            color: #333;
+            font-size: 28px;
+        }
+
+        .modal-container {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 30px;
+            background: #fafafa;
+            margin-bottom: 40px;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .events-wrapper {
+            max-height: 600px;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        .event-card {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            animation: slideIn 0.3s ease-in-out;
+        }
+
+        .event-card:nth-child(1) {
+            animation-delay: 0s;
+        }
+
+        .event-card:nth-child(2) {
+            animation-delay: 0.1s;
+        }
+
+        .event-card:nth-child(3) {
+            animation-delay: 0.2s;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .event-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .event-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #333;
+            margin-right: 8px;
+        }
+
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .status-pendiente {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-confirmado {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-cancelado {
+            background: #fee2e2;
+            color: #7f1d1d;
+        }
+
+        .status-reagendado {
+            background: #dbeafe;
+            color: #1e3a8a;
+        }
+
+        .event-meta-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+            font-size: 13px;
+        }
+
+        .meta-item p:first-child {
+            margin: 0;
+            color: #666;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .meta-item p:last-child {
+            margin: 4px 0 0 0;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .motivo-box {
+            padding: 12px;
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            border-radius: 4px;
+            margin-top: 12px;
+            margin-bottom: 12px;
+        }
+
+        .motivo-box p:first-child {
+            margin: 0;
+            color: #92400e;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .motivo-box p:last-child {
+            margin: 4px 0 0 0;
+            color: #b45309;
+            font-size: 13px;
+        }
+
+        .buttons-container {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        button {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-editar {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-editar:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-eliminar {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-eliminar:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+        }
+
+        .header-section {
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .header-label {
+            margin: 0 0 8px 0;
+            color: #667eea;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .header-date {
+            margin: 0;
+            color: #333;
+            font-size: 16px;
+            font-weight: 700;
+            text-transform: capitalize;
+        }
+
+        .close-button {
+            width: 100%;
+            margin-top: 20px;
+            padding: 10px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .close-button:hover {
+            background: #5568d3;
+        }
+
+        .description-text {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📋 Vista Previa del Modal de Eventos</h1>
+        
+        <p class="description-text">
+            Este es un mockup de cómo se verá el modal cuando haya múltiples eventos en un día.
+            Las tarjetas se apilan verticalmente y se pueden desplazar si hay muchos eventos.
+        </p>
+
+        <div class="modal-container">
+            <!-- Header del modal -->
+            <div class="header-section">
+                <p class="header-label">📋 Evaluaciones del Día</p>
+                <p class="header-date">martes, 15 de octubre de 2024</p>
+            </div>
+
+            <!-- Contenedor de eventos -->
+            <div class="events-wrapper">
+                <!-- Evento 1: Pendiente -->
+                <div class="event-card">
+                    <div class="event-header">
+                        <div style="flex: 1;">
+                            <span class="event-title">📋 Control 1</span>
+                        </div>
+                        <span class="status-badge status-pendiente">Pendiente</span>
+                    </div>
+
+                    <div class="event-meta-grid">
+                        <div class="meta-item">
+                            <p>🕒 Horario</p>
+                            <p>09:00 - 10:30</p>
+                        </div>
+                        <div class="meta-item">
+                            <p>📚 Ramo</p>
+                            <p>Matemática I</p>
+                        </div>
+                        <div class="meta-item">
+                            <p>🎯 Tipo</p>
+                            <p>Evaluación</p>
+                        </div>
+                        <div class="meta-item">
+                            <p>🏛️ Sala</p>
+                            <p>A-101</p>
+                        </div>
+                    </div>
+
+                    <div class="buttons-container">
+                        <button class="btn-editar">✏️ Editar</button>
+                        <button class="btn-eliminar">🗑️ Eliminar</button>
+                    </div>
+                </div>
+
+                <!-- Evento 2: Confirmado -->
+                <div class="event-card">
+                    <div class="event-header">
+                        <div style="flex: 1;">
+                            <span class="event-title">✅ Taller Práctico</span>
+                        </div>
+                        <span class="status-badge status-confirmado">Confirmado</span>
+                    </div>
+
+                    <div class="event-meta-grid">
+                        <div class="meta-item">
+                            <p>🕒 Horario</p>
+                            <p>11:00 - 12:30</p>
+                        </div>
+                        <div class="meta-item">
+                            <p>📚 Ramo</p>
+                            <p>Programación</p>
+                        </div>
+                        <div class="meta-item">
+                            <p>🎯 Tipo</p>
+                            <p>Taller</p>
+                        </div>
+                        <div class="meta-item">
+                            <p>🏛️ Sala</p>
+                            <p>B-203</p>
+                        </div>
+                    </div>
+
+                    <div class="buttons-container">
+                        <button class="btn-editar">✏️ Editar</button>
+                        <button class="btn-eliminar">🗑️ Eliminar</button>
+                    </div>
+                </div>
+
+                <!-- Evento 3: Cancelado con motivo -->
+                <div class="event-card">
+                    <div class="event-header">
+                        <div style="flex: 1;">
+                            <span class="event-title">❌ Prueba Integral</span>
+                        </div>
+                        <span class="status-badge status-cancelado">Cancelado</span>
+                    </div>
+
+                    <div class="event-meta-grid">
+                        <div class="meta-item">
+                            <p>🕒 Horario</p>
+                            <p>14:00 - 15:30</p>
+                        </div>
+                        <div class="meta-item">
+                            <p>📚 Ramo</p>
+                            <p>Base de Datos</p>
+                        </div>
+                        <div class="meta-item">
+                            <p>🎯 Tipo</p>
+                            <p>Prueba</p>
+                        </div>
+                        <div class="meta-item">
+                            <p>🏛️ Sala</p>
+                            <p>C-110</p>
+                        </div>
+                    </div>
+
+                    <div class="motivo-box">
+                        <p>📝 Motivo de cancelado:</p>
+                        <p>Sala no disponible por evento institucional</p>
+                    </div>
+
+                    <div class="buttons-container">
+                        <button class="btn-editar">✏️ Editar</button>
+                        <button class="btn-eliminar">🗑️ Eliminar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button class="close-button">Cerrar</button>
+    </div>
+
+    <div style="margin-top: 40px; padding-top: 40px; border-top: 1px solid #ddd;">
+        <h2 style="margin-bottom: 15px; color: #333;">✅ Características Implementadas:</h2>
+        <ul style="color: #666; line-height: 2; font-size: 14px;">
+            <li>✓ Tarjetas apiladas verticalmente (una encima de otra)</li>
+            <li>✓ Estado del evento con badge de color diferente (Pendiente/Confirmado/Cancelado/Reagendado)</li>
+            <li>✓ Información en grid 2x2: Horario, Ramo, Tipo, Sala</li>
+            <li>✓ Emoji de estado en el título del evento</li>
+            <li>✓ Motivo de cancelación visible cuando es cancelado</li>
+            <li>✓ Botones Editar y Eliminar por cada evento (profesor solo)</li>
+            <li>✓ Animación suave (slideIn) con delay para cada tarjeta</li>
+            <li>✓ Contenedor scrolleable para muchos eventos (max-height: 500px)</li>
+            <li>✓ Sin botones para vista de alumno</li>
+            <li>✓ Hover effects en botones con sombra</li>
+        </ul>
+    </div>
+
+    <div style="margin-top: 30px; padding: 20px; background: #f0f9ff; border-left: 4px solid #667eea; border-radius: 4px;">
+        <h3 style="margin: 0 0 10px 0; color: #1e3a8a;">💡 Nota Técnica:</h3>
+        <p style="margin: 0; color: #1e40af; font-size: 13px;">
+            El modal usa innerHTML con CSS inline para máxima compatibilidad con SweetAlert2.
+            Los event listeners se adjuntan en el hook didOpen para capturar clics de editar/eliminar.
+        </p>
+    </div>
+</body>
+</html>

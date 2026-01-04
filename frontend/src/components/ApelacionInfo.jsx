@@ -1,13 +1,44 @@
 import { useState } from "react";
+import cookies from "js-cookie";
 
 export default function ApelacionInfo({ apelacion }) {
   const [modalOpen, setModalOpen] = useState(false);
 
-  const API_URL = import.meta.env.VITE_API_URL;
+  const API_URL = import.meta.env.VITE_BASE_URL;
 
   const fileUrl = apelacion.archivo
-    ? `${API_URL}/api/apelaciones/${apelacion.id}/archivo`
+    ? `${API_URL}/apelaciones/${apelacion.id}/archivo`
     : null;
+
+  const handleDescargar = async () => {
+    if (!fileUrl) return;
+
+    try {
+      const token = cookies.get("jwt-auth");
+      const response = await fetch(fileUrl, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Error al descargar archivo");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = apelacion.archivo || "archivo";
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Error descargando archivo:", error);
+      alert("Error al descargar el archivo");
+    }
+  };
 
 
   const esImagen = apelacion.archivo?.match(/\.(jpg|jpeg|png|gif)$/i);
@@ -16,47 +47,49 @@ export default function ApelacionInfo({ apelacion }) {
   return (
     <div>
 
-      {/* ARCHIVO ADJUNTO */}
+      {/* ARCHIVO ADJUNTO (diseño compacto: miniatura a la izquierda, acciones a la derecha) */}
       {fileUrl && (
-        <div className="mt-6">
-          <p className="font-semibold flex items-center gap-2">
-            <span className="text-xl">📎</span> Archivo adjunto:
-          </p>
-
-          {/* PREVIEW BOX */}
+        <div className="mt-3 flex items-start gap-4">
           <div
             onClick={() => setModalOpen(true)}
-            className="mt-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-100 transition shadow-sm w-fit"
+            className="flex-shrink-0 w-36 h-36 p-2 border rounded-lg cursor-pointer hover:bg-gray-50 transition shadow-sm flex items-center justify-center bg-white"
+            title="Abrir vista previa"
           >
-            {esImagen && (
-              <img
-                src={fileUrl}
-                alt="Vista previa"
-                className="w-40 h-40 object-cover rounded"
-              />
-            )}
-
-            {esPDF && (
-              <div className="bg-red-100 text-red-700 px-4 py-2 rounded flex items-center gap-2">
-                📄 Ver PDF
+            {esImagen ? (
+              <img src={fileUrl} alt="Vista previa" className="w-full h-full object-cover rounded" />
+            ) : esPDF ? (
+              <div className="flex items-center justify-center text-red-700">
+                <span className="text-2xl">📄</span>
               </div>
-            )}
-
-            {!esImagen && !esPDF && (
-              <div className="bg-gray-200 px-4 py-2 rounded text-gray-700">
-                📄 Archivo disponible
+            ) : (
+              <div className="flex items-center justify-center text-gray-600">
+                <span className="text-2xl">📎</span>
               </div>
             )}
           </div>
 
-          {/* DESCARGAR */}
-          <a
-            href={fileUrl}
-            download
-            className="inline-block mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Descargar archivo
-          </a>
+          <div className="flex-1">
+            <p className="font-semibold flex items-center gap-2">
+              <span className="text-xl">Archivo adjunto</span>
+            </p>
+            <p className="text-sm text-gray-600 mt-1">{apelacion.archivo}</p>
+
+            <div className="mt-4 flex items-center gap-3">
+              <button
+                onClick={handleDescargar}
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+              >
+                Descargar
+              </button>
+
+              <button
+                onClick={() => setModalOpen(true)}
+                className="bg-gray-100 text-gray-800 px-3 py-2 rounded border hover:bg-gray-200"
+              >
+                Ver
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

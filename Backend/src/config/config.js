@@ -8,11 +8,11 @@ export default {
   jwtExpire: process.env.JWT_EXPIRE || '7d',
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
   db: {
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    database: process.env.DATABASE,
-    user: process.env.DB_USERNAME,
-    password: process.env.DB_PASSWORD,
+    host: process.env.DB_HOST || 'localhost',
+    port: process.env.DB_PORT || 5432,
+    database: process.env.DB_NAME || process.env.DATABASE || 'test3',
+    user: process.env.DB_USERNAME || process.env.DB_USER || 'postgres',
+    password: process.env.DB_PASSWORD || 'casa5235',
   },
   email: {
     host: process.env.EMAIL_HOST,

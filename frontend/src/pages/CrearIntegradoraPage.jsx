@@ -2,7 +2,10 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { createEvaluacionIntegradora } from "../services/evaluacionIntegradora.service.js";
+import { getEvaluacionesByCodigoRamo } from "../services/evaluacion.service.js";
 import { getMisRamos } from "../services/ramos.service.js";
+import CustomDatePicker from "../components/CustomDatePicker.jsx";
+import CustomTimePicker from "../components/CustomTimePicker.jsx";
 import Swal from "sweetalert2";
 
 export default function CrearIntegradoraPage() {
@@ -12,6 +15,7 @@ export default function CrearIntegradoraPage() {
   
   const [ramo, setRamo] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [evaluacionMasReciente, setEvaluacionMasReciente] = useState(null);
   const [formData, setFormData] = useState({
     fechaProgramada: "",
     horaInicio: "",
@@ -21,6 +25,31 @@ export default function CrearIntegradoraPage() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+
+  const normalizeToDateOnly = (value) => {
+    if (!value) return null;
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+    }
+
+    const str = String(value);
+    const clean = str.includes("T") ? str.split("T")[0] : str;
+    const parts = clean.split("-");
+    if (parts.length === 3) {
+      const [yyyy, mm, dd] = parts.map(Number);
+      if (Number.isFinite(yyyy) && Number.isFinite(mm) && Number.isFinite(dd)) {
+        const d = new Date(yyyy, mm - 1, dd);
+        return Number.isNaN(d.getTime()) ? null : d;
+      }
+    }
+    return null;
+  };
+
+  const getFechaEvaluacion = (ev) => {
+    if (!ev) return null;
+    const raw = ev.fechaProgramada || ev.fecha;
+    return normalizeToDateOnly(raw);
+  };
 
   // Verificar permisos y cargar ramo
   useEffect(() => {
@@ -44,6 +73,25 @@ export default function CrearIntegradoraPage() {
           Swal.fire("Error", "Ramo no encontrado", "error");
           navigate("/evaluaciones");
           return;
+        }
+
+        // Cargar evaluaciones para encontrar la más reciente (cualquier tipo) del mismo ramo
+        try {
+          const evaluaciones = await getEvaluacionesByCodigoRamo(codigoRamo);
+          if (Array.isArray(evaluaciones) && evaluaciones.length > 0) {
+            const conFecha = evaluaciones
+              .map(ev => ({ ...ev, _fechaObj: getFechaEvaluacion(ev) }))
+              .filter(ev => ev._fechaObj);
+
+            if (conFecha.length > 0) {
+              const masReciente = conFecha.reduce((max, ev) =>
+                ev._fechaObj > max._fechaObj ? ev : max
+              );
+              setEvaluacionMasReciente(masReciente);
+            }
+          }
+        } catch (err) {
+          console.error("Error al cargar evaluaciones:", err);
         }
 
         setRamo(found);
@@ -76,6 +124,22 @@ export default function CrearIntegradoraPage() {
       return;
     }
 
+    // Validar que la fecha sea al menos un día después de la evaluación más reciente del ramo
+    if (evaluacionMasReciente) {
+      const fechaIntegradora = normalizeToDateOnly(formData.fechaProgramada);
+      const fechaMasReciente = getFechaEvaluacion(evaluacionMasReciente);
+
+      if (fechaMasReciente && fechaIntegradora) {
+        const fechaLimite = new Date(fechaMasReciente);
+        fechaLimite.setDate(fechaLimite.getDate() + 1);
+
+        if (fechaIntegradora < fechaLimite) {
+          setError(`La fecha debe ser al menos un día después de la evaluación más reciente (${fechaLimite.toLocaleDateString('es-ES')})`);
+          return;
+        }
+      }
+    }
+
     if (!formData.puntajeTotal || formData.puntajeTotal <= 0) {
       setError("El puntaje total es requerido y debe ser mayor a 0");
       return;
@@ -93,22 +157,14 @@ export default function CrearIntegradoraPage() {
 
       const resultado = await createEvaluacionIntegradora(codigoRamo, dataToSend);
 
-      if (resultado?.success) {
-        Swal.fire(
-          "Éxito",
-          "Evaluación integradora creada correctamente",
-          "success"
-        ).then(() => {
-          navigate("/evaluaciones");
-        });
-      } else {
-        Swal.fire(
-          "Error",
-          resultado?.message || "No se pudo crear la evaluación",
-          "error"
-        );
-        setError(resultado?.message || "No se pudo crear la evaluación");
-      }
+      // Si la llamada no lanzó error, asumimos éxito (algunos backends no envían success:true)
+      Swal.fire(
+        "Éxito",
+        resultado?.message || "Evaluación integradora creada correctamente",
+        "success"
+      ).then(() => {
+        navigate("/evaluaciones");
+      });
     } catch (err) {
       console.error("Error:", err);
       const errorMsg = err?.response?.data?.message || err?.message || "Error al crear";
@@ -150,12 +206,21 @@ export default function CrearIntegradoraPage() {
         </div>
 
         {/* Formulario */}
-        <div className="rounded-2xl bg-white shadow-lg p-8">
-          <h2 className="text-2xl font-bold text-[#143A80] mb-6">
-            Crear Evaluación Integradora
-          </h2>
+        <div className="rounded-2xl border border-blue-200 bg-transparent p-4">
+          <div className="flex items-center justify-between gap-4 mb-4 bg-[#113C63] text-white px-4 py-3 rounded-xl">
+            <h2 className="text-xl font-bold">
+              Crear Evaluación Integradora
+            </h2>
+            <button
+              type="button"
+              onClick={() => navigate("/evaluaciones")}
+              className="text-white hover:text-red-200 font-bold text-xl"
+            >
+              ✕
+            </button>
+          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="p-6 border rounded bg-transparent space-y-5">
             {error && (
               <div className="rounded-2xl border border-red-400 bg-red-100 p-4 text-red-700">
                 {error}
@@ -164,59 +229,61 @@ export default function CrearIntegradoraPage() {
 
             {/* Fecha */}
             <div>
-              <label className="block text-sm font-medium text-[#143A80] mb-2">
-                Fecha Programada *
-              </label>
-              <input
-                type="date"
-                name="fechaProgramada"
+              <label className="block mb-1 font-semibold text-gray-700">Fecha Programada: *</label>
+              {evaluacionMasReciente && getFechaEvaluacion(evaluacionMasReciente) && (() => {
+                const base = getFechaEvaluacion(evaluacionMasReciente);
+                const limite = new Date(base);
+                limite.setDate(limite.getDate() + 1);
+                return (
+                  <p className="text-sm text-blue-600 mb-2">
+                    Debe ser al menos un día después de {limite.toLocaleDateString('es-ES')}
+                  </p>
+                );
+              })()}
+              <CustomDatePicker
                 value={formData.fechaProgramada}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                required
+                onChange={(date) => {
+                  setFormData({ ...formData, fechaProgramada: date });
+                }}
               />
             </div>
 
             {/* Horario */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-[#143A80] mb-2">
-                  Hora Inicio
-                </label>
-                <input
-                  type="time"
-                  name="horaInicio"
+                <label className="block mb-1 font-semibold text-gray-700">Hora Inicio:</label>
+                <CustomTimePicker
                   value={formData.horaInicio}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  onChange={(time) => {
+                    setFormData({ ...formData, horaInicio: time });
+                  }}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#143A80] mb-2">
-                  Hora Fin
-                </label>
-                <input
-                  type="time"
-                  name="horaFin"
+                <label className="block mb-1 font-semibold text-gray-700">Hora Fin:</label>
+                <CustomTimePicker
                   value={formData.horaFin}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  onChange={(time) => {
+                    setFormData({ ...formData, horaFin: time });
+                  }}
                 />
               </div>
             </div>
 
             {/* Puntaje Total */}
             <div>
-              <label className="block text-sm font-medium text-[#143A80] mb-2">
-                Puntaje Total *
-              </label>
+              <label className="block mb-1 font-semibold text-gray-700">Puntaje Total: *</label>
               <input
-                type="number"
+                type="text"
                 name="puntajeTotal"
                 value={formData.puntajeTotal}
-                onChange={handleChange}
-                min="1"
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                    handleChange(e);
+                  }
+                }}
+                className="border p-2 w-full rounded transition border-gray-300 focus:border-blue-500"
                 placeholder="Ej: 100"
                 required
               />
@@ -224,15 +291,12 @@ export default function CrearIntegradoraPage() {
 
             {/* Contenidos */}
             <div>
-              <label className="block text-sm font-medium text-[#143A80] mb-2">
-                Contenidos
-              </label>
+              <label className="block mb-1 font-semibold text-gray-700">Contenidos:</label>
               <textarea
                 name="contenidos"
                 value={formData.contenidos}
                 onChange={handleChange}
-                rows="4"
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 resize-none"
+                className="border p-2 w-full rounded min-h-[100px] transition border-gray-300 focus:border-blue-500"
                 placeholder="Describe los contenidos que se evaluarán en la evaluación integradora"
               />
             </div>
@@ -244,31 +308,25 @@ export default function CrearIntegradoraPage() {
               </p>
             </div>
 
-            {/* Botones */}
-            <div className="flex gap-4 pt-6 border-t">
-              <button
-                type="button"
-                onClick={() => navigate("/evaluaciones")}
-                disabled={isSubmitting}
-                className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-300 disabled:opacity-50 transition"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="flex-1 px-4 py-3 bg-[#143A80] text-white font-semibold rounded-xl hover:bg-[#0f2d5f] disabled:opacity-50 transition flex items-center justify-center gap-2"
-              >
-                {isSubmitting ? (
-                  <>
-                    <span className="inline-block animate-spin">⟳</span>
-                    Creando...
-                  </>
-                ) : (
-                  "Crear Evaluación Integradora"
-                )}
-              </button>
-            </div>
+            {/* Botón Submit */}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className={`w-full py-3 px-4 rounded font-semibold transition ${
+                isSubmitting
+                  ? "bg-gray-400 cursor-not-allowed text-gray-600"
+                  : "text-white hover:shadow-lg"
+              }`}
+              style={{
+                backgroundColor: isSubmitting ? undefined : '#143A80',
+              }}
+              onMouseEnter={(e) => !isSubmitting && (e.target.style.backgroundColor = '#0E2C66')}
+              onMouseLeave={(e) => !isSubmitting && (e.target.style.backgroundColor = '#143A80')}
+            >
+              {isSubmitting
+                ? ("Guardando...")
+                : "Crear Evaluación Integradora"}
+            </button>
           </form>
         </div>
 

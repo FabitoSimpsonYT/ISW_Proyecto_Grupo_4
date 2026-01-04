@@ -10,6 +10,7 @@ export default function GestionUsuariosPage() {
   const { isNavbarOpen } = useNavbar();
   const [reload, setReload] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [selectedUsuario, setSelectedUsuario] = useState(null);
 
   // Verificar permisos: solo admin y jefe de carrera
   if (!user || (user.role !== 'admin' && user.role !== 'jefecarrera')) {
@@ -18,25 +19,35 @@ export default function GestionUsuariosPage() {
 
   const handleSaved = () => {
     setShowForm(false);
+    setSelectedUsuario(null);
     setReload(!reload);
   };
 
   const handleCancel = () => {
     setShowForm(false);
+    setSelectedUsuario(null);
+  };
+
+  const handleEdit = (usuario) => {
+    setSelectedUsuario(usuario);
+    setShowForm(true);
   };
 
   return (
-    <div className={`p-6 bg-[#e9f7fb] min-h-screen transition-all duration-300 ${isNavbarOpen ? 'ml-64' : 'ml-0'}`}>
-      {/* Título */}
-      <div className="bg-[#113C63] text-white px-6 py-4 rounded">
-        <h2 className="text-3xl font-bold">Gestión de Usuarios</h2>
-      </div>
+    <div className={`min-h-screen bg-gray-50 transition-all duration-300 ${isNavbarOpen ? 'ml-64' : 'ml-0'}`}>
+      <header className="bg-[#1e3a5f] text-white shadow-lg">
+        <div className="container mx-auto px-4 py-4">
+          <div>
+            <h1 className="text-2xl font-bold">🧑 Gestión de Usuarios</h1>
+            <p className="text-sm text-gray-300">{user?.email || 'Usuario'}</p>
+          </div>
+        </div>
+      </header>
 
-      {/* Línea separadora */}
-      <div className="mt-6 bg-white h-4 rounded"></div>
+      <div className="container mx-auto p-6">
 
       {/* Título y Botón en una fila */}
-      <div className="mt-6 flex justify-between items-center mr-8">
+      <div className="mt-6 flex justify-between items-center">
         <h3 className="text-xl font-semibold">Lista de usuarios:</h3>
         <button
           onClick={() => setShowForm(true)}
@@ -48,8 +59,9 @@ export default function GestionUsuariosPage() {
       <div className="mt-2 bg-[#d5e8f6] h-3 rounded"></div>
 
       {/* Lista */}
-      <div className="mt-6 bg-white shadow-md rounded-lg overflow-hidden mr-8">
-        <UsuariosList reload={reload} />
+      <div className="mt-6 bg-white shadow-md rounded-lg overflow-hidden">
+        <UsuariosList reload={reload} onEdit={handleEdit} />
+      </div>
       </div>
 
       {/* Formulario Modal */}
@@ -64,7 +76,7 @@ export default function GestionUsuariosPage() {
               ×
             </button>
 
-            <RegistroUsuariosForm onSaved={handleSaved} />
+            <RegistroUsuariosForm onSaved={handleSaved} usuarioEdit={selectedUsuario} />
           </div>
         </div>
       )}

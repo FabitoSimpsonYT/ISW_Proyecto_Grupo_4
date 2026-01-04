@@ -89,6 +89,30 @@ export async function updatePautaIntegradora(evaluacionIntegradoraId, pautaData)
 }
 
 /**
+ * Publicar una pauta
+ */
+export async function publishPauta(id) {
+  try {
+    const response = await axios.patch(`/pauta/${id}/publicar`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error al publicar la pauta' };
+  }
+}
+
+/**
+ * Publicar pauta integradora por evaluacionIntegradoraId
+ */
+export async function publishPautaIntegradora(evaluacionIntegradoraId) {
+  try {
+    const response = await axios.patch(`/pauta/integradora/${evaluacionIntegradoraId}/publicar`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error al publicar la pauta integradora' };
+  }
+}
+
+/**
  * Eliminar pauta
  */
 export async function deletePauta(id) {

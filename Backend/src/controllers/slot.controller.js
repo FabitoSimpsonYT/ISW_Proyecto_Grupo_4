@@ -1,5 +1,7 @@
 ﻿/* src/controllers/slot.controller.js */
 import { getClient } from "../config/database.js";
+import { notificarInscripcionSlotConEmail } from "../services/notificacionesConEmail.service.js";
+import { AppDataSource } from "../config/configDB.js";
 
 // Genera slots para un evento dado una duraciÃ³n en minutos
 export const generarSlots = async (req, res) => {
@@ -12,11 +14,11 @@ export const generarSlots = async (req, res) => {
     const duracion = req.body.duracion ?? req.body.duracionPorAlumno ?? req.body.duracion_por_alumno;
 
     if (!duracion || isNaN(Number(duracion)) || Number(duracion) <= 0) {
-      return res.status(400).json({ success: false, message: 'DuraciÃ³n invÃ¡lida' });
+      return res.status(400).json({ success: false, message: 'Duración inválida' });
     }
 
     const eventoRes = await client.query(
-      'SELECT fecha_inicio, fecha_fin FROM eventos WHERE id = $1',
+      'SELECT fecha_rango_inicio, fecha_rango_fin, hora_inicio_diaria, hora_fin_diaria, fecha_inicio, fecha_fin FROM eventos WHERE id = $1',
       [eventoId]
     );
 
@@ -25,34 +27,69 @@ export const generarSlots = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Evento no encontrado' });
     }
 
-    const { fecha_inicio, fecha_fin } = eventoRes.rows[0];
+    const evento = eventoRes.rows[0];
+    
+    // Para eventos de slots, usar fecha_rango_inicio/fin y horas diarias
+    // Para eventos regulares, usar fecha_inicio/fin
+    const fechaInicio = evento.fecha_rango_inicio || evento.fecha_inicio;
+    const fechaFin = evento.fecha_rango_fin || evento.fecha_fin;
+    const horaInicio = evento.hora_inicio_diaria || '08:00';
+    const horaFin = evento.hora_fin_diaria || '21:00';
+
     const durMs = Number(duracion) * 60 * 1000;
 
     // Validaciones simples para ayudar al frontend
-    if (!fecha_inicio || !fecha_fin) {
+    if (!fechaInicio || !fechaFin) {
       return res.status(400).json({ success: false, message: 'Evento sin rango de fechas (fecha_inicio/fecha_fin faltante)' });
     }
 
-    const diffMs = new Date(fecha_fin) - new Date(fecha_inicio);
+    const diffMs = new Date(fechaFin) - new Date(fechaInicio);
     if (diffMs <= 0) {
-      return res.status(400).json({ success: false, message: 'Rango de fechas invÃ¡lido: fecha_fin debe ser posterior a fecha_inicio' });
+      return res.status(400).json({ success: false, message: 'Rango de fechas inválido: fecha_fin debe ser posterior a fecha_inicio' });
     }
 
-    if (durMs > diffMs) {
-      return res.status(400).json({ success: false, message: `La duraciÃ³n (${duracion} min) es mayor que el rango del evento` });
+    if (durMs > 24 * 60 * 60 * 1000) {
+      return res.status(400).json({ success: false, message: `La duración (${duracion} min) no puede ser mayor a 24 horas` });
     }
 
     const slotsToInsert = [];
-    let cursor = new Date(fecha_inicio);
-    const end = new Date(fecha_fin);
+    
+    // Iterar por cada día del rango
+    let currentDate = new Date(fechaInicio);
+    const endDate = new Date(fechaFin);
+    
+    // Normalizar las fechas para evitar problemas de zona horaria
+    currentDate.setHours(0, 0, 0, 0);
+    endDate.setHours(23, 59, 59, 999);
 
-    while (cursor < end) {
-      const slotStart = new Date(cursor);
-      const slotEnd = new Date(cursor.getTime() + durMs);
-      if (slotEnd <= end) {
-        slotsToInsert.push({ start: slotStart.toISOString(), end: slotEnd.toISOString() });
+    while (currentDate <= endDate) {
+      // Para cada día, generar slots desde horaInicio hasta horaFin
+      const [startHour, startMin] = horaInicio.split(':').map(Number);
+      const [endHour, endMin] = horaFin.split(':').map(Number);
+      
+      let slotTime = new Date(currentDate);
+      slotTime.setHours(startHour, startMin, 0, 0);
+      
+      const dayEnd = new Date(currentDate);
+      dayEnd.setHours(endHour, endMin, 0, 0);
+
+      while (slotTime < dayEnd) {
+        const slotStart = new Date(slotTime);
+        const slotEnd = new Date(slotTime.getTime() + durMs);
+        
+        // No generar slots que se salgan del horario del día
+        if (slotEnd <= dayEnd) {
+          slotsToInsert.push({ 
+            start: slotStart.toISOString(), 
+            end: slotEnd.toISOString() 
+          });
+        }
+        
+        slotTime = new Date(slotEnd);
       }
-      cursor = new Date(cursor.getTime() + durMs);
+
+      // Pasar al siguiente día
+      currentDate = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000);
     }
 
     const inserted = [];
@@ -113,10 +150,19 @@ export const getSlotsEvento = async (req, res) => {
 export const eliminarSlot = async (req, res) => {
   const client = await getClient();
   try {
-    const { slotId } = req.params;
-    const result = await client.query('DELETE FROM slots WHERE id = $1 RETURNING *', [slotId]);
-    if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Slot no encontrado' });
-    return res.json({ success: true, message: 'Slot eliminado', data: result.rows[0] });
+    // Soportar tanto /slot/:slotId como /:slotId
+    const { slotId, id } = req.params;
+    const idSlot = slotId || id;
+
+    if (!idSlot) {
+      return res.status(400).json({ success: false, message: 'ID del slot no especificado' });
+    }
+
+    const result = await client.query('DELETE FROM slots WHERE id = $1 RETURNING *', [idSlot]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Slot no encontrado' });
+    }
+    return res.json({ success: true, message: 'Slot eliminado correctamente', data: result.rows[0] });
   } catch (error) {
     console.error('Error eliminarSlot:', error);
     return res.status(500).json({ success: false, message: error.message });
@@ -146,8 +192,14 @@ export const quitarAlumnoSlot = async (req, res) => {
 export const bloquearSlot = async (req, res) => {
   const client = await getClient();
   try {
-    const { slotId } = req.params;
-    const { bloquear } = req.body;
+    const slotId = parseInt(req.params.slotId, 10);
+    const bloquear = req.body.bloquear !== undefined ? req.body.bloquear : true;
+
+    console.log('[bloquearSlot] slotId:', slotId, 'bloquear:', bloquear, 'body:', req.body);
+
+    if (isNaN(slotId)) {
+      return res.status(400).json({ success: false, message: 'slotId inválido' });
+    }
 
     // If blocking, make it unavailable; if unblocking, make available only if no alumno
     if (bloquear) {
@@ -160,11 +212,11 @@ export const bloquearSlot = async (req, res) => {
         `UPDATE slots SET disponible = true WHERE id = $1 AND alumno_id IS NULL RETURNING *`,
         [slotId]
       );
-      if (r.rows.length === 0) return res.status(404).json({ success: false, message: 'Slot no encontrado o estÃ¡ ocupado' });
+      if (r.rows.length === 0) return res.status(404).json({ success: false, message: 'Slot no encontrado o está ocupado' });
       return res.json({ success: true, message: 'Slot desbloqueado', data: r.rows[0] });
     }
   } catch (error) {
-    console.error('Error bloquearSlot:', error);
+    console.error('Error bloquearSlot:', error.message, error.stack);
     return res.status(500).json({ success: false, message: error.message });
   } finally {
     client.release();
@@ -180,7 +232,7 @@ export const inscribirSlot = async (req, res) => {
 
     const slotIdInt = slotIdRaw !== undefined && slotIdRaw !== null ? parseInt(slotIdRaw, 10) : NaN;
     if (isNaN(slotIdInt)) {
-      return res.status(400).json({ success: false, message: 'slotId invÃ¡lido (debe ser un nÃºmero entero)' });
+      return res.status(400).json({ success: false, message: 'slotId inválido (debe ser un número entero)' });
     }
 
     const alumnoId = parseInt(alumnoIdRaw, 10);
@@ -203,14 +255,18 @@ export const inscribirSlot = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Slot no disponible' });
     }
 
-    // Verificar que el alumno no estÃ© ya inscrito en otro slot de la misma evaluaciÃ³n/evento
-    const existeInscrito = await client.query(
-      `SELECT 1 FROM slots WHERE evento_id = $1 AND alumno_id = $2 LIMIT 1`,
+    // Permitir que el alumno cambie de slot: primero desinscribir del slot anterior
+    const slotAnterior = await client.query(
+      `SELECT id FROM slots WHERE evento_id = $1 AND alumno_id = $2 LIMIT 1`,
       [slot.evento_id, alumnoId]
     );
-    if (existeInscrito.rows.length > 0) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ success: false, message: 'Ya estÃ¡s inscrito(a) en un slot de esta evaluaciÃ³n' });
+    
+    if (slotAnterior.rows.length > 0) {
+      // El alumno ya estaba inscrito en otro slot, desinscribir
+      await client.query(
+        `UPDATE slots SET alumno_id = NULL, disponible = true WHERE id = $1`,
+        [slotAnterior.rows[0].id]
+      );
     }
 
     const result = await client.query(
@@ -221,7 +277,41 @@ export const inscribirSlot = async (req, res) => {
     await client.query('COMMIT');
 
     const assigned = result.rows[0];
+    // 📧 Enviar email de confirmación de inscripción
+    try {
+      const eventoRes = await client.query(
+        'SELECT e.nombre, e.sala, e.modalidad, r.nombre as ramoNombre, r.codigo FROM eventos e LEFT JOIN ramos r ON e.ramo_id = r.id WHERE e.id = $1',
+        [assigned.evento_id]
+      );
+      
+      if (eventoRes.rows.length > 0) {
+        const evento = eventoRes.rows[0];
+        const userRes = await client.query('SELECT nombres, email FROM users WHERE id = $1', [alumnoId]);
+        const usuario = userRes.rows[0];
 
+        if (usuario?.email) {
+          const horaInicio = new Date(assigned.fecha_hora_inicio).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+          const horaFin = new Date(assigned.fecha_hora_fin).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+          const fechaSlot = new Date(assigned.fecha_hora_inicio);
+
+          await notificarInscripcionSlotConEmail({
+            alumnoId,
+            ramoNombre: evento.ramoNombre || 'Ramo',
+            codigoRamo: evento.codigo || '',
+            evaluacionNombre: evento.nombre,
+            fechaSlot,
+            horaInicio,
+            horaFin,
+            sala: evento.sala || 'Por definir',
+            nombreProfesor: 'Profesor',
+            instrucciones: 'Por favor, recuerda llegar 10 minutos antes de tu hora asignada.',
+          });
+          console.log(`✅ Email de confirmación enviado a ${usuario.email}`);
+        }
+      }
+    } catch (emailError) {
+      console.warn('⚠️  Error enviando email de inscripción:', emailError.message);
+    }
     return res.json({
       success: true,
       message: 'InscripciÃ³n aceptada',
@@ -234,6 +324,72 @@ export const inscribirSlot = async (req, res) => {
   } catch (error) {
     try { await client.query('ROLLBACK'); } catch (e) {}
     console.error('Error inscribirSlot:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  } finally {
+    client.release();
+  }
+};
+
+// Controlador para eliminar un alumno específico del slot
+export const eliminarAlumnoDelSlot = async (req, res) => {
+  const client = await getClient();
+  try {
+    const { slotId, alumnoId } = req.params;
+
+    // Validar que el alumno en el slot es el que se intenta eliminar
+    const slotRes = await client.query('SELECT * FROM slots WHERE id = $1', [slotId]);
+    if (slotRes.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Slot no encontrado' });
+    }
+
+    const slot = slotRes.rows[0];
+    if (slot.alumno_id !== parseInt(alumnoId)) {
+      return res.status(400).json({ success: false, message: 'El alumno no está inscrito en este slot' });
+    }
+
+    const result = await client.query(
+      `UPDATE slots SET alumno_id = NULL, disponible = true WHERE id = $1 RETURNING *`,
+      [slotId]
+    );
+
+    return res.json({ success: true, message: 'Alumno removido del slot', data: result.rows[0] });
+  } catch (error) {
+    console.error('Error eliminarAlumnoDelSlot:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  } finally {
+    client.release();
+  }
+};
+
+// Controlador para agregar un alumno a un slot (usado por profesor)
+export const agregarAlumnoASlot = async (req, res) => {
+  const client = await getClient();
+  try {
+    const slotId = parseInt(req.params.slotId, 10);
+    const { alumnoId } = req.body;
+
+    console.log('[agregarAlumnoASlot] slotId:', slotId, 'alumnoId:', alumnoId);
+
+    if (!alumnoId || isNaN(slotId)) {
+      return res.status(400).json({ success: false, message: 'alumnoId y slotId requeridos' });
+    }
+
+    // Validar que el slot existe
+    const slotRes = await client.query('SELECT * FROM slots WHERE id = $1', [slotId]);
+    if (slotRes.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Slot no encontrado' });
+    }
+
+    const slot = slotRes.rows[0];
+
+    const result = await client.query(
+      `UPDATE slots SET alumno_id = $1, disponible = false WHERE id = $2 RETURNING *`,
+      [parseInt(alumnoId, 10), slotId]
+    );
+
+    return res.json({ success: true, message: 'Alumno agregado al slot', data: result.rows[0] });
+  } catch (error) {
+    console.error('Error agregarAlumnoASlot:', error.message);
     return res.status(500).json({ success: false, message: error.message });
   } finally {
     client.release();

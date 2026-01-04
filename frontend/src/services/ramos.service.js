@@ -103,3 +103,46 @@ export async function getProfesorByRut(rut) {
     throw error.response?.data || { message: 'Error al obtener profesor' };
   }
 }
+export async function getRamosByAnioPeriodo(anio, periodo) {
+  try {
+    const response = await axios.get(`/ramos/filtrar/periodo?anio=${anio}&periodo=${periodo}`);
+    return response.data.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error al filtrar ramos' };
+  }
+}
+
+export async function getMisRamosByAnioPeriodo(anio, periodo) {
+  try {
+    const response = await axios.get(`/ramos/misRamos/filtrar?anio=${anio}&periodo=${periodo}`);
+    return response.data.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error al filtrar mis ramos' };
+  }
+}
+
+export async function deleteSeccion(seccionId, codigoRamo) {
+  try {
+    const response = await axios.delete(`/ramos/secciones/${codigoRamo}/${seccionId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error al eliminar sección' };
+  }
+}
+
+// Función helper para formatear el código del ramo con año y periodo
+export function formatCodigoRamo(ramo) {
+  if (!ramo) return '';
+
+  // Si el código ya viene en formato completo (CCC...-YYYY-P), respétalo
+  if (ramo.codigo && ramo.codigo.split('-').length >= 3) {
+    return ramo.codigo;
+  }
+
+  // Si no, construye usando anio y periodo cuando estén disponibles
+  if (ramo.codigo && ramo.anio && ramo.periodo) {
+    return `${ramo.codigo}-${ramo.anio}-${ramo.periodo}`;
+  }
+
+  return ramo.codigo || '';
+}

@@ -15,7 +15,7 @@ export const createApelacion = async (req, res) => {
     const apelacionRepo = AppDataSource.getRepository(Apelacion);
     const userRepo = AppDataSource.getRepository(User);
 
-    const { tipo, mensaje, profesorCorreo, pautaEvaluadaId } = req.body;
+    const { tipo, mensaje, profesorCorreo, pautaEvaluadaId, subtipoInasistencia, evaluacionProximaId } = req.body;
     const alumnoId = req.user?.id || req.user?.sub;
     const file = req.file; 
 
@@ -47,7 +47,16 @@ export const createApelacion = async (req, res) => {
         });
       }
     }
-      const pautaRepo = AppDataSource.getRepository(PautaEvaluada);
+    
+    if (tipo === "inasistencia" && subtipoInasistencia === "evaluacion") {
+      if (!evaluacionProximaId) {
+        return res.status(400).json({
+          message: "Debe seleccionar una evaluación próxima",
+        });
+      }
+    }
+    
+    const pautaRepo = AppDataSource.getRepository(PautaEvaluada);
     let pauta = null;
 
     if (tipo === "evaluacion") {
@@ -73,17 +82,26 @@ export const createApelacion = async (req, res) => {
         `AP-${alumnoId}`,
         Date.now()
       );
+      console.log("createApelacion: req.file:", {
+        originalname: req.file.originalname,
+        filename: req.file.filename,
+        path: req.file.path,
+        destination: req.file.destination,
+      });
+      console.log("createApelacion: archivo renombrado a:", archivo);
     }
 
     const apelacion = apelacionRepo.create({
       tipo,
+      subtipoInasistencia: tipo === "inasistencia" ? subtipoInasistencia : null,
       mensaje,
       estado: "pendiente",
       puedeEditar: true,
-      archivo: file ? file.filename : null,
+      archivo: archivo,
       alumno,
       profesor,
       pautaEvaluada: tipo === "evaluacion" ? pauta : null,
+      evaluacionProximaId: tipo === "inasistencia" && subtipoInasistencia === "evaluacion" ? evaluacionProximaId : null,
     });
 
     await apelacionRepo.save(apelacion);
@@ -177,6 +195,7 @@ export const descargarArchivo = async (req, res) => {
     const apelacion = await repo.findOneBy({ id });
 
     if (!apelacion || !apelacion.archivo) {
+      console.error(`Descargar: apelacion o archivo ausente. id=${id} apelacion=`, apelacion);
       return res.status(404).json({ mensaje: "Archivo no encontrado" });
     }
 
@@ -184,6 +203,13 @@ export const descargarArchivo = async (req, res) => {
     const filePath = path.join(uploadsDir, apelacion.archivo);
 
     if (!fs.existsSync(filePath)) {
+      console.error(`Descargar: archivo esperado en disk: ${filePath} no existe.`);
+      try {
+        const files = fs.readdirSync(uploadsDir);
+        console.error("Contenido de src/uploads:", files);
+      } catch (e) {
+        console.error("No se pudo listar uploads:", e.message);
+      }
       return res.status(404).json({ mensaje: "El archivo no existe en el servidor" });
     }
 
@@ -270,12 +296,16 @@ export const getApelacionPorId = async (req, res) => {
     if (!apelacion) return res.status(404).json({ message: "Apelación no encontrada." });
 
     const user = req.user;
-    if (user.role === "alumno" && apelacion.alumno.id !== user.id) {
+    const userRole = user?.role;
+    
+    // Validar permisos
+    if (userRole === "alumno" && apelacion.alumno.id !== user.id) {
       return res.status(403).json({ message: "No tienes permiso para ver esta apelación." });
     }
-    if (user.role === "profesor" && apelacion.profesor?.id !== user.id) {
+    if (userRole === "profesor" && apelacion.profesor?.id !== user.id) {
       return res.status(403).json({ message: "No tienes permiso para ver esta apelación." });
     }
+    // Jefe de carrera puede ver todas las apelaciones
 
 
     if (apelacion.fechaLimiteEdicion) {
@@ -296,6 +326,7 @@ export const getApelacionPorId = async (req, res) => {
 export const getApelacionesDelProfesor = async (req, res) => {
   try {
     const profesorId = req.user?.id || req.user?.sub;
+    const userRole = req.user?.role;
 
     if (!profesorId) {
       return res.status(401).json({ message: "Usuario no autenticado" });
@@ -303,11 +334,22 @@ export const getApelacionesDelProfesor = async (req, res) => {
 
     const apelacionRepo = AppDataSource.getRepository(Apelacion);
 
-    const apelaciones = await apelacionRepo.find({
-      where: { profesor: { id: profesorId } },
-      relations: ["profesor", "alumno", "pautaEvaluada"],
-      order: { createdAt: "DESC" },
-    });
+    let apelaciones;
+
+    // Si es jefe de carrera, puede ver todas las apelaciones
+    if (userRole === "jefecarrera") {
+      apelaciones = await apelacionRepo.find({
+        relations: ["profesor", "alumno", "pautaEvaluada"],
+        order: { createdAt: "DESC" },
+      });
+    } else {
+      // Si es profesor normal, solo ve sus apelaciones
+      apelaciones = await apelacionRepo.find({
+        where: { profesor: { id: profesorId } },
+        relations: ["profesor", "alumno", "pautaEvaluada"],
+        order: { createdAt: "DESC" },
+      });
+    }
 
     if (!apelaciones.length) {
       return res.status(200).json({
@@ -358,10 +400,10 @@ export const getApelacionesDelProfesor = async (req, res) => {
 export const editarApelacionAlumno = async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const { mensaje, profesorEmail, removeArchivo, pautaEvaluadaId } = req.body;
+    const { mensaje, profesorCorreo, removeArchivo, pautaEvaluadaId } = req.body;
     const nuevoArchivo = req.file?.filename;
 
-    if (!mensaje && !nuevoArchivo && !profesorEmail && removeArchivo !== "true" && pautaEvaluadaId === undefined) {
+    if (!mensaje && !nuevoArchivo && !profesorCorreo && removeArchivo !== "true" && pautaEvaluadaId === undefined) {
       return res.status(400).json({
         message: "Debe enviar al menos un campo para editar.",
       });
@@ -385,17 +427,17 @@ export const editarApelacionAlumno = async (req, res) => {
     }
 
     if (apelacion.fechaLimiteEdicion) {
-  const ahora = new Date();
+      const ahora = new Date();
 
-  if (ahora > apelacion.fechaLimiteEdicion) {
-    apelacion.puedeEditar = false;
-    await apelacionRepo.save(apelacion);
+      if (ahora > apelacion.fechaLimiteEdicion) {
+        apelacion.puedeEditar = false;
+        await apelacionRepo.save(apelacion);
 
-    return res.status(403).json({
-      message: "El plazo para editar esta apelación ya expiró.",
-    });
-  }
-}
+        return res.status(403).json({
+          message: "El plazo para editar esta apelación ya expiró.",
+        });
+      }
+    }
 
     if (!["pendiente", "cita", "revisada"].includes(apelacion.estado)) {
       return res.status(400).json({
@@ -404,29 +446,29 @@ export const editarApelacionAlumno = async (req, res) => {
     }
 
     if (pautaEvaluadaId !== undefined) {
-  if (apelacion.tipo !== "evaluacion") {
-    return res.status(400).json({
-      message: "Esta apelación no es por evaluación.",
-    });
-  }
+      if (apelacion.tipo !== "evaluacion") {
+        return res.status(400).json({
+          message: "Esta apelación no es por evaluación.",
+        });
+      }
 
-  const pautaRepo = AppDataSource.getRepository(PautaEvaluada);
+      const pautaRepo = AppDataSource.getRepository(PautaEvaluada);
 
-  const nuevaPauta = await pautaRepo.findOne({
-    where: {
-      id: pautaEvaluadaId,
-      alumno: { id: apelacion.alumno.id },
-    },
-  });
+      const nuevaPauta = await pautaRepo.findOne({
+        where: {
+          id: pautaEvaluadaId,
+          alumno: { id: apelacion.alumno.id },
+        },
+      });
 
-  if (!nuevaPauta || nuevaPauta.notaFinal === null) {
-    return res.status(400).json({
-      message: "La pauta seleccionada no es válida para apelar.",
-    });
-  }
+      if (!nuevaPauta || nuevaPauta.notaFinal === null) {
+        return res.status(400).json({
+          message: "La pauta seleccionada no es válida para apelar.",
+        });
+      }
 
-  apelacion.pautaEvaluada = nuevaPauta;
-}
+      apelacion.pautaEvaluada = nuevaPauta;
+    }
 
     if (!apelacion.puedeEditar) {
       return res.status(400).json({
@@ -440,6 +482,7 @@ export const editarApelacionAlumno = async (req, res) => {
 
     const uploadsDir = path.resolve("src/uploads");
 
+    // Primero manejar la eliminación si se solicita
     if (removeArchivo === "true" && apelacion.archivo) {
       const oldPath = path.join(uploadsDir, apelacion.archivo);
       if (fs.existsSync(oldPath)) {
@@ -448,7 +491,10 @@ export const editarApelacionAlumno = async (req, res) => {
       apelacion.archivo = null;
     }
 
+    // Luego manejar el nuevo archivo si existe
     if (nuevoArchivo) {
+      console.log("editarApelacionAlumno: nuevoArchivo filename (multer):", nuevoArchivo);
+      // Si hay un archivo anterior y no fue eliminado arriba, eliminarlo ahora
       if (apelacion.archivo) {
         const oldPath = path.join(uploadsDir, apelacion.archivo);
         if (fs.existsSync(oldPath)) {
@@ -458,9 +504,9 @@ export const editarApelacionAlumno = async (req, res) => {
       apelacion.archivo = nuevoArchivo;
     }
 
-    if (profesorEmail) {
+    if (profesorCorreo) {
       const nuevoProfesor = await userRepo.findOne({
-        where: { email: profesorEmail, role: "profesor" },
+        where: { email: profesorCorreo, role: "profesor" },
       });
 
       if (!nuevoProfesor) {
@@ -469,6 +515,9 @@ export const editarApelacionAlumno = async (req, res) => {
 
       apelacion.profesor = nuevoProfesor;
     }
+
+    // Forzar actualización del timestamp
+    apelacion.updatedAt = new Date();
 
     await apelacionRepo.save(apelacion);
 
@@ -506,8 +555,11 @@ export const updateEstadoApelacion = async (req, res) => {
       return res.status(404).json({ message: "Apelación no encontrada." });
     }
 
-    const profesorId = req.user?.id || req.user?.sub;
-    if (!profesorId || apelacion.profesor.id !== profesorId) {
+    const userId = req.user?.id || req.user?.sub;
+    const userRole = req.user?.role;
+    
+    // Permitir acceso si es el profesor asignado o si es jefe de carrera
+    if (userRole !== "jefecarrera" && (!userId || apelacion.profesor.id !== userId)) {
       return res.status(403).json({ message: "No autorizado." });
     }
 
@@ -525,6 +577,7 @@ export const updateEstadoApelacion = async (req, res) => {
       }
 
       apelacion.estado = "revisada";
+      apelacion.updatedAt = new Date();
       await apelacionRepo.save(apelacion);
 
       return res.status(200).json({
@@ -588,6 +641,9 @@ if (estado === "cita") {
     apelacion.puedeEditar = true;
   }
 }
+    // Forzar actualización del timestamp
+    apelacion.updatedAt = new Date();
+
     await apelacionRepo.save(apelacion);
 
     return res.status(200).json({
@@ -661,17 +717,41 @@ export const deleteApelacion = async (req, res) => {
 
     const apelacion = await apelacionRepo.findOne({
       where: { id },
-      relations: ["alumno"],
+      relations: ["alumno", "profesor"],
     });
 
     if (!apelacion) {
       return res.status(404).json({ message: "Apelación no encontrada." });
     }
 
-    if (apelacion.estado !== "pendiente") {
+    const userId = req.user?.id || req.user?.sub;
+    const userRole = req.user?.role;
+
+    // Validar permisos: solo puede eliminar el alumno dueño o el profesor asignado o jefe de carrera
+    const esAlumno = userRole === "alumno" && apelacion.alumno.id === userId;
+    const esProfesor = (userRole === "profesor" || userRole === "jefe_carrera") && apelacion.profesor?.id === userId;
+    const esJefeCarrera = userRole === "jefe_carrera";
+
+    if (!esAlumno && !esProfesor && !esJefeCarrera) {
       return res.status(403).json({
-        message: "Solo se pueden eliminar apelaciones en estado pendiente.",
+        message: "No tienes permisos para eliminar esta apelación.",
       });
+    }
+
+    // Solo se pueden eliminar apelaciones en estado pendiente o revisada
+    if (!["pendiente", "revisada"].includes(apelacion.estado)) {
+      return res.status(403).json({
+        message: "Solo se pueden eliminar apelaciones en estado pendiente o revisada.",
+      });
+    }
+
+    // Eliminar archivo asociado si existe
+    if (apelacion.archivo) {
+      const uploadsDir = path.resolve("src/uploads");
+      const filePath = path.join(uploadsDir, apelacion.archivo);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
     }
 
     await apelacionRepo.remove(apelacion);
@@ -789,3 +869,152 @@ export const getEvaluacionesDisponibles = async (req, res) => {
     });
   }
 };
+
+
+
+export const getEvaluacionesProximas = async (req, res) => {
+  try {
+    const alumnoId = req.user?.id || req.user?.sub;
+
+    if (!alumnoId) {
+      return res.status(401).json({ message: "Usuario no autenticado" });
+    }
+
+    const alumnoRepo = AppDataSource.getRepository("Alumno");
+    const evaluacionRepo = AppDataSource.getRepository("Evaluacion");
+
+    // Obtener el alumno con sus secciones -> ramo
+    const alumno = await alumnoRepo.findOne({
+      where: { id: alumnoId },
+      relations: [
+        "secciones",
+        "secciones.ramo",
+      ],
+    });
+
+    if (!alumno || !alumno.secciones || alumno.secciones.length === 0) {
+      return res.status(200).json({
+        message: "No estás inscrito en ningún ramo",
+        data: [],
+      });
+    }
+
+    // Obtener las evaluaciones próximas (futuras) de los ramos inscritos
+    const ahora = new Date();
+    const evaluacionesProximas = [];
+
+    for (const seccion of alumno.secciones) {
+      const ramo = seccion.ramo;
+      if (!ramo) continue;
+
+      const evaluaciones = await evaluacionRepo.find({
+        where: {
+          ramo: { id: ramo.id },
+          seccion: { id: seccion.id },
+        },
+        order: { fechaProgramada: "ASC" },
+      });
+
+      // Filtrar solo las evaluaciones futuras
+      const futuras = evaluaciones.filter(ev => {
+        if (!ev.fechaProgramada) return false;
+        return new Date(ev.fechaProgramada) > ahora;
+      });
+
+      evaluacionesProximas.push(...futuras.map(ev => ({
+        id: ev.id,
+        titulo: ev.titulo || "Evaluación",
+        codigoRamo: ramo.codigo,
+        nombreRamo: ramo.nombre,
+        fechaProgramada: ev.fechaProgramada,
+        seccion: seccion.numero,
+      })));
+    }
+
+    // Ordenar por fecha
+    evaluacionesProximas.sort((a, b) => 
+      new Date(a.fechaProgramada) - new Date(b.fechaProgramada)
+    );
+
+    return res.status(200).json({
+      message: "Evaluaciones próximas obtenidas",
+      data: evaluacionesProximas,
+    });
+
+  } catch (error) {
+    console.error("Error al obtener evaluaciones próximas:", error);
+    return res.status(500).json({
+      message: "Error interno al obtener evaluaciones próximas",
+    });
+  }
+};
+
+
+export const getProfesoresInscritos = async (req, res) => {
+  try {
+    const alumnoId = req.user?.id || req.user?.sub;
+
+    if (!alumnoId) {
+      return res.status(401).json({ message: "Usuario no autenticado" });
+    }
+
+    // Obtener el alumno con sus secciones -> ramo -> profesor -> user
+    const alumnoRepo = AppDataSource.getRepository("Alumno");
+
+    const alumno = await alumnoRepo.findOne({
+      where: { id: alumnoId },
+      relations: [
+        "secciones",
+        "secciones.ramo",
+        "secciones.ramo.profesor",
+        "secciones.ramo.profesor.user",
+      ],
+    });
+
+    if (!alumno || !alumno.secciones || alumno.secciones.length === 0) {
+      return res.status(200).json({
+        message: "No estás inscrito en ningún ramo",
+        data: [],
+      });
+    }
+
+    // Extraer profesores únicos a partir de las secciones y ramos
+    const profesoresMap = new Map();
+
+    for (const seccion of alumno.secciones) {
+      const ramo = seccion.ramo;
+      if (!ramo || !ramo.profesor || !ramo.profesor.user) continue;
+
+      const profUser = ramo.profesor.user;
+      const profId = profUser.id;
+
+      if (!profesoresMap.has(profId)) {
+        profesoresMap.set(profId, {
+          id: profId,
+          nombre: `${profUser.nombres || ''} ${profUser.apellidoPaterno || ''} ${profUser.apellidoMaterno || ''}`.trim(),
+          email: profUser.email,
+          ramos: [],
+        });
+      }
+
+      profesoresMap.get(profId).ramos.push({
+        codigo: ramo.codigo,
+        nombre: ramo.nombre,
+      });
+    }
+
+    const profesores = Array.from(profesoresMap.values());
+
+    return res.status(200).json({
+      message: "Profesores inscritos obtenidos",
+      data: profesores,
+    });
+
+  } catch (error) {
+    console.error("Error al obtener profesores inscritos:", error);
+    return res.status(500).json({
+      message: "Error interno al obtener profesores inscritos",
+    });
+  }
+};
+

@@ -6,9 +6,9 @@ import { getEvaluacionIntegradora } from "../services/evaluacionIntegradora.serv
 import { getAlumnosBySeccion, getSeccionesByRamo } from "../services/ramos.service.js";
 import { getPautaById } from "../services/pauta.service.js";
 import { createPautaEvaluada, updatePautaEvaluada, getPautaEvaluada, getPautaEvaluadaIntegradora, createPautaEvaluadaIntegradora, updatePautaEvaluadaIntegradora } from "../services/pautaEvaluada.service.js";
-import { useAuth } from "../context/AuthContext.jsx";
-import { BotonRetroalimentacion } from "../components/BotonRetroalimentacion.jsx";
 import { ModalRetroalimentacion } from "../components/ModalRetroalimentacion.jsx";
+import ComentariosPauta from "../components/ComentariosPauta.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 
 export default function EvaluarPage() {
     const { codigoRamo, idEvaluacion } = useParams();
@@ -28,9 +28,15 @@ export default function EvaluarPage() {
     const [estudianteSeleccionado, setEstudianteSeleccionado] = useState(null);
     const [pauta, setPauta] = useState(null);
     const [puntajesObtenidos, setPuntajesObtenidos] = useState({});
-    const [observaciones, setObservaciones] = useState('');
     const [modalRetroalimentacionOpen, setModalRetroalimentacionOpen] = useState(false);
     const [estudianteRetroalimentacion, setEstudianteRetroalimentacion] = useState(null);
+    const [modalComentariosOpen, setModalComentariosOpen] = useState(false);
+    const [pautaComentariosId, setPautaComentariosId] = useState(null);
+    const [alumnoComentarios, setAlumnoComentarios] = useState(null);
+    const [pautaDetalle, setPautaDetalle] = useState(null);
+    const [pautaDetalleLoading, setPautaDetalleLoading] = useState(false);
+    const [editandoPautaComentarios, setEditandoPautaComentarios] = useState(false);
+    const [puntajesComentarios, setPuntajesComentarios] = useState({});
 
 
     useEffect(() => {
@@ -93,8 +99,18 @@ export default function EvaluarPage() {
                     }
                 }
                 
-                // Ordenar alfabéticamente por apellido paterno
+                // Ordenar por sección primero, luego alfabéticamente por apellido paterno
                 allEstudiantes.sort((a, b) => {
+                    // Primero ordenar por sección
+                    const seccionA = a.seccion?.toString() || '';
+                    const seccionB = b.seccion?.toString() || '';
+                    const seccionCompare = seccionA.localeCompare(seccionB);
+                    
+                    if (seccionCompare !== 0) {
+                        return seccionCompare;
+                    }
+                    
+                    // Si están en la misma sección, ordenar por apellido paterno
                     const apellidoA = a.apellidoPaterno?.toLowerCase() || '';
                     const apellidoB = b.apellidoPaterno?.toLowerCase() || '';
                     return apellidoA.localeCompare(apellidoB);
@@ -113,8 +129,11 @@ export default function EvaluarPage() {
                             pautaEvaluada = await getPautaEvaluada(evaluacionId, estudiante.rut);
                         }
                         
-                        if (pautaEvaluada && pautaEvaluada.notaFinal) {
-                            estudiante.nota = pautaEvaluada.notaFinal;
+                        if (pautaEvaluada) {
+                            estudiante.pautaEvaluadaId = pautaEvaluada.id;
+                            if (pautaEvaluada.notaFinal) {
+                                estudiante.nota = pautaEvaluada.notaFinal;
+                            }
                         }
                     } catch (err) {
                         console.error(`Error cargando nota para ${estudiante.rut}:`, err);
@@ -176,15 +195,8 @@ export default function EvaluarPage() {
                 
                 console.log("Pauta existente:", pautaExistente);
                 
-                if (pautaExistente) {
-                    // Pre-llenar los puntajes
-                    if (pautaExistente.puntajesObtenidos) {
-                        setPuntajesObtenidos(pautaExistente.puntajesObtenidos);
-                    }
-                    // Pre-llenar las observaciones
-                    if (pautaExistente.observaciones) {
-                        setObservaciones(pautaExistente.observaciones);
-                    }
+                if (pautaExistente && pautaExistente.puntajesObtenidos) {
+                    setPuntajesObtenidos(pautaExistente.puntajesObtenidos);
                 }
             } catch (error) {
                 console.error("Error cargando pauta existente:", error);
@@ -192,19 +204,9 @@ export default function EvaluarPage() {
         }
     };
 
-    const handleAbrirRetroalimentacion = (estudiante) => {
-        // Navegar al chat de retroalimentación
-        if (isIntegradora) {
-            navigate(`/retroalimentacion/${ramoId}/${estudiante.rut}/integradora/${idEvaluacion}`);
-        } else {
-            navigate(`/retroalimentacion/${ramoId}/${estudiante.rut}/${idEvaluacion}`);
-        }
-    };
-
     const handleCerrarFormulario = () => {
         setEstudianteSeleccionado(null);
         setPuntajesObtenidos({});
-        setObservaciones('');
     };
 
     const handleChangePuntaje = (criterio, valor, puntajeMax) => {
@@ -218,6 +220,12 @@ export default function EvaluarPage() {
         }
     };
 
+    const handlePreventArrowChange = (event) => {
+        if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+            event.preventDefault();
+        }
+    };
+
     const handleGuardarEvaluacion = async () => {
         try {
             // Completar criterios faltantes con 0
@@ -228,13 +236,11 @@ export default function EvaluarPage() {
                 });
             }
 
-            // Solo enviar alumnoRut, puntajes_obtenidos y observaciones
-            // Los demás campos se rellenan automáticamente en el backend
+            // Solo enviar alumnoRut y puntajes_obtenidos (observaciones eliminadas)
             console.log("Estudiante seleccionado completo:", estudianteSeleccionado);
             const pautaEvaluadaData = {
                 alumnoRut: estudianteSeleccionado.rut,
-                puntajes_obtenidos: puntajesCompletos,
-                observaciones: observaciones
+                puntajes_obtenidos: puntajesCompletos
             };
 
             console.log("Guardando pauta evaluada:", pautaEvaluadaData);
@@ -266,7 +272,7 @@ export default function EvaluarPage() {
                 setEstudiantes(prevEstudiantes =>
                     prevEstudiantes.map(est =>
                         est.id === estudianteSeleccionado.id
-                            ? { ...est, nota: result.notaFinal }
+                            ? { ...est, nota: result.notaFinal, pautaEvaluadaId: result.id }
                             : est
                     )
                 );
@@ -280,9 +286,9 @@ export default function EvaluarPage() {
         }
     };
 
-    const calcularNota = () => {
+    const calcularNota = (puntajes = puntajesObtenidos) => {
         const puntajeTotal = evaluacion?.puntajeTotal || (pauta?.criteriosPuntaje?.reduce((sum, c) => sum + c.puntaje, 0) || 1);
-        const puntajeObtenido = Object.values(puntajesObtenidos).reduce((sum, p) => sum + p, 0);
+        const puntajeObtenido = Object.values(puntajes).reduce((sum, p) => sum + p, 0);
         const porcentaje = (puntajeObtenido / puntajeTotal) * 100;
         
         let nota;
@@ -374,14 +380,31 @@ export default function EvaluarPage() {
                                                         >
                                                             {estudiante.nota ? "Reevaluar" : "Evaluar"}
                                                         </button>
-                                                        {estudiante.nota && (
-                                                            <BotonRetroalimentacion
-                                                                codigoRamo={ramoId}
-                                                                alumnoRut={estudiante.rut}
-                                                                evaluacionId={isIntegradora ? null : evaluacion?.id}
-                                                                evaluacionIntegradoraId={isIntegradora ? evaluacion?.id : null}
-                                                                onClick={() => handleAbrirRetroalimentacion(estudiante)}
-                                                            />
+                                                        {estudiante.nota && estudiante.pautaEvaluadaId && (
+                                                            <button
+                                                                className="inline-flex items-center px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold text-sm transition border border-slate-200"
+                                                                onClick={async () => {
+                                                                    setPautaComentariosId(estudiante.pautaEvaluadaId);
+                                                                    setAlumnoComentarios(estudiante);
+                                                                    setPautaDetalleLoading(true);
+                                                                    setModalComentariosOpen(true);
+                                                                    try {
+                                                                        const detalle = isIntegradora
+                                                                            ? await getPautaEvaluadaIntegradora(evaluacion?.id, estudiante.rut)
+                                                                            : await getPautaEvaluada(evaluacion?.id, estudiante.rut);
+                                                                        setPautaDetalle(detalle);
+                                                                        setPuntajesComentarios(detalle?.puntajesObtenidos || {});
+                                                                        setEditandoPautaComentarios(false);
+                                                                    } catch (e) {
+                                                                        console.error("Error cargando pauta evaluada:", e);
+                                                                        setPautaDetalle(null);
+                                                                    } finally {
+                                                                        setPautaDetalleLoading(false);
+                                                                    }
+                                                                }}
+                                                            >
+                                                                Ver más
+                                                            </button>
                                                         )}
                                                     </div>
                                                 </td>
@@ -402,7 +425,7 @@ export default function EvaluarPage() {
                     {/* Modal de evaluación */}
                     {estudianteSeleccionado && pauta && (
                         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                            <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+                            <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto ghost-scroll">
                                 <div className="sticky top-0 bg-[#113C63] text-white px-6 py-4 flex items-center justify-between border-b border-blue-200">
                                     <div>
                                         <h2 className="text-2xl font-bold">Evaluar Estudiante</h2>
@@ -463,8 +486,9 @@ export default function EvaluarPage() {
                                                                         step="0.1"
                                                                         value={puntajesObtenidos[criterio.nombre] === 0 || puntajesObtenidos[criterio.nombre] === undefined ? '' : puntajesObtenidos[criterio.nombre]}
                                                                         onChange={(e) => handleChangePuntaje(criterio.nombre, e.target.value, criterio.puntaje)}
+                                                                        onKeyDown={handlePreventArrowChange}
                                                                         placeholder="0"
-                                                                        className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-800"
+                                                                        className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-800 appearance-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                                                     />
                                                                 </td>
                                                             </tr>
@@ -473,6 +497,17 @@ export default function EvaluarPage() {
                                                         <tr>
                                                             <td colSpan="3" className="px-4 py-6 text-center text-slate-500">
                                                                 No hay criterios en la pauta
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                    {pauta.criteriosPuntaje && pauta.criteriosPuntaje.length > 0 && (
+                                                        <tr className="bg-blue-100 border-t-2 border-blue-300">
+                                                            <td className="px-4 py-3 text-slate-800 font-bold">Total</td>
+                                                            <td className="px-4 py-3 text-center text-slate-800 font-bold">
+                                                                {pauta.criteriosPuntaje.reduce((sum, criterio) => sum + Number(criterio.puntaje || 0), 0).toFixed(1)}
+                                                            </td>
+                                                            <td className="px-4 py-3 text-center text-slate-800 font-bold">
+                                                                {Object.values(puntajesObtenidos).reduce((sum, val) => sum + Number(val || 0), 0).toFixed(1)}
                                                             </td>
                                                         </tr>
                                                     )}
@@ -497,18 +532,6 @@ export default function EvaluarPage() {
                                                 <p className="text-2xl font-bold text-blue-600">{calcularNota()}</p>
                                             </div>
                                         </div>
-                                    </div>
-
-                                    {/* Observaciones */}
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-semibold text-slate-700">Observaciones y Recomendaciones</label>
-                                        <textarea
-                                            value={observaciones}
-                                            onChange={(e) => setObservaciones(e.target.value)}
-                                            placeholder="Ingresa observaciones, recomendaciones y sugerencias para el estudiante..."
-                                            className="w-full px-4 py-3 border border-slate-300 rounded-lg text-slate-900 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-                                            rows="4"
-                                        />
                                     </div>
 
                                     {/* Botones de acción */}
@@ -573,6 +596,177 @@ export default function EvaluarPage() {
                             ramoId={ramoId}
                             ramoNombre={isIntegradora ? ramoNombre : evaluacion?.ramo?.nombre}
                         />
+                    )}
+
+                    {/* Modal de Comentarios */}
+                    {modalComentariosOpen && pautaComentariosId && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                            <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden">
+                                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-[#143A80] text-white rounded-t-2xl">
+                                    <div>
+                                        <h2 className="text-xl font-bold text-white">Comentarios del profesor</h2>
+                                        {alumnoComentarios && (
+                                            <p className="text-sm text-blue-100 mt-1">
+                                                {alumnoComentarios.apellidoPaterno} {alumnoComentarios.apellidoMaterno}, {alumnoComentarios.nombres}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            setModalComentariosOpen(false);
+                                            setPautaComentariosId(null);
+                                            setAlumnoComentarios(null);
+                                            setPautaDetalle(null);
+                                            setEditandoPautaComentarios(false);
+                                            setPuntajesComentarios({});
+                                        }}
+                                        className="text-blue-100 hover:text-white text-xl font-bold"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6 max-h-[80vh]">
+                                    <div className="bg-blue-50/80 border border-blue-100 rounded-xl p-4 overflow-y-auto ghost-scroll">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h3 className="text-lg font-bold text-[#0F2F52]">Pauta evaluada</h3>
+                                            {!editandoPautaComentarios ? (
+                                                <button
+                                                    disabled={pautaDetalleLoading || !pautaDetalle}
+                                                    className="text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed rounded-lg px-3 py-1"
+                                                    onClick={() => {
+                                                        if (!pautaDetalle) return;
+                                                        setEditandoPautaComentarios(true);
+                                                        setPuntajesComentarios(pautaDetalle?.puntajesObtenidos || {});
+                                                    }}
+                                                >
+                                                    Editar pauta
+                                                </button>
+                                            ) : (
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        className="text-sm font-semibold text-slate-700 bg-slate-200 hover:bg-slate-300 rounded-lg px-3 py-1"
+                                                        onClick={() => {
+                                                            setEditandoPautaComentarios(false);
+                                                            setPuntajesComentarios(pautaDetalle?.puntajesObtenidos || {});
+                                                        }}
+                                                    >
+                                                        Cancelar
+                                                    </button>
+                                                    <button
+                                                        className="text-sm font-semibold text-white bg-green-600 hover:bg-green-700 rounded-lg px-3 py-1"
+                                                        onClick={async () => {
+                                                            try {
+                                                                const puntajesCompletos = {};
+                                                                if (pauta?.criteriosPuntaje) {
+                                                                    pauta.criteriosPuntaje.forEach((criterio) => {
+                                                                        puntajesCompletos[criterio.nombre] = puntajesComentarios[criterio.nombre] || 0;
+                                                                    });
+                                                                }
+
+                                                                const pautaEvaluadaData = {
+                                                                    alumnoRut: alumnoComentarios?.rut,
+                                                                    puntajes_obtenidos: puntajesCompletos
+                                                                };
+
+                                                                let result;
+                                                                if (isIntegradora) {
+                                                                    result = await updatePautaEvaluadaIntegradora(evaluacion?.id, alumnoComentarios?.rut, pautaEvaluadaData);
+                                                                } else {
+                                                                    result = await updatePautaEvaluada(evaluacion?.id, alumnoComentarios?.rut, pautaEvaluadaData);
+                                                                }
+
+                                                                setPautaDetalle(result);
+                                                                setPuntajesComentarios(result?.puntajesObtenidos || {});
+                                                                setEditandoPautaComentarios(false);
+
+                                                                if (result && result.notaFinal) {
+                                                                    setEstudiantes(prevEstudiantes =>
+                                                                        prevEstudiantes.map(est =>
+                                                                            est.id === alumnoComentarios?.id
+                                                                                ? { ...est, nota: result.notaFinal, pautaEvaluadaId: result.id }
+                                                                                : est
+                                                                        )
+                                                                    );
+                                                                }
+
+                                                                showSuccessAlert("Éxito", "Pauta actualizada correctamente");
+                                                            } catch (error) {
+                                                                console.error("Error al guardar pauta desde comentarios:", error);
+                                                                showErrorAlert("Error", "No se pudo guardar la pauta: " + (error?.message || "Error desconocido"));
+                                                            }
+                                                        }}
+                                                    >
+                                                        Guardar cambios
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                        {pautaDetalleLoading ? (
+                                            <p className="text-slate-600 text-sm">Cargando pauta evaluada...</p>
+                                        ) : pautaDetalle ? (
+                                            <div className="space-y-4">
+                                                <div className="flex items-center justify-between text-sm text-slate-700 bg-white border border-blue-100 rounded-lg px-3 py-2">
+                                                    <span className="font-semibold">Nota final</span>
+                                                    <span className="text-blue-700 font-extrabold text-xl">
+                                                        {editandoPautaComentarios
+                                                            ? calcularNota(puntajesComentarios)
+                                                            : (pautaDetalle.notaFinal?.toFixed ? pautaDetalle.notaFinal.toFixed(1) : pautaDetalle.notaFinal)
+                                                        }
+                                                    </span>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    {pauta?.criteriosPuntaje?.length ? (
+                                                        pauta.criteriosPuntaje.map((crit, idx) => {
+                                                            const obtenido = editandoPautaComentarios
+                                                                ? (puntajesComentarios[crit.nombre] === 0 || puntajesComentarios[crit.nombre] === undefined ? '' : puntajesComentarios[crit.nombre])
+                                                                : (pautaDetalle.puntajesObtenidos ? pautaDetalle.puntajesObtenidos[crit.nombre] || 0 : 0);
+                                                            return (
+                                                                <div key={idx} className="flex items-center justify-between text-sm bg-white border border-blue-100 rounded-lg px-3 py-2">
+                                                                    <div className="text-[#0F2F52] font-semibold">{crit.nombre}</div>
+                                                                    <div className="text-slate-600">
+                                                                        {editandoPautaComentarios ? (
+                                                                            <input
+                                                                                type="number"
+                                                                                min="0"
+                                                                                max={crit.puntaje}
+                                                                                step="0.1"
+                                                                                value={obtenido}
+                                                                                onChange={(e) => {
+                                                                                    const val = parseFloat(e.target.value);
+                                                                                    if (e.target.value === '' || (!isNaN(val) && val >= 0 && val <= crit.puntaje)) {
+                                                                                        setPuntajesComentarios(prev => ({
+                                                                                            ...prev,
+                                                                                            [crit.nombre]: e.target.value === '' ? 0 : val
+                                                                                        }));
+                                                                                    }
+                                                                                }}
+                                                                                onKeyDown={handlePreventArrowChange}
+                                                                                className="w-24 px-3 py-1 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-800 text-right appearance-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                                                            />
+                                                                        ) : (
+                                                                            <span className="font-semibold text-blue-700">{obtenido}</span>
+                                                                        )}
+                                                                        {!editandoPautaComentarios && ' / ' + crit.puntaje}
+                                                                        {editandoPautaComentarios && <span className="text-slate-500 ml-1">/ {crit.puntaje}</span>}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })
+                                                    ) : (
+                                                        <p className="text-slate-600 text-sm">Sin criterios de pauta.</p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <p className="text-slate-600 text-sm">No se encontró la pauta evaluada.</p>
+                                        )}
+                                    </div>
+                                    <div className="overflow-hidden">
+                                        <ComentariosPauta pautaEvaluadaId={pautaComentariosId} />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     )}
                 </div>
             </div>

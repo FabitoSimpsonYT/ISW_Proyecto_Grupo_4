@@ -1,7 +1,7 @@
 import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import Login from '@pages/Login';
-import Home from '@pages/Home';
+import Home from '@pages/HomeV2';
 import VerApelacionCompleta from '@pages/VerApelacionCompleta';
 import Apelaciones from '@pages/apelaciones';
 import MisApelaciones from '@pages/MisApelaciones';
@@ -18,13 +18,14 @@ import CrearEditarPautaPage from '@pages/CrearEditarPautaPage';
 import CrearIntegradoraPage from '@pages/CrearIntegradoraPage';
 import EvaluarPage from '@pages/EvaluarPage';
 import NotificacionesPage from '@pages/NotificacionesPage';
-import RetroalimentacionPage from '@pages/RetroalimentacionPage';
 import Error404 from '@pages/Error404';
 import Root from '@pages/Root';
 import BloqueoPage from '@pages/BloqueoPage';
 import '@styles/styles.css';
 import ApelacionesProfesor from './pages/ApelacionesProfesor';
 import EditarApelacion from './pages/EditarApelacion';
+import GestionarTiposEventos from './components/GestionarTiposEventos';
+import GestionarSlotsProfesor from './components/GestionarSlotsProfesor';
 
 const router = createBrowserRouter([
   {
@@ -61,8 +62,6 @@ const router = createBrowserRouter([
       { path: '/evaluacion/:codigoRamo/evaluar-integradora/:idEvaluacion', element: <EvaluarPage /> },
 
       // RETROALIMENTACIÓN
-      { path: '/retroalimentacion/:ramoId/:alumnoRut/:evaluacionId', element: <RetroalimentacionPage /> },
-      { path: '/retroalimentacion/:ramoId/:alumnoRut/integradora/:evaluacionIntegradoraId', element: <RetroalimentacionPage /> },
 
       // MI PERFIL
       { path: '/mi-perfil', element: <MiPerfil /> },
@@ -73,6 +72,13 @@ const router = createBrowserRouter([
       // GESTIÓN DE RAMOS (solo admin y jefe de carrera)
       { path: '/ramos', element: <GestionRamosPage /> },
       { path: '/ramos/:codigoRamo/secciones', element: <GestionSeccionesPage /> },
+
+      // GESTIÓN DE SLOTS (solo profesor y jefe de carrera)
+      { path: '/gestionar-slots', element: <GestionarSlotsProfesor /> },
+      { path: '/slots', element: <GestionarSlotsProfesor /> },
+
+      // GESTIÓN DE TIPOS DE EVENTOS (solo admin)
+      { path: '/tipos-eventos', element: <GestionarTiposEventos /> },
 
       // GESTIÓN DE USUARIOS (solo admin)
       { path: '/usuarios', element: <GestionUsuariosPage /> }
