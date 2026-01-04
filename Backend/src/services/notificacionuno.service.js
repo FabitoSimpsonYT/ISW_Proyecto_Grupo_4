@@ -213,3 +213,103 @@ export const marcarNotificacionComoLeida = async (id) => {
   notificacion.leido = true;
   return await notificacionRepo.save(notificacion);
 };
+
+/**
+ * Crea una notificación mejorada con tipo y guarda en BD
+ * @param {number} usuarioId - ID del usuario destino
+ * @param {string} titulo - Título de la notificación
+ * @param {string} mensaje - Mensaje de la notificación
+ * @param {string} tipo - Tipo: 'info', 'success', 'warning', 'error', 'evaluacion', 'bloqueo', 'evento', 'apelacion'
+ * @param {object} relaciones - {evaluacionId?, bloqueId?, eventoId?, etc}
+ * @returns {Promise<object>} notificación creada
+ */
+export const crearNotificacionPersistente = async (usuarioId, titulo, mensaje, tipo = 'info', relaciones = {}) => {
+  try {
+    const notificacion = notificacionRepo.create({
+      titulo,
+      mensaje,
+      tipo,
+      usuario: { id: usuarioId },
+      ...(relaciones.evaluacionId && { evaluacion: { id: relaciones.evaluacionId } }),
+    });
+    
+    return await notificacionRepo.save(notificacion);
+  } catch (error) {
+    console.error('crearNotificacionPersistente - Error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Crea notificaciones para múltiples usuarios con tipo
+ * @param {number[]} usuarioIds - Array de IDs de usuarios
+ * @param {string} titulo - Título
+ * @param {string} mensaje - Mensaje
+ * @param {string} tipo - Tipo de notificación
+ * @returns {Promise<number>} cantidad creadas
+ */
+export const crearNotificacionesMultiples = async (usuarioIds = [], titulo, mensaje, tipo = 'info') => {
+  try {
+    if (!Array.isArray(usuarioIds) || usuarioIds.length === 0) {
+      return 0;
+    }
+
+    const notificaciones = usuarioIds.map((userId) =>
+      notificacionRepo.create({
+        titulo,
+        mensaje,
+        tipo,
+        usuario: { id: userId },
+      })
+    );
+
+    await notificacionRepo.save(notificaciones);
+    return notificaciones.length;
+  } catch (error) {
+    console.error('crearNotificacionesMultiples - Error:', error);
+    return 0;
+  }
+};
+
+/**
+ * Obtiene notificaciones sin leer de un usuario
+ * @param {number} usuarioId
+ * @returns {Promise<array>}
+ */
+export const obtenerNotificacionesSinLeer = async (usuarioId) => {
+  return await notificacionRepo.find({
+    where: { usuario: { id: usuarioId }, leido: false },
+    relations: ['evaluacion'],
+    order: { fechaEnvio: 'DESC' },
+  });
+};
+
+/**
+ * Obtiene notificaciones por tipo
+ * @param {number} usuarioId
+ * @param {string} tipo
+ * @returns {Promise<array>}
+ */
+export const obtenerNotificacionesPorTipo = async (usuarioId, tipo) => {
+  return await notificacionRepo.find({
+    where: { usuario: { id: usuarioId }, tipo },
+    relations: ['evaluacion'],
+    order: { fechaEnvio: 'DESC' },
+  });
+};
+
+/**
+ * Marcar todas las notificaciones como leídas
+ * @param {number} usuarioId
+ * @returns {Promise<number>} cantidad actualizada
+ */
+export const marcarTodoComoLeido = async (usuarioId) => {
+  const result = await notificacionRepo
+    .createQueryBuilder()
+    .update(Notificacion)
+    .set({ leido: true })
+    .where('usuario_id = :usuarioId AND leido = false', { usuarioId })
+    .execute();
+  
+  return result.affected || 0;
+};

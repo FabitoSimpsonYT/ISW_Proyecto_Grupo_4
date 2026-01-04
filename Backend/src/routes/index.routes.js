@@ -21,9 +21,13 @@ import devRoutes from "./dev.routes.js";
 import alumnoPromedioRamoRoutes from "./alumnoPromedioRamo.routes.js";
 import evaluacionIntegradoraRoutes from "./evaluacionIntegradora.routes.js";
 import retroalimentacionRoutes from "./retroalimentacion.routes.js";
+import comentarioPautaRoutes from "./comentarioPauta.routes.js";
+import reporteRoutes from "./reporte.routes.js";
+import evaluacionEstadoRoutes from "./evaluacionEstado.routes.js";
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import retroalimentacionHandler from "../websocket/retroalimentacionHandler.js";
+import notificacionesHandler from "../websocket/notificacionesHandler.js";
 
 export function routerApi(app) {
   const router = Router();
@@ -36,6 +40,7 @@ export function routerApi(app) {
   router.use("/alumnos", alumnoRoutes);
   router.use("/admin", adminRoutes);
   router.use("/evaluaciones", evaluacionesRoutes);
+  router.use("/evaluaciones-estado", evaluacionEstadoRoutes);
   router.use("/pauta", pautaRoutes);
   router.use("/pauta-evaluadas", pautaEvaluadaRoutes);
   router.use("/pauta-evaluadas-integradora", pautaEvaluadaRoutes);
@@ -53,6 +58,8 @@ export function routerApi(app) {
   router.use("/promedios", alumnoPromedioRamoRoutes);
   router.use("/evaluacion-integradora", evaluacionIntegradoraRoutes);
   router.use("/retroalimentacion", retroalimentacionRoutes);
+  router.use("/comentarios-pauta", comentarioPautaRoutes);
+  router.use("/reportes", reporteRoutes);
 }
 
 export function configureSocketIO(app) {
@@ -71,8 +78,9 @@ export function configureSocketIO(app) {
   // Almacenar io en app
   app.set('io', io);
 
-  // Inicializar handler de retroalimentación
+  // Inicializar handlers de WebSocket
   retroalimentacionHandler.initialize(io);
+  notificacionesHandler.initialize(io);
 
   return httpServer;
 }

@@ -1,6 +1,6 @@
 // src/components/ModalInscripcionGrupo.jsx
 import { useState } from 'react';
-import Swal from 'sweetalert2';
+import toast from 'react-hot-toast';
 
 export default function ModalInscripcionGrupo({ evento, onClose, onInscribir }) {
   const [slotSeleccionado, setSlotSeleccionado] = useState('');
@@ -10,11 +10,11 @@ export default function ModalInscripcionGrupo({ evento, onClose, onInscribir }) 
 
   const agregarMiembro = () => {
     if (!emailNuevo.trim() || !emailNuevo.includes('@ubiobio.cl')) {
-      Swal.fire({ icon: 'warning', text: 'Email institucional inválido' });
+      toast.error('Email institucional inválido');
       return;
     }
     if (miembrosGrupo.some(m => m.alumnoEmail === emailNuevo)) {
-      Swal.fire({ icon: 'warning', text: 'Email duplicado' });
+      toast.error('Email duplicado');
       return;
     }
     setMiembrosGrupo([...miembrosGrupo, { alumnoEmail: emailNuevo }]);
@@ -23,15 +23,15 @@ export default function ModalInscripcionGrupo({ evento, onClose, onInscribir }) 
 
   const handleInscribir = () => {
     if (evento.tipoInscripcion === 'pareja' && miembrosGrupo.length !== 1) {
-      Swal.fire({ icon: 'warning', text: 'Debes agregar 1 compañero' });
+      toast.error('Debes agregar 1 compañero');
       return;
     }
     if (evento.tipoInscripcion === 'grupo' && miembrosGrupo.length < 1) {
-      Swal.fire({ icon: 'warning', text: 'Debes agregar al menos 1 compañero' });
+      toast.error('Debes agregar al menos 1 compañero');
       return;
     }
     if (evento.slotsDisponibles?.length > 0 && !slotSeleccionado) {
-      Swal.fire({ icon: 'warning', text: 'Selecciona un horario' });
+      toast.error('Selecciona un horario');
       return;
     }
 

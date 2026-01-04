@@ -12,6 +12,8 @@ import{
     deletePautaIntegradora,
     getPautaByEvaluacion,
     getPautaByEvaluacionIntegradora,
+    publishPauta,
+    publishPautaIntegradora,
 } from "../controllers/pauta.controller.js";
 
 const router = Router();
@@ -25,6 +27,7 @@ router.get("/by-evaluacion-integradora/:evaluacionIntegradoraId", authMiddleware
 // Rutas específicas para pautas de evaluación integradora (ANTES de rutas genéricas)
 router.post("/integradora/:evaluacionIntegradoraId", authMiddleware, createPautaIntegradora);
 router.get("/integradora/:evaluacionIntegradoraId", authMiddleware, getPautaIntegradora);
+router.patch("/integradora/:evaluacionIntegradoraId/publicar", authMiddleware, publishPautaIntegradora);
 router.patch("/integradora/:evaluacionIntegradoraId", authMiddleware, updatePautaIntegradora);
 router.delete("/integradora/:evaluacionIntegradoraId", authMiddleware, deletePautaIntegradora);
 
@@ -34,6 +37,7 @@ router.post("/:evaluacionId", authMiddleware, createPauta);
 
 // Ruta genérica al final
 router.get("/:id", authMiddleware, getPautaById);
+router.patch("/:id/publicar", authMiddleware, publishPauta);
 router.patch("/:id", authMiddleware, updatePauta);
 router.delete("/:id", authMiddleware, deletePauta);
 

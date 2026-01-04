@@ -97,14 +97,18 @@ export async function updateAlumno(id, alumnoData) {
     alumnoData.password = await bcrypt.hash(alumnoData.password, 10);
   }
 
+  // Separar campos de perfil (generacion) para no intentar actualizar columnas
+  // inexistentes en la tabla `user`. Enviar solo los campos de usuario a userRepository.
+  const { generacion, ...userFields } = alumnoData;
+
   await userRepository.update(id, {
-    ...alumnoData,
+    ...userFields,
     role: "alumno"
   });
 
-  if (alumnoData.generacion) {
+  if (generacion) {
     await alumnoRepository.update(id, {
-      generacion: alumnoData.generacion
+      generacion: generacion
     });
   }
 

@@ -20,6 +20,15 @@ export const Notificacion = new EntitySchema({
             type: "boolean",
             default: false,
         },
+        tipo: {
+            type: "varchar",
+            length: 50,
+            default: "evaluacion",
+        },
+        metadata: {
+            type: "text",
+            nullable: true,
+        },
         fechaEnvio: {
             type: "timestamp",
             default: () => "CURRENT_TIMESTAMP",

@@ -206,6 +206,43 @@ export async function updateEvaluacionService(id, data) {
 
   if (!evaluacion) return null;
 
+  // Detectar si SOLO se está editando el puntaje total
+  const camposEditados = Object.keys(data).filter(key => 
+    data[key] !== undefined && 
+    key !== 'id' && 
+    key !== 'pauta' && 
+    key !== 'pautaPublicada' &&
+    key !== 'aplicada'
+  );
+  
+  const soloEditandoPuntaje = camposEditados.length === 1 && camposEditados[0] === 'puntajeTotal';
+  
+  // Si solo se está editando el puntaje, eliminar pauta y pautas evaluadas
+  if (soloEditandoPuntaje && evaluacion.idPauta) {
+    console.log("Solo se editó el puntaje total, eliminando pauta y notas asociadas...");
+    
+    // 1. Eliminar pautas evaluadas
+    const pautasEvaluadas = await pautaEvaluadaRepository.find({
+      where: { idEvaluacion: id },
+    });
+    
+    if (pautasEvaluadas && pautasEvaluadas.length > 0) {
+      console.log("Eliminando", pautasEvaluadas.length, "pautas evaluadas");
+      await pautaEvaluadaRepository.remove(pautasEvaluadas);
+    }
+    
+    // 2. Eliminar pauta
+    const pauta = await pautaRepository.findOneBy({ id: evaluacion.idPauta });
+    if (pauta) {
+      console.log("Eliminando pauta con ID:", pauta.id);
+      await pautaRepository.remove(pauta);
+    }
+    
+    // 3. Limpiar la referencia a la pauta
+    evaluacion.idPauta = null;
+    evaluacion.pautaPublicada = false;
+  }
+
   // Procesar los campos que se actualizan
   if (data.titulo !== undefined) evaluacion.titulo = data.titulo;
   if (data.fechaProgramada !== undefined) evaluacion.fechaProgramada = data.fechaProgramada;
@@ -218,8 +255,8 @@ export async function updateEvaluacionService(id, data) {
   if (data.pautaPublicada !== undefined) evaluacion.pautaPublicada = data.pautaPublicada;
   if (data.aplicada !== undefined) evaluacion.aplicada = data.aplicada;
   
-  // Procesar pauta correctamente
-  if (data.pauta !== undefined) {
+  // Procesar pauta correctamente (solo si no se eliminó arriba)
+  if (data.pauta !== undefined && !soloEditandoPuntaje) {
     if (data.pauta === null || data.pauta === '') {
       evaluacion.pauta = null;
     } else if (typeof data.pauta === 'object') {

@@ -1,0 +1,152 @@
+/* Estilos personalizados para react-time-picker - COMPACTO */
+
+.custom-time-picker {
+  --time-picker-color: #10B981;
+  --time-picker-border: #10B981;
+}
+
+.react-time-picker {
+  width: 100%;
+}
+
+.react-time-picker__wrapper {
+  border: none;
+  padding: 0;
+  background: transparent;
+}
+
+/* Input */
+.react-time-picker__inputGroup {
+  min-width: auto;
+}
+
+.react-time-picker__inputGroup__input {
+  padding: 0.5rem 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #0E2C66;
+  border: 2px solid #10B981;
+  border-radius: 0.5rem;
+  background: white;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.react-time-picker__inputGroup__input:hover {
+  border-color: #059669;
+  background: #F0FDFA;
+}
+
+.react-time-picker__inputGroup__input:focus {
+  outline: none;
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.react-time-picker__inputGroup__divider {
+  padding: 0 0.25rem;
+  font-weight: 600;
+  color: #0E2C66;
+}
+
+/* Botón de abrir */
+.react-time-picker__button {
+  padding: 0.5rem;
+  border: 2px solid #10B981;
+  border-radius: 0.5rem;
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.react-time-picker__button:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  border-color: #047857;
+}
+
+.react-time-picker__button:active {
+  transform: scale(0.95);
+}
+
+.react-time-picker__button svg {
+  width: 18px;
+  height: 18px;
+  stroke: white;
+}
+
+/* Contenedor de reloj */
+.react-time-picker__clock {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1000;
+  margin-top: 0.5rem;
+  background: white;
+  border: 2px solid #10B981;
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.2);
+}
+
+/* Reloj */
+.react-clock {
+  width: 100%;
+  max-width: 250px;
+  background: white;
+  border: none;
+}
+
+.react-clock__face {
+  background: linear-gradient(135deg, #CFFAFE 0%, #A7F3D0 100%);
+  border: 2px solid #10B981;
+}
+
+.react-clock__hand {
+  stroke: #10B981;
+}
+
+.react-clock__hand__body {
+  stroke: #10B981;
+  stroke-width: 3;
+}
+
+.react-clock__mark {
+  stroke: #10B981;
+}
+
+.react-clock__mark__body {
+  stroke-width: 2;
+}
+
+.react-clock__number {
+  color: #0E2C66;
+  font-weight: 600;
+}
+
+/* Número seleccionado */
+.react-clock__number--active {
+  color: white;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .react-time-picker__inputGroup__input {
+    padding: 0.4rem 0.5rem;
+    font-size: 0.9rem;
+  }
+
+  .react-time-picker__clock {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2000;
+    max-width: 280px;
+    width: 90%;
+  }
+
+  .react-clock {
+    max-width: 100%;
+  }
+}

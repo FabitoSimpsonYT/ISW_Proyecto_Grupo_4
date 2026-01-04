@@ -9,15 +9,27 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.9",
+    "aos": "^2.3.4",
     "axios": "^1.6.2",
     "css": "^3.0.0",
+    "framer-motion": "^12.23.26",
     "js-cookie": "^3.0.5",
     "jwt-decode": "^4.0.0",
+    "moment": "^2.30.1",
     "react": "^18.2.0",
+    "react-big-calendar": "^1.19.4",
+    "react-calendar": "^6.0.0",
     "react-dom": "^18.2.0",
+    "react-hot-toast": "^2.6.0",
+    "react-icons": "^5.5.0",
+    "react-loading-skeleton": "^3.5.0",
     "react-router-dom": "^6.20.1",
+    "react-time-picker": "^8.0.2",
+    "recharts": "^3.6.0",
     "socket.io-client": "^4.8.3",
-    "sweetalert2": "^11.10.3"
+    "sweetalert2": "^11.26.17",
+    "tailwindcss-animated": "^2.0.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",

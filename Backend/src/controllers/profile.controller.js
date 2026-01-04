@@ -29,14 +29,17 @@ export async function updatePrivateProfile(req, res) {
     }
 
     // Non-admins (regular users) can only update their password and telefono
-    const { password, telefono } = req.body;
+    const { password, telefono, currentPassword } = req.body;
     if (!password && !telefono) {
       return res.status(400).json({ message: "Solo puedes actualizar contraseña y teléfono." });
     }
-    const updatedUser = await updateUserById(userId, { password, telefono });
+    const updatedUser = await updateUserById(userId, { password, telefono, currentPassword }, { requireCurrentPassword: !!password });
     handleSuccess(res, 200, "Perfil actualizado exitosamente", { user: updatedUser });
   } catch (error) {
     if (error.code === "EMAIL_IN_USE" || error.code === "PHONE_IN_USE" || error.code === "PHONE_INVALID") {
+      return res.status(400).json({ message: error.message });
+    }
+    if (error.code === "CURRENT_PASSWORD_REQUIRED" || error.code === "CURRENT_PASSWORD_INVALID") {
       return res.status(400).json({ message: error.message });
     }
     res.status(500).json({ message: "Error al actualizar perfil", error: error.message });

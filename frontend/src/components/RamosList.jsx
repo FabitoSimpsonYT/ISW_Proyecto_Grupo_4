@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { showSuccessAlert, showErrorAlert, showConfirmAlert } from "@/utils/alertUtils";
 import { getAllRamos, deleteRamo, getAlumnosBySeccion } from "../services/ramos.service.js";
 
-export default function RamosList({ onEdit, reload, searchTerm = "" }) {
+export default function RamosList({ onEdit, reload, searchTerm = "", selectedPeriodo = "", onRamosLoaded }) {
   const navigate = useNavigate();
   const [ramos, setRamos] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -24,6 +24,9 @@ export default function RamosList({ onEdit, reload, searchTerm = "" }) {
     try {
       const data = await getAllRamos();
       setRamos(data || []);
+      if (onRamosLoaded) {
+        onRamosLoaded(data || []);
+      }
     } catch (error) {
       setError(error.message || 'Error al cargar ramos');
       console.error('Error:', error);
@@ -32,8 +35,23 @@ export default function RamosList({ onEdit, reload, searchTerm = "" }) {
     }
   };
 
-  // Filtrar ramos según el término de búsqueda
+  // Filtrar ramos según el término de búsqueda y período
   const filteredRamos = ramos.filter((ramo) => {
+    // Filtro por período (formato: "2025-2")
+    if (selectedPeriodo) {
+      // El código del ramo tiene formato CCCCCC-YYYY-P (ej: 620515-2025-1)
+      const codigoParts = ramo.codigo.split('-');
+      if (codigoParts.length >= 3) {
+        const ramoPeriodo = `${codigoParts[1]}-${codigoParts[2]}`; // "2025-1"
+        if (ramoPeriodo !== selectedPeriodo) return false;
+      } else if (ramo.anio && ramo.periodo) {
+        // Si el ramo tiene campos anio y periodo directamente
+        const ramoPeriodo = `${ramo.anio}-${ramo.periodo}`;
+        if (ramoPeriodo !== selectedPeriodo) return false;
+      }
+    }
+
+    // Filtro por término de búsqueda
     if (!searchTerm.trim()) return true;
 
     // Si comienza con número, buscar por código

@@ -9,6 +9,70 @@ import {
 } from "../services/evaluacion.service.js";
 import { createEvaluacionValidation, updateEvaluacionValidation } from "../validations/evaluacion.validation.js";
 import { notificarAlumnos } from "../services/notificacionuno.service.js";
+import { sendEmail } from "../config/email.js";
+import { renderNotificationEmail } from "../utils/emailTemplate.js";
+
+function buildDisplayName(person) {
+  const parts = [person?.nombres, person?.apellidoPaterno, person?.apellidoMaterno]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+  return parts.join(" ").trim();
+}
+
+async function resolveInstructorIdentity(reqUser) {
+  const tokenEmail = String(reqUser?.email || "").trim();
+  const tokenName = String(reqUser?.nombres || "").trim();
+  const tokenHasLastName = Boolean(reqUser?.apellidoPaterno || reqUser?.apellidoMaterno);
+  const nameFromToken = tokenHasLastName ? buildDisplayName(reqUser) : tokenName;
+
+  if (tokenHasLastName || !reqUser?.id) {
+    return { name: nameFromToken, email: tokenEmail };
+  }
+
+  try {
+    const { AppDataSource } = await import("../config/configDB.js");
+    const { User } = await import("../entities/user.entity.js");
+    const userRepository = AppDataSource.getRepository(User);
+    const dbUser = await userRepository.findOne({ where: { id: Number(reqUser.id) } });
+
+    const nameFromDb = buildDisplayName(dbUser);
+    const emailFromDb = String(dbUser?.email || "").trim();
+
+    return {
+      name: nameFromDb || nameFromToken,
+      email: tokenEmail || emailFromDb,
+    };
+  } catch (error) {
+    console.warn(
+      "No se pudo resolver el nombre completo del docente desde BD:",
+      error?.message || error
+    );
+    return { name: nameFromToken, email: tokenEmail };
+  }
+}
+
+function formatDateTimeForEmail(value) {
+  const date = value instanceof Date ? value : new Date(value ?? Date.now());
+  try {
+    return new Intl.DateTimeFormat("es-CL", {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: "America/Santiago",
+    }).format(date);
+  } catch {
+    return date.toLocaleString("es-CL");
+  }
+}
+
+async function sendEmailToMany(recipients, subject, html) {
+  const emails = [...new Set((recipients || []).map((e) => String(e).trim()).filter(Boolean))];
+  if (emails.length === 0) return { sent: 0, failed: 0 };
+
+  const results = await Promise.allSettled(emails.map((email) => sendEmail(email, subject, html)));
+  const sent = results.filter((r) => r.status === "fulfilled").length;
+  const failed = results.length - sent;
+  return { sent, failed };
+}
 
 async function getUniqueAlumnoEmailsByRamoId(ramoId) {
   if (!ramoId) return [];
@@ -79,7 +143,7 @@ export async function getEvaluacionById(req, res) {
 }
 
 import { syncEvaluacionWithEvent } from "../utils/evaluation-event.utils.js";
-
+// createEvaluacion
 export async function createEvaluacion(req, res) {
   try {
     const user = req.user;
@@ -163,6 +227,40 @@ export async function createEvaluacion(req, res) {
             nuevaEvaluacion.id
           );
           console.log(` ${uniqueEmails.length} alumnos notificados por publicación de evaluación`);
+
+          try {
+            const evalTitulo = nuevaEvaluacion.titulo || titulo || "(sin título)";
+            const publicadoEl = formatDateTimeForEmail(
+              nuevaEvaluacion?.updated_at || nuevaEvaluacion?.created_at || new Date()
+            );
+            const subject = `Certamen publicado: ${evalTitulo}`;
+            const instructor = await resolveInstructorIdentity(req.user || user);
+            const profesorNombre = instructor.name;
+            const profesorEmail = instructor.email;
+            const cursoNombre = nuevaEvaluacion?.ramo
+              ? `${nuevaEvaluacion.ramo.nombre} (${nuevaEvaluacion.ramo.codigo || codigoRamo || ""})`
+              : (codigoRamo ? `(${codigoRamo})` : "");
+            const html = renderNotificationEmail({
+              title: "Certamen publicado",
+              preheader: `Se publicó el certamen: ${evalTitulo}.`,
+              lines: [
+                `Se publicó el certamen: ${evalTitulo}.`,
+                `Publicado el: ${publicadoEl}`,
+                "Ya puedes revisarlo en el sistema.",
+              ],
+              badgeText: evalTitulo,
+              instructorName: profesorNombre,
+              instructorEmail: profesorEmail,
+              courseName: cursoNombre,
+            });
+            const { sent, failed } = await sendEmailToMany(uniqueEmails, subject, html);
+            console.log(`Emails por evaluación publicada (creación): enviados=${sent}, fallidos=${failed}`);
+          } catch (emailError) {
+            console.warn(
+              "No se pudieron enviar emails (evaluación publicada - creación):",
+              emailError?.message || emailError
+            );
+          }
         } else {
           console.log("notificarAlumnos: lista de emails vacía para evaluación publicada (creación)");
         }
@@ -190,11 +288,11 @@ export async function updateEvaluacion(req, res) {
     const validationSchema = updateEvaluacionValidation;
     const { error } = validationSchema.validate(req.body);
     
-    // Si hay error y es sobre la fecha, verificar si la fecha se proporcionó
+    
     if (error) {
-      // Si el error es sobre fechaProgramada y la fecha NO viene en el body, ignorar el error
+      
       if (error.details && error.details.some(d => d.context.key === 'fechaProgramada') && !req.body.fechaProgramada) {
-        // La fecha no se proporcionó, es OK
+       
       } else {
         return res.status(400).json({message: error.message});
       }
@@ -297,6 +395,38 @@ export async function updateEvaluacion(req, res) {
             evaluacionActualizada.id
           );
           console.log(`${uniqueEmails.length} alumnos notificados por publicación de evaluación`);
+
+          try {
+            const evalTitulo = evaluacionActualizada.titulo || titulo || "(sin título)";
+            const publicadoEl = formatDateTimeForEmail(evaluacionActualizada?.updated_at || new Date());
+            const subject = `Certamen publicado: ${evalTitulo}`;
+            const instructor = await resolveInstructorIdentity(req.user || user);
+            const profesorNombre = instructor.name;
+            const profesorEmail = instructor.email;
+            const cursoNombre = evaluacionActualizada?.ramo
+              ? `${evaluacionActualizada.ramo.nombre} (${evaluacionActualizada.ramo.codigo || ""})`
+              : "";
+            const html = renderNotificationEmail({
+              title: "Certamen publicado",
+              preheader: `Se publicó el certamen: ${evalTitulo}.`,
+              lines: [
+                `Se publicó el certamen: ${evalTitulo}.`,
+                `Publicado el: ${publicadoEl}`,
+                "Ya puedes revisarlo en el sistema.",
+              ],
+              badgeText: evalTitulo,
+              instructorName: profesorNombre,
+              instructorEmail: profesorEmail,
+              courseName: cursoNombre,
+            });
+            const { sent, failed } = await sendEmailToMany(uniqueEmails, subject, html);
+            console.log(`Emails por evaluación publicada (update): enviados=${sent}, fallidos=${failed}`);
+          } catch (emailError) {
+            console.warn(
+              "No se pudieron enviar emails (evaluación publicada - update):",
+              emailError?.message || emailError
+            );
+          }
         }
       } catch (notifError) {
         console.warn(

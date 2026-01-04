@@ -7,6 +7,9 @@ import {
   deletePautaService,
   getPautaByEvaluacionService,
   getPautaByEvaluacionIntegradoraService,
+  getPautaIntegradoraService,
+  updatePautaIntegradoraService,
+  deletePautaIntegradoraService,
 } from "../services/pauta.service.js";
 
 export async function getPautaById(req, res) {
@@ -88,7 +91,8 @@ export async function updatePauta(req, res) {
     // Eliminar pautas evaluadas relacionadas al id de pauta
     try {
       const { AppDataSource } = await import("../config/configDB.js");
-      const pautaEvaluadaRepository = AppDataSource.getRepository(require("../entities/pautaEvaluada.entity.js").PautaEvaluada);
+      const { PautaEvaluada } = await import("../entities/pautaEvaluada.entity.js");
+      const pautaEvaluadaRepository = AppDataSource.getRepository(PautaEvaluada);
       await pautaEvaluadaRepository.delete({ pauta: { id: id } });
     } catch (err) {
       console.error("Error eliminando pautas evaluadas relacionadas:", err);
@@ -240,5 +244,53 @@ export async function getPautaByEvaluacionIntegradora(req, res) {
     handleSuccess(res, 200, "Pauta obtenida exitosamente", { pauta });
   } catch (error) {
     handleErrorServer(res, 500, "Error al obtener pauta", error.message);
+  }
+}
+
+export async function publishPauta(req, res) {
+  try {
+    const { id } = req.params;
+    const user = req.user;
+
+    if (user.role !== "profesor" && user.role !== "jefecarrera") {
+      return handleErrorClient(
+        res,
+        403,
+        "Solo los profesores y jefes de carrera pueden publicar pautas"
+      );
+    }
+
+    const result = await updatePautaService(id, { publicada: true }, user);
+    if (result.error) return handleErrorClient(res, 400, result.error);
+
+    handleSuccess(res, 200, "Pauta publicada exitosamente", { pauta: result });
+  } catch (error) {
+    handleErrorServer(res, 500, "Error al publicar pauta", error.message);
+  }
+}
+
+export async function publishPautaIntegradora(req, res) {
+  try {
+    const { evaluacionIntegradoraId } = req.params;
+    const user = req.user;
+
+    if (user.role !== "profesor" && user.role !== "jefecarrera") {
+      return handleErrorClient(
+        res,
+        403,
+        "Solo los profesores y jefes de carrera pueden publicar pautas"
+      );
+    }
+
+    const result = await updatePautaIntegradoraService(
+      evaluacionIntegradoraId ? parseInt(evaluacionIntegradoraId) : null,
+      { publicada: true },
+      user
+    );
+    if (result.error) return handleErrorClient(res, 400, result.error);
+
+    handleSuccess(res, 200, "Pauta integradora publicada exitosamente", { pauta: result });
+  } catch (error) {
+    handleErrorServer(res, 500, "Error al publicar pauta integradora", error.message);
   }
 }

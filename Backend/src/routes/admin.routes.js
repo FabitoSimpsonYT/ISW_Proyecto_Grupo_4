@@ -45,7 +45,7 @@ router.get("/:id",
   getAdminByIdHandler
 );
 
-router.put("/:id", 
+router.patch("/:id", 
   validateRequest(updateAdminValidation), 
   updateAdminHandler
 );

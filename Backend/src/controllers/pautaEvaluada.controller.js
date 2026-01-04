@@ -2,6 +2,8 @@ import { handleSuccess, handleErrorClient, handleErrorServer } from "../Handlers
 import { createPautaEvaluadaService, getPautaEvaluadaService, getPautasEvaluadasByEvaluacionService, updatePautaEvaluadaService, deletePautaEvaluadaService, createPautaEvaluadaIntegradoraService, getPautaEvaluadaIntegradoraService, updatePautaEvaluadaIntegradoraService, deletePautaEvaluadaIntegradoraService } from "../services/pautaEvaluada.service.js";
 import { createPautaEvaluadaValidation, updatePautaEvaluadaValidation } from "../validations/pautaEvaluada.validation.js";
 import { notificarAlumnos } from "../services/notificacionuno.service.js";
+import { sendEmail } from "../config/email.js";
+import { renderNotificationEmail } from "../utils/emailTemplate.js";
 import { AppDataSource } from "../config/configDB.js";
 import { Pauta } from "../entities/pauta.entity.js";
 import { Evaluacion } from "../entities/evaluaciones.entity.js";
@@ -10,6 +12,104 @@ import { EvaluacionIntegradora } from "../entities/evaluacionIntegradora.entity.
 const pautaRepository = AppDataSource.getRepository(Pauta);
 const evaluacionRepository = AppDataSource.getRepository(Evaluacion);
 const evaluacionIntegradoraRepository = AppDataSource.getRepository(EvaluacionIntegradora);
+
+function formatDateTimeForEmail(value) {
+  const date = value instanceof Date ? value : new Date(value ?? Date.now());
+  try {
+    return new Intl.DateTimeFormat("es-CL", {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: "America/Santiago",
+    }).format(date);
+  } catch {
+    return date.toLocaleString("es-CL");
+  }
+}
+
+function buildDisplayName(person) {
+  const parts = [person?.nombres, person?.apellidoPaterno, person?.apellidoMaterno]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+  return parts.join(" ").trim();
+}
+
+async function resolveInstructorIdentity(reqUser) {
+  const tokenEmail = String(reqUser?.email || "").trim();
+  const tokenName = String(reqUser?.nombres || "").trim();
+  const tokenHasLastName = Boolean(reqUser?.apellidoPaterno || reqUser?.apellidoMaterno);
+  const nameFromToken = tokenHasLastName ? buildDisplayName(reqUser) : tokenName;
+
+  if (tokenHasLastName || !reqUser?.id) {
+    return { name: nameFromToken, email: tokenEmail };
+  }
+
+  try {
+    const { User } = await import("../entities/user.entity.js");
+    const userRepository = AppDataSource.getRepository(User);
+    const dbUser = await userRepository.findOne({ where: { id: Number(reqUser.id) } });
+
+    const nameFromDb = buildDisplayName(dbUser);
+    const emailFromDb = String(dbUser?.email || "").trim();
+
+    return {
+      name: nameFromDb || nameFromToken,
+      email: tokenEmail || emailFromDb,
+    };
+  } catch (error) {
+    console.warn(
+      "No se pudo resolver el nombre completo del docente desde BD (pautaEvaluada):",
+      error?.message || error
+    );
+    return { name: nameFromToken, email: tokenEmail };
+  }
+}
+
+function normalizeNota(value) {
+  if (value === null || value === undefined) return null;
+  const n = Number(value);
+  if (Number.isNaN(n)) return null;
+  return Number(n.toFixed(1));
+}
+
+async function sendGradeEmailToStudent({
+  to,
+  evaluacionTitulo,
+  courseName,
+  notaFinal,
+  publishedAt,
+  instructorName,
+  instructorEmail,
+}) {
+  const safeTo = String(to || "").trim();
+  if (!safeTo) return;
+
+  const nota = normalizeNota(notaFinal);
+  const publicadoEl = formatDateTimeForEmail(publishedAt || new Date());
+  const subject = `Nota publicada: ${evaluacionTitulo || "(sin título)"}`;
+
+  const html = renderNotificationEmail({
+    title: "Nota publicada",
+    subtitle: evaluacionTitulo ? `Se publicó la nota del certamen: ${evaluacionTitulo}.` : "Se publicó la nota del certamen.",
+    badgeText: evaluacionTitulo || "Certamen",
+    instructorName,
+    instructorEmail,
+    courseName,
+    detailsTitle: "Detalles del Certamen",
+    details: [
+      { label: "Nombre:", value: evaluacionTitulo || "(sin título)" },
+      ...(nota !== null ? [{ label: "Nota:", value: String(nota) }] : []),
+      { label: "Fecha de Publicación:", value: publicadoEl },
+      { label: "Disponibilidad:", value: "Ya puedes revisarlo en el sistema" },
+    ],
+    recommendations: [
+      "Revisar el detalle de tu pauta en la plataforma",
+      "Verificar observaciones y retroalimentación",
+      "Contactar al profesor(a) si tienes dudas",
+    ],
+  });
+
+  await sendEmail(safeTo, subject, html);
+}
 
 /**
  * Obtiene los emails únicos de alumnos inscritos en un ramo
@@ -143,6 +243,28 @@ export async function createPautaEvaluada(req, res) {
             `Se ha registrado tu pauta evaluada de ${evaluacion.ramo.nombre} - ${evaluacion.titulo}.`,
             evaluacionId
           );
+
+          try {
+            const instructor = await resolveInstructorIdentity(req.user || user);
+            const cursoNombre = evaluacion?.ramo
+              ? `${evaluacion.ramo.nombre} (${evaluacion.ramo.codigo || evaluacion.codigoRamo || ""})`
+              : (evaluacion.codigoRamo ? `(${evaluacion.codigoRamo})` : "");
+
+            await sendGradeEmailToStudent({
+              to: alumnoUser.email,
+              evaluacionTitulo: evaluacion.titulo,
+              courseName: cursoNombre,
+              notaFinal: result?.notaFinal,
+              publishedAt: result?.updated_at || result?.created_at || new Date(),
+              instructorName: instructor.name,
+              instructorEmail: instructor.email,
+            });
+          } catch (emailError) {
+            console.warn(
+              "No se pudo enviar email de nota publicada (createPautaEvaluada):",
+              emailError?.message || emailError
+            );
+          }
         }
       }
     } catch (notifError) {
@@ -179,6 +301,14 @@ export async function updatePautaEvaluada(req, res) {
     const { evaluacionIntegradoraId } = req.query;
     const { puntajes_obtenidos } = req.body;
     const user = req.user;
+
+    let previousNota = null;
+    try {
+      const previous = await getPautaEvaluadaService(evaluacionId, alumnoRut, evaluacionIntegradoraId);
+      previousNota = previous?.notaFinal;
+    } catch {
+      previousNota = null;
+    }
 
     // Si se proporcionan puntajes_obtenidos, validar que coincidan con la distribución
     if (puntajes_obtenidos) {
@@ -218,6 +348,34 @@ export async function updatePautaEvaluada(req, res) {
             `Tu pauta evaluada de ${evaluacion.ramo.nombre} - ${evaluacion.titulo} ha sido actualizada.`,
             evaluacionId || evaluacionIntegradoraId
           );
+
+          const prev = normalizeNota(previousNota);
+          const next = normalizeNota(result?.notaFinal);
+          const notaCambio = prev === null || next === null ? prev !== next : prev !== next;
+
+          if (notaCambio && next !== null) {
+            try {
+              const instructor = await resolveInstructorIdentity(req.user || user);
+              const cursoNombre = evaluacion?.ramo
+                ? `${evaluacion.ramo.nombre} (${evaluacion.ramo.codigo || evaluacion.codigoRamo || ""})`
+                : (evaluacion.codigoRamo ? `(${evaluacion.codigoRamo})` : "");
+
+              await sendGradeEmailToStudent({
+                to: alumnoUser.email,
+                evaluacionTitulo: evaluacion.titulo,
+                courseName: cursoNombre,
+                notaFinal: result?.notaFinal,
+                publishedAt: result?.updated_at || new Date(),
+                instructorName: instructor.name,
+                instructorEmail: instructor.email,
+              });
+            } catch (emailError) {
+              console.warn(
+                "No se pudo enviar email de nota publicada (updatePautaEvaluada):",
+                emailError?.message || emailError
+              );
+            }
+          }
         }
       }
     } catch (notifError) {
@@ -316,6 +474,27 @@ export async function createPautaEvaluadaIntegradora(req, res) {
             const titulo = `Nota de ${evaluacionIntegradora.titulo} de ${evaluacionIntegradora.ramo.nombre} publicada`;
             const mensaje = "Se publicó el resultado de tu evaluación. Ya puedes revisarla.";
             await notificarAlumnos([alumnoUser.email], titulo, mensaje, null);
+
+            try {
+              const instructor = await resolveInstructorIdentity(req.user || user);
+              const cursoNombre = evaluacionIntegradora?.ramo
+                ? `${evaluacionIntegradora.ramo.nombre} (${evaluacionIntegradora.ramo.codigo || ""})`
+                : "";
+              await sendGradeEmailToStudent({
+                to: alumnoUser.email,
+                evaluacionTitulo: evaluacionIntegradora.titulo,
+                courseName: cursoNombre,
+                notaFinal: result?.notaFinal,
+                publishedAt: result?.updated_at || result?.created_at || new Date(),
+                instructorName: instructor.name,
+                instructorEmail: instructor.email,
+              });
+            } catch (emailError) {
+              console.warn(
+                "No se pudo enviar email de nota publicada (createPautaEvaluadaIntegradora):",
+                emailError?.message || emailError
+              );
+            }
           }
         }
       }
@@ -388,6 +567,27 @@ export async function updatePautaEvaluadaIntegradora(req, res) {
             const titulo = `Nota de ${evaluacionIntegradora.titulo} de ${evaluacionIntegradora.ramo.nombre} publicada`;
             const mensaje = "Se publicó el resultado de tu evaluación. Ya puedes revisarla.";
             await notificarAlumnos([alumnoUser.email], titulo, mensaje, null);
+
+            try {
+              const instructor = await resolveInstructorIdentity(req.user || user);
+              const cursoNombre = evaluacionIntegradora?.ramo
+                ? `${evaluacionIntegradora.ramo.nombre} (${evaluacionIntegradora.ramo.codigo || ""})`
+                : "";
+              await sendGradeEmailToStudent({
+                to: alumnoUser.email,
+                evaluacionTitulo: evaluacionIntegradora.titulo,
+                courseName: cursoNombre,
+                notaFinal: result?.notaFinal,
+                publishedAt: result?.updated_at || new Date(),
+                instructorName: instructor.name,
+                instructorEmail: instructor.email,
+              });
+            } catch (emailError) {
+              console.warn(
+                "No se pudo enviar email de nota publicada (updatePautaEvaluadaIntegradora):",
+                emailError?.message || emailError
+              );
+            }
           }
         }
       }

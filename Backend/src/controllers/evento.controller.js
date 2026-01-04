@@ -20,6 +20,10 @@ class EventoController {
         tamanoGrupo = null,
         fechaInicio,
         fechaFin,
+        fechaRangoInicio,
+        fechaRangoFin,
+        horaInicioDiaria,
+        horaFinDiaria,
         tipoEvento,
         modalidad,
         linkOnline,
@@ -105,13 +109,16 @@ class EventoController {
       // Usar placeholders secuenciales y explícitos para evitar desajustes en el número
       const result = await client.query(
         `INSERT INTO eventos 
-        (nombre, descripcion, estado, comentario, fecha_inicio, fecha_fin, modalidad, link_online, 
+        (nombre, descripcion, estado, comentario, fecha_inicio, fecha_fin, fecha_rango_inicio, fecha_rango_fin, 
+         hora_inicio_diaria, hora_fin_diaria, modalidad, link_online, 
          duracion_por_alumno, cupo_maximo, cupo_disponible, permite_parejas, sala, 
          tipo_evento_id, profesor_id, ramo_id, seccion_id)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
         RETURNING *`,
-        [nombre, descripcion, estado, comentarioFinal, fechaInicio, fechaFin, modalidad, linkOnline,
-        duracionPorAlumno, cupoMaximo, cupoMaximo, permiteParejas, sala, tipoEvento, profesorId, ramoIdFinal, seccionId]
+        [nombre, descripcion, estado, comentarioFinal, fechaInicio, fechaFin, 
+         fechaRangoInicio || null, fechaRangoFin || null, horaInicioDiaria || null, horaFinDiaria || null,
+         modalidad, linkOnline, duracionPorAlumno, cupoMaximo, cupoMaximo, permiteParejas, sala, 
+         tipoEvento, profesorId, ramoIdFinal, seccionId]
       );
 
       const evento = result.rows[0];
@@ -163,6 +170,7 @@ class EventoController {
     try {
       const profesorId = req.user.id;
 
+      // Obtener eventos del profesor
       const result = await query(
         `SELECT e.*, t.nombre as tipo_nombre, t.color, r.codigo AS ramo_codigo, r.nombre AS ramo_nombre, s.numero AS seccion_numero
          FROM eventos e
@@ -174,9 +182,70 @@ class EventoController {
         [profesorId]
       );
 
+      // Obtener slots para cada evento
+      const eventosConSlots = await Promise.all(
+        result.rows.map(async (evento) => {
+          const slotsResult = await query(
+            `SELECT 
+              s.id, 
+              s.evento_id, 
+              DATE(s.fecha_hora_inicio) as fecha,
+              TO_CHAR(s.fecha_hora_inicio, 'HH24:MI') as hora_inicio,
+              TO_CHAR(s.fecha_hora_fin, 'HH24:MI') as hora_fin,
+              s.disponible,
+              s.alumno_id,
+              u.id as alumno_id_user,
+              u.nombres as alumno_nombres,
+              u."apellidoPaterno",
+              u."apellidoMaterno",
+              u.rut as alumno_rut
+             FROM slots s
+             LEFT JOIN users u ON s.alumno_id = u.id
+             WHERE s.evento_id = $1
+             ORDER BY s.fecha_hora_inicio ASC`,
+            [evento.id]
+          );
+          
+          // Agrupar slots y sus alumnos
+          const slotsMap = {};
+          slotsResult.rows.forEach(row => {
+            if (!slotsMap[row.id]) {
+              slotsMap[row.id] = {
+                id: row.id,
+                evento_id: row.evento_id,
+                fecha: row.fecha,
+                hora_inicio: row.hora_inicio,
+                hora_fin: row.hora_fin,
+                disponible: row.disponible,
+                bloqueado: false,
+                capacidad_maxima: 1,
+                inscriptos: []
+              };
+            }
+            
+            if (row.alumno_id_user) {
+              slotsMap[row.id].inscriptos.push({
+                id: row.alumno_id_user,
+                nombres: row.alumno_nombres,
+                apellidoPaterno: row.apellidoPaterno,
+                apellidoMaterno: row.apellidoMaterno,
+                rut: row.alumno_rut
+              });
+            }
+          });
+          
+          const slotsTransformados = Object.values(slotsMap);
+          
+          return {
+            ...evento,
+            slots: slotsTransformados
+          };
+        })
+      );
+
       res.json({
         success: true,
-        data: result.rows
+        data: eventosConSlots
       });
     } catch (error) {
       console.error('Error obteniendo eventos profesor:', error);
@@ -190,6 +259,10 @@ class EventoController {
       const alumnoId = req.user.id;
       const alumnoRut = req.user?.rut || null;
 
+      // ✅ MEJORADO: Mostrar eventos SOLO si:
+      // 1. El alumno está inscrito en la SECCIÓN del evento
+      // 2. El alumno está inscrito en el RAMO (a través de la sección)
+      // 3. Para slots: debe estar inscrito en al menos 1 slot
       const result = await query(
         `SELECT e.*, t.nombre as tipo_nombre, t.color, r.codigo AS ramo_codigo, r.nombre AS ramo_nombre, s.numero AS seccion_numero,
                 CASE WHEN EXISTS(SELECT 1 FROM slots WHERE evento_id = e.id AND alumno_id = $1 AND disponible = false) THEN true ELSE false END as alumno_inscrito
@@ -197,8 +270,20 @@ class EventoController {
          JOIN tipos_eventos t ON e.tipo_evento_id = t.id
          LEFT JOIN ramos r ON e.ramo_id = r.id
          LEFT JOIN secciones s ON e.seccion_id = s.id
-         JOIN seccion_alumnos sa ON sa.seccion_id = e.seccion_id
-         WHERE (sa.alumno_id = $1 OR EXISTS(SELECT 1 FROM users u WHERE u.rut = $2 AND u.id = sa.alumno_id))
+         WHERE e.seccion_id IS NOT NULL
+         AND e.ramo_id IS NOT NULL
+         AND EXISTS(
+           -- Verificar que el alumno está en la sección
+           SELECT 1 FROM seccion_alumnos sa 
+           WHERE sa.seccion_id = e.seccion_id 
+           AND (sa.alumno_id = $1 OR EXISTS(SELECT 1 FROM users u WHERE u.rut = $2 AND u.id = sa.alumno_id))
+         )
+         AND EXISTS(
+           -- Verificar que la sección pertenece al ramo
+           SELECT 1 FROM secciones sec
+           WHERE sec.id = e.seccion_id
+           AND sec.ramo_id = e.ramo_id
+         )
          ORDER BY e.fecha_inicio ASC`,
         [alumnoId, alumnoRut]
       );
@@ -303,6 +388,10 @@ class EventoController {
       if (data.comentario !== undefined) { fields.push(`comentario = $${index++}`); values.push(data.comentario); }
       if (data.fechaInicio) { fields.push(`fecha_inicio = $${index++}`); values.push(data.fechaInicio); }
       if (data.fechaFin) { fields.push(`fecha_fin = $${index++}`); values.push(data.fechaFin); }
+      if (data.fechaRangoInicio) { fields.push(`fecha_rango_inicio = $${index++}`); values.push(data.fechaRangoInicio); }
+      if (data.fechaRangoFin) { fields.push(`fecha_rango_fin = $${index++}`); values.push(data.fechaRangoFin); }
+      if (data.horaInicioDiaria) { fields.push(`hora_inicio_diaria = $${index++}`); values.push(data.horaInicioDiaria); }
+      if (data.horaFinDiaria) { fields.push(`hora_fin_diaria = $${index++}`); values.push(data.horaFinDiaria); }
       if (data.modalidad) { fields.push(`modalidad = $${index++}`); values.push(data.modalidad); }
       if (data.linkOnline !== undefined) { fields.push(`link_online = $${index++}`); values.push(data.linkOnline); }
       if (data.duracionPorAlumno !== undefined) { fields.push(`duracion_por_alumno = $${index++}`); values.push(data.duracionPorAlumno); }
@@ -340,28 +429,129 @@ class EventoController {
   // Eliminar evento
   eliminarEvento = async (req, res) => {
     const client = await getClient();
+    
     try {
-      await client.query('BEGIN');
-
       const { id } = req.params;
-      const profesorId = req.user.id;
+      
+      if (!id) {
+        return res.status(400).json({ success: false, message: 'ID del evento no especificado' });
+      }
 
-      const check = await client.query('SELECT profesor_id FROM eventos WHERE id = $1', [id]);
-      if (check.rows.length === 0) {
+      console.log('[eliminarEvento] ID:', id, 'Usuario:', req.user?.id);
+
+      // Obtener el evento
+      const eventoRes = await client.query(
+        'SELECT id, profesor_id FROM eventos WHERE id = $1',
+        [id]
+      );
+
+      if (eventoRes.rows.length === 0) {
         return res.status(404).json({ success: false, message: 'Evento no encontrado' });
       }
-      if (check.rows[0].profesor_id !== profesorId && req.user.role !== 'jefecarrera') {
-        return res.status(403).json({ success: false, message: 'Sin permiso' });
+
+      // Validar permiso
+      const profesorId = req.user?.id;
+      const eventoProfesorId = eventoRes.rows[0].profesor_id;
+
+      if (profesorId !== eventoProfesorId && req.user?.role !== 'jefecarrera') {
+        return res.status(403).json({ success: false, message: 'No tienes permiso' });
       }
 
-      await client.query('DELETE FROM eventos WHERE id = $1', [id]);
+      console.log('[eliminarEvento] Iniciando eliminación en cascada');
 
-      await client.query('COMMIT');
+      // PASO 1: Obtener todos los IDs de slots del evento
+      const slotsRes = await client.query(
+        'SELECT id FROM slots WHERE evento_id = $1',
+        [id]
+      );
+      const slotIds = slotsRes.rows.map(row => row.id);
+      console.log('[eliminarEvento] Slots encontrados:', slotIds.length);
 
-      res.json({ success: true, message: 'Evento eliminado' });
+      // PASO 2: Eliminar cualquier relación con los slots (ej: bookings, inscripciones, etc)
+      if (slotIds.length > 0) {
+        // Crear placeholders para el query
+        const placeholders = slotIds.map((_, i) => `$${i + 1}`).join(',');
+        
+        // Intentar eliminar bookings
+        try {
+          await client.query(`DELETE FROM bookings WHERE slot_id IN (${placeholders})`, slotIds);
+          console.log('[eliminarEvento] Bookings eliminados');
+        } catch (e) {
+          console.log('[eliminarEvento] Bookings: tabla no existe o sin registros');
+        }
+
+        // Intentar eliminar inscripciones
+        try {
+          await client.query(`DELETE FROM inscripcion WHERE slot_id IN (${placeholders})`, slotIds);
+          console.log('[eliminarEvento] Inscripciones eliminadas');
+        } catch (e) {
+          console.log('[eliminarEvento] Inscripciones: tabla no existe o sin registros');
+        }
+
+        // Intentar eliminar alumno_slots
+        try {
+          await client.query(`DELETE FROM alumno_slots WHERE slot_id IN (${placeholders})`, slotIds);
+          console.log('[eliminarEvento] Alumno slots eliminados');
+        } catch (e) {
+          console.log('[eliminarEvento] Alumno slots: tabla no existe o sin registros');
+        }
+      }
+
+      // PASO 3: Eliminar los slots
+      await client.query('DELETE FROM slots WHERE evento_id = $1', [id]);
+      console.log('[eliminarEvento] Slots eliminados');
+
+      // PASO 4: Intentar eliminar pautas y sus relaciones
+      try {
+        await client.query('DELETE FROM pauta_evaluadas WHERE evento_id = $1', [id]);
+        console.log('[eliminarEvento] Pautas evaluadas eliminadas');
+      } catch (e) {
+        console.log('[eliminarEvento] Pautas evaluadas: ' + e.message);
+      }
+
+      try {
+        await client.query('DELETE FROM pautas WHERE evento_id = $1', [id]);
+        console.log('[eliminarEvento] Pautas eliminadas');
+      } catch (e) {
+        console.log('[eliminarEvento] Pautas: ' + e.message);
+      }
+
+      // PASO 5: Eliminar bloqueos
+      try {
+        await client.query('DELETE FROM bloqueos WHERE evento_id = $1', [id]);
+        console.log('[eliminarEvento] Bloqueos eliminados');
+      } catch (e) {
+        console.log('[eliminarEvento] Bloqueos: ' + e.message);
+      }
+
+      // PASO 6: Finalmente eliminar el evento
+      const deleteRes = await client.query(
+        'DELETE FROM eventos WHERE id = $1 RETURNING *',
+        [id]
+      );
+
+      if (deleteRes.rows.length === 0) {
+        return res.status(400).json({ success: false, message: 'No se pudo eliminar el evento' });
+      }
+
+      console.log('[eliminarEvento] ✅ Evento eliminado exitosamente');
+
+      return res.json({
+        success: true,
+        message: 'Evento eliminado correctamente',
+        data: deleteRes.rows[0]
+      });
+
     } catch (error) {
-      await client.query('ROLLBACK');
-      res.status(500).json({ success: false, message: error.message });
+      console.error('[eliminarEvento] Error:', error.message);
+      console.error('[eliminarEvento] Code:', error.code);
+      console.error('[eliminarEvento] Detail:', error.detail);
+
+      return res.status(500).json({
+        success: false,
+        message: error.message || 'Error al eliminar el evento'
+      });
+
     } finally {
       client.release();
     }

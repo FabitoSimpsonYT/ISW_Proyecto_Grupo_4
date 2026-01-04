@@ -34,11 +34,27 @@ import { Seccion } from "../entities/seccion.entity.js";
 import { Evaluacion } from "../entities/evaluaciones.entity.js";
 import { Pauta } from "../entities/pauta.entity.js";
 import { PautaEvaluada } from "../entities/pautaEvaluada.entity.js";
+import { EvaluacionIntegradora } from "../entities/evaluacionIntegradora.entity.js";
+import { PautaEvaluadaIntegradora } from "../entities/pautaEvaluadaIntegradora.entity.js";
 
 const ramosRepository = AppDataSource.getRepository(Ramos);
 const profesorRepository = AppDataSource.getRepository(Profesor);
 
 export async function createRamo(ramoData) {
+  // Validar que el código no esté vacío o nulo
+  if (!ramoData.codigo || ramoData.codigo.trim() === '') {
+    console.error('❌ ERROR: codigo vacío en createRamo:', ramoData);
+    throw new BadRequestError("El código del ramo es obligatorio y no puede estar vacío");
+  }
+
+  console.log('✓ Creando ramo con datos:', {
+    nombre: ramoData.nombre,
+    codigo: ramoData.codigo,
+    anio: ramoData.anio,
+    periodo: ramoData.periodo,
+    rutProfesor: ramoData.rutProfesor
+  });
+
   const existingRamo = await ramosRepository.findOne({
     where: { codigo: ramoData.codigo }
   });
@@ -200,110 +216,84 @@ export async function updateRamo(codigo, ramoData) {
 
 export async function deleteRamo(codigo) {
   try {
-    const ramo = await ramosRepository.findOne({
-      where: { codigo }
-    });
-
-    if (!ramo) {
-      throw new NotFoundError("Ramo no encontrado");
-    }
+    const ramo = await ramosRepository.findOne({ where: { codigo } });
+    if (!ramo) throw new NotFoundError("Ramo no encontrado");
 
     const pautaEvaluadaRepository = AppDataSource.getRepository(PautaEvaluada);
     const pautaRepository = AppDataSource.getRepository(Pauta);
     const evaluacionRepository = AppDataSource.getRepository(Evaluacion);
+    const seccionRepository = AppDataSource.getRepository(Seccion);
+    const evaluacionIntegradoraRepository = AppDataSource.getRepository(EvaluacionIntegradora);
+    const pautaEvaluadaIntegradoraRepository = AppDataSource.getRepository(PautaEvaluadaIntegradora);
 
-    // Paso 1: Revisar que hayan pautas evaluadas
+    // 1. Eliminar pautas evaluadas relacionadas al ramo
     console.log("Paso 1: Buscando pautas evaluadas del ramo:", codigo);
-    const pautasEvaluadas = await pautaEvaluadaRepository.find({
-      where: { codigoRamo: codigo }
-    });
-
-    if (pautasEvaluadas && pautasEvaluadas.length > 0) {
+    const pautasEvaluadas = await pautaEvaluadaRepository.find({ where: { codigoRamo: codigo } });
+    if (pautasEvaluadas.length > 0) {
       console.log("Encontradas", pautasEvaluadas.length, "pautas evaluadas. Eliminando...");
       await pautaEvaluadaRepository.remove(pautasEvaluadas);
-      
-      // Verificar que se eliminaron correctamente
-      const verificacion = await pautaEvaluadaRepository.find({
-        where: { codigoRamo: codigo }
-      });
-      if (verificacion.length === 0) {
-        console.log("✓ Todas las pautas evaluadas fueron eliminadas correctamente");
-      }
     } else {
       console.log("No se encontraron pautas evaluadas");
     }
 
-    // Paso 2: Buscar si existen pautas
-    console.log("Paso 2: Buscando pautas del ramo");
-    const pautas = await pautaRepository.find({
-      where: { codigoRamo: codigo }
-    });
-
-    if (pautas && pautas.length > 0) {
-      console.log("Encontradas", pautas.length, "pautas. Eliminando...");
-      await pautaRepository.remove(pautas);
-      
-      // Verificar que se eliminaron correctamente
-      const verificacion = await pautaRepository.find({
-        where: { codigoRamo: codigo }
-      });
-      if (verificacion.length === 0) {
-        console.log("✓ Todas las pautas fueron eliminadas correctamente");
+    // 2. Eliminar pautas asociadas a evaluaciones del ramo
+    console.log("Paso 2: Buscando evaluaciones del ramo para eliminar sus pautas asociadas");
+    const evaluaciones = await evaluacionRepository.find({ where: { codigoRamo: codigo } });
+    for (const evaluacion of evaluaciones) {
+      if (evaluacion.idPauta) {
+        const pauta = await pautaRepository.findOneBy({ id: evaluacion.idPauta });
+        if (pauta) {
+          console.log("Eliminando pauta", pauta.id, "asociada a evaluación", evaluacion.id);
+          await pautaRepository.remove(pauta);
+        }
       }
-    } else {
-      console.log("No se encontraron pautas");
     }
 
-    // Paso 3: Buscar que tenga evaluaciones
-    console.log("Paso 3: Buscando evaluaciones del ramo");
-    const evaluaciones = await evaluacionRepository.find({
-      where: { codigoRamo: codigo }
-    });
-
-    if (evaluaciones && evaluaciones.length > 0) {
-      console.log("Encontradas", evaluaciones.length, "evaluaciones");
-      
-      // Para cada evaluación, eliminar sus pautas evaluadas y pautas
-      for (const evaluacion of evaluaciones) {
-        console.log("Procesando evaluación:", evaluacion.id);
-        
-        // Eliminar pautas evaluadas de esta evaluación
-        const pautasEvalDeEvaluacion = await pautaEvaluadaRepository.find({
-          where: { idEvaluacion: evaluacion.id }
-        });
-        
-        if (pautasEvalDeEvaluacion && pautasEvalDeEvaluacion.length > 0) {
-          console.log("Eliminando", pautasEvalDeEvaluacion.length, "pautas evaluadas de evaluación", evaluacion.id);
-          await pautaEvaluadaRepository.remove(pautasEvalDeEvaluacion);
-        }
-        
-        // Eliminar pauta asociada a la evaluación
-        if (evaluacion.idPauta) {
-          const pauta = await pautaRepository.findOneBy({ id: evaluacion.idPauta });
-          if (pauta) {
-            console.log("Eliminando pauta", pauta.id, "asociada a evaluación", evaluacion.id);
-            await pautaRepository.remove(pauta);
-          }
-        }
-      }
-      
-      // Eliminar todas las evaluaciones
-      console.log("Eliminando", evaluaciones.length, "evaluaciones");
+    // 3. Eliminar evaluaciones normales
+    if (evaluaciones.length > 0) {
+      console.log("Eliminando", evaluaciones.length, "evaluaciones normales");
       await evaluacionRepository.remove(evaluaciones);
-      
-      // Verificar que se eliminaron correctamente
-      const verificacion = await evaluacionRepository.find({
-        where: { codigoRamo: codigo }
-      });
-      if (verificacion.length === 0) {
-        console.log("✓ Todas las evaluaciones fueron eliminadas correctamente");
-      }
     } else {
-      console.log("No se encontraron evaluaciones");
+      console.log("No se encontraron evaluaciones normales");
     }
 
-    // Paso 4: Eliminar el ramo
-    console.log("Paso 4: Eliminando ramo con código:", codigo);
+    // 4. Eliminar evaluación integradora y sus dependencias
+    console.log("Paso 4: Buscando evaluación integradora del ramo");
+    const evaluacionIntegradora = await evaluacionIntegradoraRepository.findOne({ where: { ramoId: ramo.id } });
+    if (evaluacionIntegradora) {
+      // Eliminar pautas evaluadas integradora
+      const pautasEvalInt = await pautaEvaluadaIntegradoraRepository.find({ where: { evaluacionIntegradoraId: evaluacionIntegradora.id } });
+      if (pautasEvalInt.length > 0) {
+        console.log("Eliminando", pautasEvalInt.length, "pautas evaluadas integradora");
+        await pautaEvaluadaIntegradoraRepository.remove(pautasEvalInt);
+      }
+      // Eliminar pauta asociada a la integradora
+      if (evaluacionIntegradora.idPauta) {
+        const pautaInt = await pautaRepository.findOneBy({ id: evaluacionIntegradora.idPauta });
+        if (pautaInt) {
+          console.log("Eliminando pauta integradora con ID:", pautaInt.id);
+          await pautaRepository.remove(pautaInt);
+        }
+      }
+      // Eliminar la evaluación integradora
+      console.log("Eliminando evaluación integradora con ID:", evaluacionIntegradora.id);
+      await evaluacionIntegradoraRepository.remove(evaluacionIntegradora);
+    } else {
+      console.log("No se encontró evaluación integradora");
+    }
+
+    // 5. Eliminar secciones
+    console.log("Paso 5: Buscando secciones del ramo");
+    const secciones = await seccionRepository.find({ where: { ramo: { id: ramo.id } } });
+    if (secciones.length > 0) {
+      console.log("Eliminando", secciones.length, "secciones");
+      await seccionRepository.remove(secciones);
+    } else {
+      console.log("No se encontraron secciones");
+    }
+
+    // 6. Eliminar el ramo
+    console.log("Paso 6: Eliminando ramo con código:", codigo);
     await ramosRepository.remove(ramo);
     console.log("✓ Ramo eliminado correctamente");
 
@@ -347,6 +337,8 @@ export async function getRamosByUser(userId, role) {
       
       return {
         codigo: ramo.codigo,
+        anio: ramo.anio,
+        periodo: ramo.periodo,
         nombre: ramo.nombre,
         seccion: {
           numero: seccion.numero
@@ -392,6 +384,8 @@ export async function getRamosByUser(userId, role) {
 
     const ramosDictados = profesor.ramos.map(ramo => ({
       codigo: ramo.codigo,
+      anio: ramo.anio,
+      periodo: ramo.periodo,
       nombre: ramo.nombre,
       profesor: {
         rut: user.rut,
@@ -583,14 +577,40 @@ export async function deleteSeccion(seccionId, codigoRamo) {
 
   const seccion = await seccionRepository.findOne({
     where: { id: seccionId, ramo: { codigo: codigoRamo } },
-    relations: ["ramo"]
+    relations: ["ramo", "alumnos"]
   });
 
   if (!seccion) {
     throw new NotFoundError(`No se encontró la sección con ID ${seccionId} para el ramo ${codigoRamo}`);
   }
 
+  // Buscar otras secciones del mismo ramo para reasignar alumnos
+  const otrasSecciones = await seccionRepository.find({
+    where: { ramo: { id: seccion.ramo.id } },
+    relations: ["alumnos"]
+  });
+
+  const destinos = otrasSecciones.filter(s => s.id !== seccion.id);
+
+  if ((seccion.alumnos?.length || 0) > 0 && destinos.length === 0) {
+    throw new BadRequestError("No se puede eliminar la sección porque no hay otra sección para reasignar a los alumnos");
+  }
+
+  // Repartir alumnos de forma aleatoria entre las secciones disponibles
+  if (seccion.alumnos && seccion.alumnos.length > 0 && destinos.length > 0) {
+    for (const alumno of seccion.alumnos) {
+      const destino = destinos[Math.floor(Math.random() * destinos.length)];
+      destino.alumnos = destino.alumnos || [];
+      const yaInscrito = destino.alumnos.some(a => a.id === alumno.id);
+      if (!yaInscrito) {
+        destino.alumnos.push(alumno);
+      }
+    }
+    await Promise.all(destinos.map(sec => seccionRepository.save(sec)));
+  }
+
   await seccionRepository.remove(seccion);
-  return { message: "Sección eliminada exitosamente" };
+  const reasignados = seccion.alumnos?.length && destinos.length ? " y alumnos reasignados" : "";
+  return { message: `Sección eliminada exitosamente${reasignados}` };
 }
 

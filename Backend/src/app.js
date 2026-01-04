@@ -16,8 +16,10 @@ import ramosRoutes from './routes/ramos.routes.js';
 import evaluacionesRoutes from './routes/evaluaciones.routes.js';
 import evaluacionIntegradoraRoutes from './routes/evaluacionIntegradora.routes.js';
 import retroalimentacionRoutes from './routes/retroalimentacion.routes.js';
+import comentarioPautaRoutes from './routes/comentarioPauta.routes.js';
 import path from 'path';
 import bloqueoRoutes from "./routes/bloqueo.routes.js";
+import devRoutes from './routes/dev.routes.js';
 
 const app = express();
 
@@ -59,6 +61,11 @@ app.use('/api/evaluaciones', evaluacionesRoutes);
 app.use('/api/bloqueo', bloqueoRoutes);
 app.use('/api/evaluacion-integradora', evaluacionIntegradoraRoutes);
 app.use('/api/retroalimentacion', retroalimentacionRoutes);
+app.use('/api/comentarios-pauta', comentarioPautaRoutes);
+
+if (config.env === 'development') {
+  app.use('/api/dev', devRoutes);
+}
 
 
 // Middlewares finales

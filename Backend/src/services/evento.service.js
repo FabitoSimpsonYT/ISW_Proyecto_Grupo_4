@@ -7,7 +7,7 @@ module.exports = {
   // Obtener todos los eventos de un profesor
   getEventosProfesor: async (profesorId) => {
     const result = await query(
-      `SELECT e.*, t.nombre as tipo_nombre, t.color, r.codigo as ramo_codigo
+      `SELECT e.*, t.nombre as tipo_nombre, t.color, r.codigo as ramo_codigo, r.nombre as ramo_nombre
        FROM eventos e 
        JOIN tipos_eventos t ON e.tipo_evento_id = t.id 
        JOIN ramos r ON e.ramo_id = r.id
@@ -21,7 +21,7 @@ module.exports = {
   // Obtener todos los eventos de un alumno (basados en su sección)
   getEventosAlumno: async (alumnoId) => {
     const result = await query(
-      `SELECT e.*, t.nombre as tipo_nombre, t.color, r.codigo as ramo_codigo
+      `SELECT e.*, t.nombre as tipo_nombre, t.color, r.codigo as ramo_codigo, r.nombre as ramo_nombre
        FROM eventos e 
        JOIN tipos_eventos t ON e.tipo_evento_id = t.id 
        JOIN ramos r ON e.ramo_id = r.id

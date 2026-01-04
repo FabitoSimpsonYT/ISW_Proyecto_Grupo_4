@@ -4,9 +4,11 @@ import morgan from "morgan";
 import cors from "cors";
 import dotenv from "dotenv";
 import { AppDataSource, connectDB } from "./config/configDB.js";
+import { initDB } from "./config/initDB.js";
 import { routerApi, configureSocketIO } from "./routes/index.routes.js";
 import { HOST, PORT } from "./config/configEnv.js";
-import initDB from "./config/initDB.js";
+import notificacionesHandler from "./websocket/notificacionesHandler.js";
+import { initNotificationCrons } from "./scheduled/notificacionesCron.js";
 
 dotenv.config();
 const app = express();
@@ -27,22 +29,20 @@ app.get("/", (req, res) => {
 
 connectDB()
   .then(() => {
-    initDB()
-      .then(() => {
-        routerApi(app);
+    initDB();
+    routerApi(app);
 
-        // Configurar Socket.io
-        const httpServer = configureSocketIO(app);
+    // Configurar Socket.io
+    const httpServer = configureSocketIO(app);
 
-        httpServer.listen(PORT, () => {
-          console.log(`Servidor iniciado en http://${HOST}:${PORT}`);
-          console.log(`🔌 WebSocket habilitado`);
-        });
-      })
-      .catch((error) => {
-        console.error("Error al inicializar datos por defecto:", error);
-        process.exit(1);
-      });
+    // 🚀 Inicializar cron jobs para notificaciones automáticas
+    initNotificationCrons();
+
+    httpServer.listen(PORT, () => {
+      console.log(`Servidor iniciado en http://${HOST}:${PORT}`);
+      console.log(`🔌 WebSocket habilitado`);
+      console.log(`⏰ Cron jobs de notificaciones activos`);
+    });
   })
   .catch((error) => {
     console.log("Error al conectar con la base de datos:", error);

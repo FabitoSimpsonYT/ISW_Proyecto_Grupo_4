@@ -226,11 +226,14 @@ export async function getSeccionesByRamoHandler(req, res) {
 export async function deleteSeccionHandler(req, res) {
     try {
         const { codigoRamo, seccionId } = req.params;
-        await deleteSeccion(parseInt(seccionId), codigoRamo);
+    const result = await deleteSeccion(parseInt(seccionId), codigoRamo);
         res.status(200).json({
-            message: "Sección eliminada exitosamente"
+      message: result?.message || "Sección eliminada exitosamente"
         });
     } catch (error) {
+    if (error instanceof BadRequestError) {
+      return handleErrorClient(res, 400, error.message);
+    }
         if (error instanceof NotFoundError) {
             return handleErrorClient(res, 404, error.message);
         }
@@ -270,3 +273,110 @@ export async function getAlumnosBySeccion(req, res) {
   }
 }
 
+// Filtrar ramos por año y periodo
+export async function getRamosByAnioPeriodoHandler(req, res) {
+  try {
+    const { anio, periodo } = req.query;
+    
+    if (!anio || !periodo) {
+      return res.status(400).json({ message: "Debe proporcionar año y periodo" });
+    }
+
+    const anioNum = parseInt(anio);
+    const periodoNum = parseInt(periodo);
+
+    if (isNaN(anioNum) || isNaN(periodoNum)) {
+      return res.status(400).json({ message: "Año y periodo deben ser números válidos" });
+    }
+
+    if (anioNum > new Date().getFullYear()) {
+      return res.status(400).json({ message: "El año no puede ser mayor al año actual" });
+    }
+
+    if (periodoNum !== 1 && periodoNum !== 2) {
+      return res.status(400).json({ message: "El periodo solo puede ser 1 o 2" });
+    }
+
+    const ramoRepository = AppDataSource.getRepository("Ramos");
+    const ramos = await ramoRepository.find({
+      where: { anio: anioNum, periodo: periodoNum },
+      relations: ["profesor", "profesor.user", "secciones"]
+    });
+
+    res.status(200).json({
+      message: "Ramos encontrados",
+      data: ramos
+    });
+  } catch (error) {
+    console.error("Error al filtrar ramos por año y periodo:", error);
+    res.status(500).json({ message: "Error al filtrar ramos" });
+  }
+}
+
+// Filtrar mis ramos por año y periodo (alumno/profesor)
+export async function getMisRamosByAnioPeriodoHandler(req, res) {
+  try {
+    const { anio, periodo } = req.query;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    if (!anio || !periodo) {
+      return res.status(400).json({ message: "Debe proporcionar año y periodo" });
+    }
+
+    const anioNum = parseInt(anio);
+    const periodoNum = parseInt(periodo);
+
+    if (isNaN(anioNum) || isNaN(periodoNum)) {
+      return res.status(400).json({ message: "Año y periodo deben ser números válidos" });
+    }
+
+    if (anioNum > new Date().getFullYear()) {
+      return res.status(400).json({ message: "El año no puede ser mayor al año actual" });
+    }
+
+    if (periodoNum !== 1 && periodoNum !== 2) {
+      return res.status(400).json({ message: "El periodo solo puede ser 1 o 2" });
+    }
+
+    const ramoRepository = AppDataSource.getRepository("Ramos");
+    let ramos;
+
+    if (userRole === 'profesor') {
+      ramos = await ramoRepository.find({
+        where: { 
+          anio: anioNum, 
+          periodo: periodoNum,
+          profesor: { id: userId }
+        },
+        relations: ["profesor", "profesor.user", "secciones"]
+      });
+    } else if (userRole === 'alumno') {
+      const seccionRepository = AppDataSource.getRepository(Seccion);
+      const secciones = await seccionRepository
+        .createQueryBuilder("seccion")
+        .innerJoin("seccion.alumnos", "alumno")
+        .innerJoin("seccion.ramo", "ramo")
+        .leftJoinAndSelect("ramo.profesor", "profesor")
+        .leftJoinAndSelect("profesor.user", "user")
+        .where("alumno.id = :alumnoId", { alumnoId: userId })
+        .andWhere("ramo.anio = :anio", { anio: anioNum })
+        .andWhere("ramo.periodo = :periodo", { periodo: periodoNum })
+        .getMany();
+
+      ramos = secciones.map(s => s.ramo).filter((ramo, index, self) => 
+        index === self.findIndex(r => r.id === ramo.id)
+      );
+    } else {
+      return res.status(403).json({ message: "No autorizado para esta acción" });
+    }
+
+    res.status(200).json({
+      message: "Ramos encontrados",
+      data: ramos
+    });
+  } catch (error) {
+    console.error("Error al filtrar mis ramos por año y periodo:", error);
+    res.status(500).json({ message: "Error al filtrar ramos" });
+  }
+}
