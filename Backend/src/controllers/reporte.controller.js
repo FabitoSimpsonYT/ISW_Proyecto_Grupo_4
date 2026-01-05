@@ -9,13 +9,19 @@ export async function descargarReporteEvaluaciones(req, res) {
     const user = req.user;
     const { codigoRamo } = req.query;
 
-    // Validar que sea profesor
-    if (user.rol !== "profesor" && user.rol !== "jefe") {
+    console.log("📊 [Reporte] Usuario:", user.nombre, "| Rol:", user.role, "| ID:", user.id);
+
+    // Validar que sea profesor o jefe de carrera
+    if (user.role !== "profesor" && user.role !== "jefecarrera") {
+      console.log("❌ [Reporte] Acceso denegado - Rol no permitido:", user.role);
       return handleErrorClient(res, 403, "No tienes permiso para descargar reportes");
     }
 
+    console.log("⏳ [Reporte] Generando reporte...");
     // Generar Excel
     const buffer = await generarReporteEvaluacionesService(user, codigoRamo);
+
+    console.log("✅ [Reporte] Buffer generado - Tamaño:", buffer.length, "bytes");
 
     // Headers para descarga
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
@@ -27,7 +33,7 @@ export async function descargarReporteEvaluaciones(req, res) {
     // Enviar buffer
     res.send(buffer);
   } catch (error) {
-    console.error("Error en descargarReporteEvaluaciones:", error);
+    console.error("❌ Error en descargarReporteEvaluaciones:", error);
     handleErrorServer(res, 500, "Error al generar reporte", error.message);
   }
 }
@@ -39,8 +45,8 @@ export async function descargarReporteSlots(req, res) {
   try {
     const user = req.user;
 
-    // Validar que sea profesor
-    if (user.rol !== "profesor" && user.rol !== "jefe") {
+    // Validar que sea profesor o jefe de carrera
+    if (user.role !== "profesor" && user.role !== "jefecarrera") {
       return handleErrorClient(res, 403, "No tienes permiso para descargar reportes");
     }
 

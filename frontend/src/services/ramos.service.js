@@ -33,9 +33,13 @@ export async function getRamosByCodigo(codigo) {
 
 export async function getMisRamos() {
   try {
+    console.log('[ramos.service] GET /ramos/misRamos iniciando');
     const response = await axios.get("/ramos/misRamos");
+    console.log('[ramos.service] GET /ramos/misRamos status:', response.status);
+    console.log('[ramos.service] GET /ramos/misRamos payload:', response.data);
     return response.data?.data || [];
   } catch (error) {
+    console.error('[ramos.service] Error GET /ramos/misRamos:', error?.response?.data || error);
     throw error.response?.data || { message: "Error al obtener ramos" };
   }
 }

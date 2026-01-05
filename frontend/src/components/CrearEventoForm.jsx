@@ -333,8 +333,19 @@ export default function CrearEventoForm({ onSaved, evento }) {
         return fechaEvento >= inicio && fechaEvento <= fin;
       });
       if (bloqueado) {
-        alert('No se puede crear un evento en un día bloqueado por la jefatura.');
-        ToastNotificationService.error('No se puede crear un evento en un día bloqueado por la jefatura.');
+        Swal.fire({
+          icon: 'warning',
+          title: 'Día Bloqueado',
+          text: 'No se puede crear un evento en un día bloqueado por la jefatura.',
+          confirmButtonColor: '#3b82f6',
+          confirmButtonText: 'Entendido',
+          showClass: {
+            popup: 'animate__animated animate__fadeInDown'
+          },
+          hideClass: {
+            popup: 'animate__animated animate__fadeOutUp'
+          }
+        });
         return;
       }
     }
