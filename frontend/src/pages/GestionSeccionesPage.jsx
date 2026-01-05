@@ -265,7 +265,7 @@ export default function GestionSeccionesPage() {
   };
 
   return (
-    <div className={`min-h-screen bg-gray-50 transition-all duration-300 ${isNavbarOpen ? 'ml-64' : 'ml-0'}`}>
+    <div className={`min-h-screen bg-gray-50 transition-all duration-300 ${isNavbarOpen ? 'ml-0 md:ml-64' : 'ml-0'}`}>
       <header className="bg-[#1e3a5f] text-white shadow-lg">
         <div className="container mx-auto px-4 py-4">
           <div>

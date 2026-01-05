@@ -44,7 +44,7 @@ export default function EditarApelacion() {
 
   return (
     <div
-      className={`min-h-screen bg-gradient-to-br from-[#e9f7fb] to-[#d5e8f6] transition-all duration-300 ${isNavbarOpen ? "ml-64" : "ml-0"} p-8`}
+      className={`min-h-screen bg-gradient-to-br from-[#e9f7fb] to-[#d5e8f6] transition-all duration-300 ${isNavbarOpen ? "ml-0 md:ml-64" : "ml-0"} p-4 md:p-8`}
     >
       <div className="max-w-4xl mx-auto">
         {/* ENCABEZADO */}

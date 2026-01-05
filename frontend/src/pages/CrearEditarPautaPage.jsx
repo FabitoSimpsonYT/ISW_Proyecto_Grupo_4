@@ -349,26 +349,26 @@ export default function CrearEditarPautaPage() {
     }
 
     return (
-        <div className="min-h-screen bg-[#e9f7fb] p-4 md:p-8">
+        <div className="min-h-screen bg-[#e9f7fb] p-3 md:p-8">
             <div className="mx-auto w-full max-w-6xl">
-                <div className="mb-8">
+                <div className="mb-6 md:mb-8">
                     <button
                         onClick={() => navigate(-1)}
-                        className="mb-4 text-blue-700 hover:text-blue-900 transition font-medium"
+                        className="mb-2 md:mb-4 text-blue-700 hover:text-blue-900 transition font-medium text-sm md:text-base"
                     >
                          Volver
                     </button>
-                    <h1 className="text-4xl font-bold text-[#113C63]">
+                    <h1 className="text-2xl md:text-4xl font-bold text-[#113C63]">
                         {pauta.id ? "Editar Pauta" : "Crear Pauta"}
                     </h1>
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <div className="mt-2 flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-2 md:gap-3">
                         {evaluacionData && (
-                            <p className="text-sm text-blue-600">
+                            <p className="text-xs md:text-sm text-blue-600">
                                 <strong>Evaluación:</strong> {evaluacionData.titulo}
                             </p>
                         )}
                         {evaluacionData && (
-                            <p className="text-sm text-blue-600">
+                            <p className="text-xs md:text-sm text-blue-600">
                                 <strong>Puntaje Total:</strong> {evaluacionData.puntajeTotal || 100}
                             </p>
                         )}
@@ -381,42 +381,42 @@ export default function CrearEditarPautaPage() {
                 </div>
 
                 <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-lg overflow-hidden">
-                    <div className="bg-[#113C63] px-6 md:px-8 py-6">
-                        <h2 className="text-2xl font-bold text-white mb-2">
+                    <div className="bg-[#113C63] px-4 md:px-8 py-4 md:py-6">
+                        <h2 className="text-lg md:text-2xl font-bold text-white mb-1 md:mb-2">
                             {pauta.id ? "Editar" : "Nueva"} Pauta de Evaluación
                         </h2>
-                        <p className="text-blue-100 text-sm">Define los criterios y la distribución de puntajes</p>
+                        <p className="text-blue-100 text-xs md:text-sm">Define los criterios y la distribución de puntajes</p>
                     </div>
 
-                    <div className="p-6 md:p-8 space-y-6">
+                    <div className="p-4 md:p-8 space-y-4 md:space-y-6">
                         {error && (
-                            <div className="rounded-lg border-l-4 border-red-500 bg-red-100 px-4 py-3">
-                                <p className="text-red-700 font-medium">{error}</p>
+                            <div className="rounded-lg border-l-4 border-red-500 bg-red-100 px-3 md:px-4 py-2 md:py-3">
+                                <p className="text-red-700 font-medium text-sm md:text-base">{error}</p>
                             </div>
                         )}
 
                         <div>
-                            <label className="block text-sm font-bold text-[#113C63] mb-3">Criterios de evaluación *</label>
+                            <label className="block text-xs md:text-sm font-bold text-[#113C63] mb-2 md:mb-3">Criterios de evaluación *</label>
                             <textarea
                                 name="criterios"
                                 value={pauta.criterios}
                                 onChange={handleChange}
-                                className={`w-full rounded border p-4 text-gray-800 outline-none focus:ring-2 transition min-h-[100px] ${
+                                className={`w-full rounded border p-2 md:p-4 text-xs md:text-base text-gray-800 outline-none focus:ring-2 transition min-h-[80px] md:min-h-[100px] ${
                                     hasFieldError("criterios")
                                         ? "border-red-500 bg-red-50 focus:ring-red-400"
                                         : "border-gray-300 bg-white focus:ring-blue-400"
                                 }`}
                                 placeholder="Describe los criterios de evaluación..."
                             />
-                            {hasFieldError("criterios") && <p className="text-red-600 text-sm mt-2">{getFieldError("criterios")}</p>}
+                            {hasFieldError("criterios") && <p className="text-red-600 text-xs md:text-sm mt-2">{getFieldError("criterios")}</p>}
                             <p className="text-xs text-gray-500 mt-2">Mínimo 10 caracteres</p>
                         </div>
 
                         <div>
-                            <div className="flex items-center justify-between mb-4">
-                                <label className="block text-sm font-bold text-[#113C63]">Criterios y puntajes *</label>
+                            <div className="flex items-center justify-between mb-3 md:mb-4 gap-2">
+                                <label className="block text-xs md:text-sm font-bold text-[#113C63]">Criterios y puntajes *</label>
                                 <span
-                                    className={`px-3 py-1 rounded text-sm font-bold ${
+                                    className={`px-2 md:px-3 py-1 rounded text-xs md:text-sm font-bold whitespace-nowrap ${
                                         totalOk ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
                                     }`}
                                 >
@@ -425,14 +425,14 @@ export default function CrearEditarPautaPage() {
                             </div>
 
                             {hasFieldError("puntajeTotal") && (
-                                <div className="rounded border-l-4 border-red-500 bg-red-100 px-4 py-3 mb-4">
-                                    <p className="text-red-700 text-sm font-medium">{getFieldError("puntajeTotal")}</p>
+                                <div className="rounded border-l-4 border-red-500 bg-red-100 px-3 md:px-4 py-2 md:py-3 mb-4">
+                                    <p className="text-red-700 text-xs md:text-sm font-medium">{getFieldError("puntajeTotal")}</p>
                                 </div>
                             )}
 
-                            <div className="space-y-3 border rounded-lg p-4 bg-gray-50">
+                            <div className="space-y-2 md:space-y-3 border rounded-lg p-3 md:p-4 bg-gray-50">
                                 {pauta.criteriosPuntaje.map((c, idx) => (
-                                    <div key={idx} className="flex flex-col md:flex-row items-end gap-3">
+                                    <div key={idx} className="flex flex-col md:flex-row items-end gap-2 md:gap-3">
                                         <div className="flex-1 w-full md:w-auto">
                                             <label className="text-xs text-gray-600 font-semibold block mb-1">Criterio #{idx + 1}</label>
                                             <input
@@ -441,7 +441,7 @@ export default function CrearEditarPautaPage() {
                                                 value={c.nombre}
                                                 onChange={handleChange}
                                                 placeholder="Nombre del criterio"
-                                                className={`w-full rounded border p-3 text-gray-800 outline-none focus:ring-2 transition ${
+                                                className={`w-full rounded border p-2 md:p-3 text-xs md:text-base text-gray-800 outline-none focus:ring-2 transition ${
                                                     hasFieldError(`criterio_nombre_${idx}`)
                                                         ? "border-red-500 bg-red-50 focus:ring-red-400"
                                                         : "border-gray-300 bg-white focus:ring-blue-400"
@@ -451,7 +451,7 @@ export default function CrearEditarPautaPage() {
                                                 <p className="text-red-600 text-xs mt-1">{getFieldError(`criterio_nombre_${idx}`)}</p>
                                             )}
                                         </div>
-                                        <div className="w-32">
+                                        <div className="w-24 md:w-32">
                                             <label className="text-xs text-gray-600 font-semibold block mb-1">Puntaje</label>
                                             <input
                                                 type="text"
@@ -459,7 +459,7 @@ export default function CrearEditarPautaPage() {
                                                 value={c.puntaje}
                                                 onChange={handleChange}
                                                 placeholder="0"
-                                                className={`w-full rounded border p-3 text-gray-800 outline-none focus:ring-2 transition ${
+                                                className={`w-full rounded border p-2 md:p-3 text-xs md:text-base text-gray-800 outline-none focus:ring-2 transition ${
                                                     hasFieldError(`criterio_puntaje_${idx}`)
                                                         ? "border-red-500 bg-red-50 focus:ring-red-400"
                                                         : "border-gray-300 bg-white focus:ring-blue-400"
@@ -469,12 +469,12 @@ export default function CrearEditarPautaPage() {
                                                 <p className="text-red-600 text-xs mt-1">{getFieldError(`criterio_puntaje_${idx}`)}</p>
                                             )}
                                         </div>
-                                        <span className="text-sm text-gray-600 font-medium hidden md:inline">pts</span>
+                                        <span className="text-xs md:text-sm text-gray-600 font-medium hidden md:inline">pts</span>
                                         {pauta.criteriosPuntaje.length > 1 && (
                                             <button
                                                 type="button"
                                                 onClick={() => handleRemoveCriterio(idx)}
-                                                className="w-full md:w-auto px-4 py-3 rounded bg-red-500 hover:bg-red-600 text-white font-semibold text-sm transition"
+                                                className="w-full md:w-auto px-3 md:px-4 py-2 md:py-3 rounded bg-red-500 hover:bg-red-600 text-white font-semibold text-xs md:text-sm transition"
                                             >
                                                 Eliminar
                                             </button>
@@ -484,7 +484,7 @@ export default function CrearEditarPautaPage() {
                                 <button
                                     type="button"
                                     onClick={handleAddCriterio}
-                                    className="w-full px-4 py-3 mt-4 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition"
+                                    className="w-full px-3 md:px-4 py-2 md:py-3 mt-2 md:mt-4 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs md:text-sm transition"
                                 >
                                     + Agregar criterio
                                 </button>
@@ -492,11 +492,11 @@ export default function CrearEditarPautaPage() {
                         </div>
                     </div>
 
-                    <div className="bg-gray-50 px-6 md:px-8 py-4 border-t border-gray-200 flex justify-end gap-3">
+                    <div className="bg-gray-50 px-4 md:px-8 py-3 md:py-4 border-t border-gray-200 flex flex-col-reverse md:flex-row justify-end gap-2 md:gap-3">
                         <button
                             type="button"
                             onClick={() => navigate(-1)}
-                            className="px-6 py-2 rounded border border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-100 transition"
+                            className="px-4 md:px-6 py-2 md:py-2 rounded border border-gray-300 bg-white text-xs md:text-base text-gray-700 font-semibold hover:bg-gray-100 transition"
                         >
                             Cancelar
                         </button>
@@ -504,7 +504,7 @@ export default function CrearEditarPautaPage() {
                             type="button"
                             disabled={isPublishing || !pauta?.id || pauta.publicada}
                             onClick={handlePublish}
-                            className={`px-6 py-2 rounded font-semibold text-white transition ${
+                            className={`px-4 md:px-6 py-2 md:py-2 rounded text-xs md:text-base font-semibold text-white transition ${
                                 isPublishing || !pauta?.id || pauta.publicada
                                     ? "bg-gray-400 cursor-not-allowed"
                                     : "bg-green-600 hover:bg-green-700"
@@ -515,7 +515,7 @@ export default function CrearEditarPautaPage() {
                         <button
                             type="submit"
                             disabled={isLoading || !totalOk}
-                            className={`px-6 py-2 rounded font-semibold text-white transition ${
+                            className={`px-4 md:px-6 py-2 md:py-2 rounded text-xs md:text-base font-semibold text-white transition ${
                                 isLoading || !totalOk
                                     ? "bg-gray-400 cursor-not-allowed"
                                     : "bg-[#143A80] hover:bg-[#0f2d5f]"

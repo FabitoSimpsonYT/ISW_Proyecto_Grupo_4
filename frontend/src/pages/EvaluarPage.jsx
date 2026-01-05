@@ -343,7 +343,8 @@ export default function EvaluarPage() {
 
                     {/* Tabla de estudiantes */}
                     <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-blue-200">
-                        <div className="overflow-x-auto">
+                        {/* Versión desktop */}
+                        <div className="hidden md:block overflow-x-auto">
                             <table className="w-full">
                                 <thead className="bg-[#113C63] text-white">
                                     <tr>
@@ -422,65 +423,134 @@ export default function EvaluarPage() {
                                 </tbody>
                             </table>
                         </div>
+                        
+                        {/* Versión móvil - Cards */}
+                        <div className="md:hidden space-y-3 p-4">
+                            {estudiantes.length > 0 ? (
+                                estudiantes.map((estudiante, index) => (
+                                    <div key={estudiante.id} className="bg-gray-50 border border-blue-100 rounded-lg p-4 space-y-2">
+                                        <div className="flex justify-between items-start">
+                                            <div className="flex-1">
+                                                <p className="text-sm font-semibold text-slate-700">{index + 1}. {estudiante.apellidoPaterno} {estudiante.apellidoMaterno}</p>
+                                                <p className="text-xs text-slate-600">{estudiante.nombres}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                {estudiante.nota === null || estudiante.nota === undefined ? (
+                                                    <span className="text-slate-500 text-sm">—</span>
+                                                ) : parseFloat(estudiante.nota) < 4.0 ? (
+                                                    <span className="font-semibold text-red-600 text-lg">{parseFloat(estudiante.nota).toFixed(1)}</span>
+                                                ) : (
+                                                    <span className="font-semibold text-blue-600 text-lg">{parseFloat(estudiante.nota).toFixed(1)}</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-between items-center text-xs text-slate-600">
+                                            <span>RUT: {estudiante.rut}</span>
+                                            <span>Secc: {estudiante.seccion}</span>
+                                        </div>
+                                        <div className="flex gap-2 pt-2">
+                                            {!estudiante.nota && (
+                                                <button
+                                                    className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs transition"
+                                                    onClick={() => handleEvaluar(estudiante)}
+                                                >
+                                                    Evaluar
+                                                </button>
+                                            )}
+                                            {estudiante.nota && estudiante.pautaEvaluadaId && (
+                                                <button
+                                                    className="flex-1 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold text-xs transition border border-slate-200"
+                                                    onClick={async () => {
+                                                        setPautaComentariosId(estudiante.pautaEvaluadaId);
+                                                        setAlumnoComentarios(estudiante);
+                                                        setPautaDetalleLoading(true);
+                                                        setModalComentariosOpen(true);
+                                                        try {
+                                                            const detalle = isIntegradora
+                                                                ? await getPautaEvaluadaIntegradora(evaluacion?.id, estudiante.rut)
+                                                                : await getPautaEvaluada(evaluacion?.id, estudiante.rut);
+                                                            setPautaDetalle(detalle);
+                                                            setPuntajesComentarios(detalle?.puntajesObtenidos || {});
+                                                            setEditandoPautaComentarios(false);
+                                                        } catch (e) {
+                                                            console.error("Error cargando pauta evaluada:", e);
+                                                            setPautaDetalle(null);
+                                                        } finally {
+                                                            setPautaDetalleLoading(false);
+                                                        }
+                                                    }}
+                                                >
+                                                    Ver más
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="text-center py-8 text-slate-500">
+                                    No hay estudiantes registrados en las secciones
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     {/* Modal de evaluación */}
                     {estudianteSeleccionado && pauta && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                            <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto ghost-scroll">
-                                <div className="sticky top-0 bg-[#113C63] text-white px-6 py-4 flex items-center justify-between border-b border-blue-200">
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 md:p-4">
+                            <div className="bg-white rounded-xl md:rounded-2xl shadow-2xl w-full max-w-2xl md:max-w-3xl max-h-[95vh] md:max-h-[90vh] overflow-y-auto ghost-scroll">
+                                <div className="sticky top-0 bg-[#113C63] text-white px-4 md:px-6 py-3 md:py-4 flex items-center justify-between border-b border-blue-200">
                                     <div>
-                                        <h2 className="text-2xl font-bold">Evaluar Estudiante</h2>
-                                        <p className="text-sm text-blue-100 mt-1">{estudianteSeleccionado.apellidoPaterno} {estudianteSeleccionado.apellidoMaterno}, {estudianteSeleccionado.nombres}</p>
+                                        <h2 className="text-lg md:text-2xl font-bold">Evaluar Estudiante</h2>
+                                        <p className="text-xs md:text-sm text-blue-100 mt-1">{estudianteSeleccionado.apellidoPaterno} {estudianteSeleccionado.apellidoMaterno}, {estudianteSeleccionado.nombres}</p>
                                     </div>
                                     <button
                                         onClick={handleCerrarFormulario}
-                                        className="text-white hover:text-red-300 text-2xl font-bold"
+                                        className="text-white hover:text-red-300 text-xl md:text-2xl font-bold"
                                     >
                                         ✕
                                     </button>
                                 </div>
 
-                                <div className="p-6 space-y-6">
+                                <div className="p-4 md:p-6 space-y-4 md:space-y-6">
                                     {/* Información del estudiante */}
-                                    <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
-                                        <div className="grid grid-cols-2 gap-4">
+                                    <div className="bg-blue-50 rounded-lg md:rounded-xl p-3 md:p-4 border border-blue-200">
+                                        <div className="grid grid-cols-2 gap-3 md:gap-4">
                                             <div>
-                                                <p className="text-sm text-slate-600 font-semibold">RUT</p>
-                                                <p className="text-slate-800 font-mono">{estudianteSeleccionado.rut}</p>
+                                                <p className="text-xs md:text-sm text-slate-600 font-semibold">RUT</p>
+                                                <p className="text-xs md:text-base text-slate-800 font-mono">{estudianteSeleccionado.rut}</p>
                                             </div>
                                             <div>
-                                                <p className="text-sm text-slate-600 font-semibold">Sección</p>
-                                                <p className="text-slate-800">{estudianteSeleccionado.seccion}</p>
+                                                <p className="text-xs md:text-sm text-slate-600 font-semibold">Sección</p>
+                                                <p className="text-xs md:text-base text-slate-800">{estudianteSeleccionado.seccion}</p>
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* Información de la evaluación */}
-                                    <div className="bg-green-50 rounded-xl p-4 border border-green-200">
-                                        <p className="text-sm text-slate-600 font-semibold">Evaluación</p>
-                                        <p className="text-slate-800">{evaluacion?.titulo}</p>
+                                    <div className="bg-green-50 rounded-lg md:rounded-xl p-3 md:p-4 border border-green-200">
+                                        <p className="text-xs md:text-sm text-slate-600 font-semibold">Evaluación</p>
+                                        <p className="text-xs md:text-base text-slate-800">{evaluacion?.titulo}</p>
                                     </div>
 
                                     {/* Tabla de distribución de puntaje */}
                                     <div>
-                                        <h3 className="text-lg font-bold text-slate-800 mb-4">Distribución de Puntaje</h3>
-                                        <div className="overflow-x-auto rounded-xl border border-blue-200">
-                                            <table className="w-full">
+                                        <h3 className="text-base md:text-lg font-bold text-slate-800 mb-3 md:mb-4">Distribución de Puntaje</h3>
+                                        <div className="overflow-x-auto rounded-lg md:rounded-xl border border-blue-200">
+                                            <table className="w-full text-sm md:text-base">
                                                 <thead className="bg-[#113C63] text-white">
                                                     <tr>
-                                                        <th className="px-4 py-3 text-left font-semibold">Criterio</th>
-                                                        <th className="px-4 py-3 text-center font-semibold w-32">Puntaje Máximo</th>
-                                                        <th className="px-4 py-3 text-center font-semibold w-40">Puntaje Obtenido</th>
+                                                        <th className="px-2 md:px-4 py-2 md:py-3 text-left text-xs md:text-base font-semibold">Criterio</th>
+                                                        <th className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-base font-semibold w-24 md:w-32">Puntaje Máximo</th>
+                                                        <th className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-base font-semibold w-28 md:w-40">Puntaje Obtenido</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-blue-100">
                                                     {pauta.criteriosPuntaje && pauta.criteriosPuntaje.length > 0 ? (
                                                         pauta.criteriosPuntaje.map((criterio, idx) => (
                                                             <tr key={idx} className="text-slate-700 hover:bg-blue-50 transition">
-                                                                <td className="px-4 py-3 text-slate-800">{criterio.nombre}</td>
-                                                                <td className="px-4 py-3 text-center text-slate-700 font-semibold">{criterio.puntaje}</td>
-                                                                <td className="px-4 py-3 text-center">
+                                                                <td className="px-2 md:px-4 py-2 md:py-3 text-xs md:text-base text-slate-800">{criterio.nombre}</td>
+                                                                <td className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-base text-slate-700 font-semibold">{criterio.puntaje}</td>
+                                                                <td className="px-2 md:px-4 py-2 md:py-3 text-center">
                                                                     <input
                                                                         type="number"
                                                                         min="0"
@@ -490,25 +560,25 @@ export default function EvaluarPage() {
                                                                         onChange={(e) => handleChangePuntaje(criterio.nombre, e.target.value, criterio.puntaje)}
                                                                         onKeyDown={handlePreventArrowChange}
                                                                         placeholder="0"
-                                                                        className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-800 appearance-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                                                        className="w-full px-2 md:px-3 py-1 md:py-2 text-xs md:text-base border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-800 appearance-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                                                     />
                                                                 </td>
                                                             </tr>
                                                         ))
                                                     ) : (
                                                         <tr>
-                                                            <td colSpan="3" className="px-4 py-6 text-center text-slate-500">
+                                                            <td colSpan="3" className="px-4 py-6 text-center text-slate-500 text-sm">
                                                                 No hay criterios en la pauta
                                                             </td>
                                                         </tr>
                                                     )}
                                                     {pauta.criteriosPuntaje && pauta.criteriosPuntaje.length > 0 && (
                                                         <tr className="bg-blue-100 border-t-2 border-blue-300">
-                                                            <td className="px-4 py-3 text-slate-800 font-bold">Total</td>
-                                                            <td className="px-4 py-3 text-center text-slate-800 font-bold">
+                                                            <td className="px-2 md:px-4 py-2 md:py-3 text-xs md:text-base text-slate-800 font-bold">Total</td>
+                                                            <td className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-base text-slate-800 font-bold">
                                                                 {pauta.criteriosPuntaje.reduce((sum, criterio) => sum + Number(criterio.puntaje || 0), 0).toFixed(1)}
                                                             </td>
-                                                            <td className="px-4 py-3 text-center text-slate-800 font-bold">
+                                                            <td className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-base text-slate-800 font-bold">
                                                                 {Object.values(puntajesObtenidos).reduce((sum, val) => sum + Number(val || 0), 0).toFixed(1)}
                                                             </td>
                                                         </tr>
@@ -519,34 +589,34 @@ export default function EvaluarPage() {
                                     </div>
 
                                     {/* Resumen de puntaje */}
-                                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                                        <div className="grid grid-cols-3 gap-4">
+                                    <div className="bg-slate-50 rounded-lg md:rounded-xl p-3 md:p-4 border border-slate-200">
+                                        <div className="grid grid-cols-3 gap-2 md:gap-4">
                                             <div>
-                                                <p className="text-sm text-slate-600 font-semibold">Puntaje Total Máximo</p>
-                                                <p className="text-2xl font-bold text-slate-800">{evaluacion?.puntajeTotal || (pauta?.criteriosPuntaje?.reduce((sum, c) => sum + c.puntaje, 0) || 0)}</p>
+                                                <p className="text-xs md:text-sm text-slate-600 font-semibold">Puntaje Máximo</p>
+                                                <p className="text-lg md:text-2xl font-bold text-slate-800">{evaluacion?.puntajeTotal || (pauta?.criteriosPuntaje?.reduce((sum, c) => sum + c.puntaje, 0) || 0)}</p>
                                             </div>
                                             <div>
-                                                <p className="text-sm text-slate-600 font-semibold">Puntaje Obtenido</p>
-                                                <p className="text-2xl font-bold text-blue-600">{Object.values(puntajesObtenidos).reduce((sum, p) => sum + p, 0).toFixed(1)}</p>
+                                                <p className="text-xs md:text-sm text-slate-600 font-semibold">Puntaje Obtenido</p>
+                                                <p className="text-lg md:text-2xl font-bold text-blue-600">{Object.values(puntajesObtenidos).reduce((sum, p) => sum + p, 0).toFixed(1)}</p>
                                             </div>
                                             <div>
-                                                <p className="text-sm text-slate-600 font-semibold">Nota Final</p>
-                                                <p className="text-2xl font-bold text-blue-600">{calcularNota()}</p>
+                                                <p className="text-xs md:text-sm text-slate-600 font-semibold">Nota Final</p>
+                                                <p className="text-lg md:text-2xl font-bold text-blue-600">{calcularNota()}</p>
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* Botones de acción */}
-                                    <div className="flex gap-4 justify-end pt-4 border-t border-slate-200">
+                                    <div className="flex flex-col-reverse md:flex-row gap-3 md:gap-4 justify-end pt-3 md:pt-4 border-t border-slate-200">
                                         <button
                                             onClick={handleCerrarFormulario}
-                                            className="px-6 py-2 text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 font-semibold transition"
+                                            className="px-4 md:px-6 py-2 md:py-3 text-xs md:text-base text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 font-semibold transition"
                                         >
                                             Cancelar
                                         </button>
                                         <button
                                             onClick={handleGuardarEvaluacion}
-                                            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition"
+                                            className="px-4 md:px-6 py-2 md:py-3 text-xs md:text-base bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition"
                                         >
                                             Guardar Evaluación
                                         </button>

@@ -59,26 +59,26 @@ export default function GestionRamosPage() {
   };
 
   return (
-    <div className={`min-h-screen bg-gray-50 transition-all duration-300 ${isNavbarOpen ? 'ml-64' : 'ml-0'}`}>
+    <div className={`min-h-screen bg-gray-50 transition-all duration-300 ${isNavbarOpen ? 'ml-0 md:ml-64' : 'ml-0'}`}>
       <header className="bg-[#1e3a5f] text-white shadow-lg">
-        <div className="container mx-auto px-4 py-4">
+        <div className="container mx-auto px-4 py-3 md:py-4">
           <div>
-            <h1 className="text-2xl font-bold">📚 Gestión de Ramos</h1>
-            <p className="text-sm text-gray-300">{user?.email || 'Usuario'}</p>
+            <h1 className="text-xl md:text-2xl font-bold">📚 Gestión de Ramos</h1>
+            <p className="text-xs md:text-sm text-gray-300">{user?.email || 'Usuario'}</p>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto p-6">
+      <div className="container mx-auto p-3 md:p-6">
 
       {/* Título y Botón en una fila */}
-      <div className="mt-6 flex justify-between items-center">
-        <h3 className="text-xl font-semibold">Lista de ramos:</h3>
-        <div className="flex gap-3 items-center">
+      <div className="mt-4 md:mt-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-4">
+        <h3 className="text-lg md:text-xl font-semibold">Lista de ramos:</h3>
+        <div className="flex flex-col sm:flex-row gap-2 md:gap-3 items-stretch sm:items-center w-full md:w-auto">
           <select
             value={selectedPeriodo}
             onChange={(e) => setSelectedPeriodo(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            className="px-3 md:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm md:text-base"
           >
             <option value="">Todos los períodos</option>
             {periodosUnicos.map(periodo => (
@@ -89,7 +89,7 @@ export default function GestionRamosPage() {
           </select>
           <button
             onClick={() => setShowForm(true)}
-            className="bg-[#0E2C66] hover:bg-[#143A80] text-white font-bold py-2 px-6 rounded transition-colors"
+            className="bg-[#0E2C66] hover:bg-[#143A80] text-white font-bold py-2 px-4 md:px-6 rounded transition-colors text-sm md:text-base"
           >
             + Crear Nuevo Ramo
           </button>
@@ -97,30 +97,30 @@ export default function GestionRamosPage() {
       </div>
 
       {/* Buscador */}
-      <div className="mt-6">
+      <div className="mt-4 md:mt-6">
         <input
           type="text"
           placeholder="Buscar por código (ej: 620515) o nombre (ej: Derecho Romano)"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 md:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm md:text-base"
         />
       </div>
 
       {/* Lista */}
-      <div className="mt-6 bg-white shadow-md rounded-lg overflow-hidden">
+      <div className="mt-4 md:mt-6 bg-white shadow-md rounded-lg overflow-hidden">
         <RamosList onEdit={handleEdit} reload={reload} searchTerm={searchTerm} selectedPeriodo={selectedPeriodo} onRamosLoaded={setRamos} />
       </div>
       </div>
 
       {/* Formulario Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 relative">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 md:p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto p-4 md:p-6 relative">
             {/* Botón cerrar */}
             <button
               onClick={handleCancel}
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl font-bold"
+              className="absolute top-3 md:top-4 right-3 md:right-4 text-gray-500 hover:text-gray-700 text-2xl font-bold"
             >
               ×
             </button>

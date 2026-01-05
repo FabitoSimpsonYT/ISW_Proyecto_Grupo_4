@@ -141,20 +141,20 @@ export default function EvaluacionPage() {
   }, [ramos, selectedPeriodo]);
 
   return (
-    <div className={`min-h-screen bg-[#e9f7fb] transition-all duration-300 ${isNavbarOpen ? 'ml-64' : 'ml-0'}`}>
+    <div className={`min-h-screen bg-[#e9f7fb] transition-all duration-300 ${isNavbarOpen ? 'ml-0 md:ml-64' : 'ml-0'}`}>
       <div>
-        <div className="mx-auto max-w-6xl p-6">
+        <div className="mx-auto max-w-6xl p-3 md:p-6">
         {!selectedRamo ? (
-          <div className="space-y-6">
+          <div className="space-y-4 md:space-y-6">
             {/* Encabezado expandido estilo Gestión de Usuarios, sin ícono */}
             <div className="mt-2">
-              <div className="bg-[#143A80] rounded-lg px-6 py-4 w-full flex items-center justify-between">
-                <h1 className="text-3xl font-bold text-white">Mis Ramos</h1>
+              <div className="bg-[#143A80] rounded-lg px-4 md:px-6 py-3 md:py-4 w-full flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-4">
+                <h1 className="text-xl md:text-3xl font-bold text-white">Mis Ramos</h1>
                 {periodosUnicos.length > 0 && (
                   <select
                     value={selectedPeriodo}
                     onChange={(e) => setSelectedPeriodo(e.target.value)}
-                    className="px-4 py-2 rounded-lg font-medium bg-white text-[#143A80] border border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 cursor-pointer"
+                    className="w-full md:w-auto px-3 md:px-4 py-2 rounded-lg text-sm md:text-base font-medium bg-white text-[#143A80] border border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 cursor-pointer"
                   >
                     <option value="">Todos los períodos</option>
                     {periodosUnicos.map(periodo => (
@@ -165,37 +165,37 @@ export default function EvaluacionPage() {
                   </select>
                 )}
               </div>
-              <p className="mt-2 text-[#143A80] font-medium">Selecciona un ramo para gestionar sus evaluaciones</p>
+              <p className="mt-2 text-xs md:text-base text-[#143A80] font-medium">Selecciona un ramo para gestionar sus evaluaciones</p>
             </div>
 
             {errorRamos && (
-              <div className="rounded-2xl border border-red-400 bg-red-100 p-4 text-red-700">
+              <div className="rounded-xl md:rounded-2xl border border-red-400 bg-red-100 p-3 md:p-4 text-xs md:text-base text-red-700">
                 {errorRamos}
               </div>
             )}
 
             {isLoadingRamos ? (
-              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-6 text-blue-700">
+              <div className="rounded-xl md:rounded-2xl border border-blue-200 bg-blue-50 p-4 md:p-6 text-xs md:text-base text-blue-700">
                 Cargando ramos…
               </div>
             ) : (
-              <div className="space-y-5">
+              <div className="space-y-3 md:space-y-5">
                 {ramosFiltrados.map((ramo) => (
                   <button
                     type="button"
                     key={ramo.id || ramo.codigo}
                     onClick={() => handleSelectRamo(ramo)}
-                    className="group w-full rounded-2xl border border-blue-200 bg-white p-6 text-left shadow hover:border-blue-400 transition"
+                    className="group w-full rounded-xl md:rounded-2xl border border-blue-200 bg-white p-4 md:p-6 text-left shadow hover:border-blue-400 transition"
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <div className="text-2xl font-semibold text-[#143A80]">{ramo.nombre}</div>
-                        <div className="mt-1 text-sm font-medium text-blue-700">{ramo.codigo}</div>
-                        <div className="mt-4 text-sm text-[#143A80]/70">Gestionar evaluaciones</div>
+                    <div className="flex items-start justify-between gap-3 md:gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-lg md:text-2xl font-semibold text-[#143A80] truncate">{ramo.nombre}</div>
+                        <div className="mt-1 text-xs md:text-sm font-medium text-blue-700">{ramo.codigo}</div>
+                        <div className="mt-2 md:mt-4 text-xs md:text-sm text-[#143A80]/70">Gestionar evaluaciones</div>
                       </div>
 
                       <div className="shrink-0">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-700 group-hover:bg-blue-100">
+                        <div className="flex h-8 md:h-10 w-8 md:w-10 items-center justify-center rounded-lg md:rounded-xl bg-blue-50 text-blue-700 group-hover:bg-blue-100 text-lg md:text-2xl">
                           ›
                         </div>
                       </div>
@@ -206,37 +206,37 @@ export default function EvaluacionPage() {
             )}
           </div>
         ) : (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-1">
+          <div className="space-y-4 md:space-y-6">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-4">
+              <div className="flex-1 w-full">
                 <button
                   type="button"
                   onClick={handleBackToRamos}
-                  className="mb-3 text-blue-700 hover:text-blue-900 transition font-medium"
+                  className="mb-2 md:mb-3 text-blue-700 hover:text-blue-900 transition font-medium text-sm md:text-base"
                 >
                   ← Volver
                 </button>
-                <h1 className="text-4xl font-bold text-[#113C63]">{selectedRamo?.nombre}</h1>
-                <div className="mt-1 text-sm font-medium text-blue-600">{selectedRamo?.codigo}</div>
+                <h1 className="text-2xl md:text-4xl font-bold text-[#113C63]">{selectedRamo?.nombre}</h1>
+                <div className="mt-1 text-xs md:text-sm font-medium text-blue-600">{selectedRamo?.codigo}</div>
               </div>
             </div>
 
             {!(user?.role === "profesor" || user?.role === "jefecarrera") && (
-              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-blue-700">
+              <div className="rounded-lg md:rounded-2xl border border-blue-200 bg-blue-50 p-3 md:p-4 text-xs md:text-base text-blue-700">
                 Solo profesores o jefes de carrera pueden crear o editar evaluaciones.
               </div>
             )}
 
             {(user?.role === "profesor" || user?.role === "jefecarrera") && showForm && (
-              <div className="rounded-2xl border border-blue-200 bg-transparent p-4">
-                <div className="flex items-center justify-between gap-4 mb-4 bg-[#113C63] text-white px-4 py-3 rounded-xl">
-                  <h2 className="text-xl font-bold">
+              <div className="rounded-lg md:rounded-2xl border border-blue-200 bg-transparent p-3 md:p-4">
+                <div className="flex items-center justify-between gap-2 md:gap-4 mb-3 md:mb-4 bg-[#113C63] text-white px-3 md:px-4 py-2 md:py-3 rounded-lg md:rounded-xl">
+                  <h2 className="text-sm md:text-xl font-bold">
                     {selectedEvaluacion ? "Editar Evaluación" : "Nueva Evaluación"}
                   </h2>
                   <button
                     type="button"
                     onClick={() => setShowForm(false)}
-                    className="text-white hover:text-red-200 font-bold text-xl"
+                    className="text-white hover:text-red-200 font-bold text-lg md:text-xl"
                   >
                     ✕
                   </button>

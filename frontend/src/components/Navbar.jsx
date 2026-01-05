@@ -93,7 +93,7 @@ const Navbar = () => {
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="fixed left-0 top-0 h-screen w-64 bg-gradient-to-b from-[#0E2C66] to-[#1a3f8f] text-white shadow-2xl flex flex-col p-6 z-40"
+            className="fixed left-0 top-0 h-screen w-64 md:w-72 bg-gradient-to-b from-[#0E2C66] to-[#1a3f8f] text-white shadow-2xl flex flex-col p-4 md:p-6 z-40 text-sm md:text-base"
           >
             {/* CABECERA */}
             <motion.div
