@@ -174,7 +174,7 @@ export async function createTestData() {
         (SELECT id FROM tipos_eventos WHERE nombre = 'CERTAMEN'),
         (SELECT id FROM users WHERE email = 'profesor1@ubiobio.cl'),
         (SELECT id FROM ramos WHERE codigo = '620515'),
-        (SELECT id FROM secciones WHERE numero = 'A' AND ramo_id = (SELECT id FROM ramos WHERE codigo = '620515') LIMIT 1),
+        (SELECT id FROM secciones WHERE numero = 1 AND ramo_id = (SELECT id FROM ramos WHERE codigo = '620515') LIMIT 1),
         30, 30, false, 'Sala 301', NOW(), NOW()
       ),
       (
@@ -187,7 +187,7 @@ export async function createTestData() {
         (SELECT id FROM tipos_eventos WHERE nombre = 'INTERROGACIÓN'),
         (SELECT id FROM users WHERE email = 'profesor1@ubiobio.cl'),
         (SELECT id FROM ramos WHERE codigo = '620515'),
-        (SELECT id FROM secciones WHERE numero = 'A' AND ramo_id = (SELECT id FROM ramos WHERE codigo = '620515') LIMIT 1),
+        (SELECT id FROM secciones WHERE numero = 1 AND ramo_id = (SELECT id FROM ramos WHERE codigo = '620515') LIMIT 1),
         30, 30, false, 'Sala 301', NOW(), NOW()
       )
       ON CONFLICT DO NOTHING
