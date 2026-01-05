@@ -157,6 +157,21 @@ export default function ComentariosPauta({ pautaEvaluadaId }) {
         )}
       </div>
 
+      <div className="flex justify-between mb-4">
+        <button
+          className="bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm font-semibold hover:bg-gray-300"
+          onClick={() => listaRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+        >
+          Ir al inicio
+        </button>
+        <button
+          className="bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm font-semibold hover:bg-gray-300"
+          onClick={() => listaRef.current?.scrollTo({ top: listaRef.current.scrollHeight, behavior: 'smooth' })}
+        >
+          Ir al final
+        </button>
+      </div>
+
       {cargando ? (
         <div className="text-gray-500">Cargando comentarios...</div>
       ) : (

@@ -374,12 +374,14 @@ export default function EvaluarPage() {
                                                 </td>
                                                 <td className="px-6 py-4 text-center">
                                                     <div className="flex gap-2 justify-center items-center">
-                                                        <button
-                                                            className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition"
-                                                            onClick={() => handleEvaluar(estudiante)}
-                                                        >
-                                                            {estudiante.nota ? "Reevaluar" : "Evaluar"}
-                                                        </button>
+                                                        {!estudiante.nota && (
+                                                            <button
+                                                                className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition"
+                                                                onClick={() => handleEvaluar(estudiante)}
+                                                            >
+                                                                Evaluar
+                                                            </button>
+                                                        )}
                                                         {estudiante.nota && estudiante.pautaEvaluadaId && (
                                                             <button
                                                                 className="inline-flex items-center px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold text-sm transition border border-slate-200"

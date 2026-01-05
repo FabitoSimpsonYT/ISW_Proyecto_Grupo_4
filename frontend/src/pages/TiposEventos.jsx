@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import Swal from 'sweetalert2';
 import { FiTrash2, FiEdit2, FiPlus } from 'react-icons/fi';
 import { getTiposEventos, crearTipoEvento, actualizarTipoEvento, eliminarTipoEvento } from '../services/tipoEvento.service';
 import { useAuth } from '../context/AuthContext';
@@ -82,7 +83,24 @@ export default function TiposEventos() {
 
   // Eliminar tipo
   const handleEliminar = async (id) => {
-    if (!confirm('¿Está seguro de que desea eliminar este tipo de evento?')) {
+    const result = await Swal.fire({
+      icon: 'warning',
+      title: 'Eliminar Tipo de Evento',
+      text: '¿Está seguro de que desea eliminar este tipo de evento? Esta acción no se puede deshacer.',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      showClass: {
+        popup: 'animate__animated animate__fadeInDown'
+      },
+      hideClass: {
+        popup: 'animate__animated animate__fadeOutUp'
+      }
+    });
+
+    if (!result.isConfirmed) {
       return;
     }
 

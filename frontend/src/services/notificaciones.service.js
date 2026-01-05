@@ -1,6 +1,7 @@
 import toast from 'react-hot-toast';
 import { FiBell, FiCheckCircle, FiAlertCircle, FiInfo, FiClock, FiRefreshCw } from 'react-icons/fi';
 import io from 'socket.io-client';
+import api from './root.service';
 
 /**
  * Servicio de Notificaciones - Versión con Socket.IO Real
@@ -503,27 +504,61 @@ class NotificacionesService {
   }
 
   /**
-   * Obtener todas las notificaciones
+   * Obtener todas las notificaciones del backend
    */
-  obtenerNotificaciones() {
-    return this.notificaciones;
+  async obtenerNotificaciones() {
+    try {
+      const response = await api.get('/notificaciones');
+      const notifs = Array.isArray(response.data) ? response.data : response.data?.data || [];
+      this.notificaciones = notifs;
+      return notifs;
+    } catch (error) {
+      console.error('[Notificaciones] Error al obtener notificaciones:', error);
+      return this.notificaciones; // Fallback a notificaciones en memoria
+    }
   }
 
   /**
    * Obtener notificaciones no leídas
    */
   obtenerNoLeidas() {
-    return this.notificaciones.filter(n => !n.leida);
+    return this.notificaciones.filter(n => !n.leida && !n.vista);
   }
 
   /**
-   * Marcar notificación como leída
+   * Marcar notificación como leída (deprecated - usar marcarComoVista)
    */
   marcarComoLeida(notificacionId) {
-    const notif = this.notificaciones.find(n => n.id === notificacionId);
-    if (notif) {
-      notif.leida = true;
+    return this.marcarComoVista(notificacionId);
+  }
+
+  /**
+   * Marcar notificación como vista en el backend
+   */
+  async marcarComoVista(notificacionId) {
+    try {
+      await api.put(`/notificaciones/${notificacionId}/marcar-vista`);
+      
+      // Actualizar en memoria
+      const notif = this.notificaciones.find(n => n.id === notificacionId);
+      if (notif) {
+        notif.vista = true;
+        notif.leida = true;
+      }
+      
       localStorage.setItem('notificaciones', JSON.stringify(this.notificaciones));
+      return true;
+    } catch (error) {
+      console.error('[Notificaciones] Error al marcar como vista:', error);
+      
+      // Actualizar localmente aunque falle el backend
+      const notif = this.notificaciones.find(n => n.id === notificacionId);
+      if (notif) {
+        notif.vista = true;
+        notif.leida = true;
+        localStorage.setItem('notificaciones', JSON.stringify(this.notificaciones));
+      }
+      throw error;
     }
   }
 

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import cookies from "js-cookie";
+import Swal from 'sweetalert2';
 
 export default function ApelacionInfo({ apelacion }) {
   const [modalOpen, setModalOpen] = useState(false);
@@ -36,7 +37,16 @@ export default function ApelacionInfo({ apelacion }) {
       document.body.removeChild(a);
     } catch (error) {
       console.error("Error descargando archivo:", error);
-      alert("Error al descargar el archivo");
+      Swal.fire({
+        icon: 'error',
+        title: 'Error de Descarga',
+        text: 'No se pudo descargar el archivo. Por favor, intente nuevamente.',
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'Entendido',
+        showClass: {
+          popup: 'animate__animated animate__shakeX'
+        }
+      });
     }
   };
 

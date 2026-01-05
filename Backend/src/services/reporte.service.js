@@ -18,15 +18,21 @@ export async function generarReporteEvaluacionesService(user, codigoRamo = null)
     let query = evaluacionRepo
       .createQueryBuilder("evaluaciones")
       .leftJoinAndSelect("evaluaciones.ramo", "ramo")
-      .leftJoinAndSelect("evaluaciones.profesor", "profesor")
-      .leftJoinAndSelect("evaluaciones.slots", "slots")
-      .where("profesor.id = :profesorId", { profesorId: user.id });
+      .leftJoinAndSelect("ramo.profesor", "profesor")
+      .leftJoinAndSelect("evaluaciones.slots", "slots");
 
-    if (codigoRamo) {
-      query = query.andWhere("ramo.codigo = :codigoRamo", { codigoRamo });
+    // Si es profesor, filtrar solo sus evaluaciones
+    // Si es jefecarrera, obtener todas las evaluaciones
+    if (user.role === "profesor") {
+      query = query.where("profesor.id = :profesorId", { profesorId: user.id });
     }
 
-    const evaluaciones = await query.orderBy("ramo.codigo", "ASC").addOrderBy("evaluaciones.nombre", "ASC").getMany();
+    if (codigoRamo) {
+      const whereClause = user.role === "profesor" ? "andWhere" : "where";
+      query = query[whereClause]("ramo.codigo = :codigoRamo", { codigoRamo });
+    }
+
+    const evaluaciones = await query.orderBy("ramo.codigo", "ASC").addOrderBy("evaluaciones.titulo", "ASC").getMany();
 
     // Crear workbook
     const workbook = new ExcelJS.Workbook();
@@ -152,15 +158,22 @@ export async function generarReporteSlotsService(user) {
   try {
     const evaluacionRepo = AppDataSource.getRepository(Evaluacion);
 
-    const query = evaluacionRepo
+    let query = evaluacionRepo
       .createQueryBuilder("evaluaciones")
       .leftJoinAndSelect("evaluaciones.ramo", "ramo")
-      .leftJoinAndSelect("evaluaciones.profesor", "profesor")
+      .leftJoinAndSelect("ramo.profesor", "profesor")
       .leftJoinAndSelect("evaluaciones.slots", "slots")
-      .leftJoinAndSelect("slots.alumno", "alumno")
-      .where("profesor.id = :profesorId", { profesorId: user.id })
+      .leftJoinAndSelect("slots.alumno", "alumno");
+
+    // Si es profesor, filtrar solo sus evaluaciones
+    // Si es jefecarrera, obtener todas las evaluaciones
+    if (user.role === "profesor") {
+      query = query.where("profesor.id = :profesorId", { profesorId: user.id });
+    }
+
+    query = query
       .orderBy("ramo.codigo", "ASC")
-      .addOrderBy("evaluaciones.nombre", "ASC");
+      .addOrderBy("evaluaciones.titulo", "ASC");
 
     const evaluaciones = await query.getMany();
 

@@ -395,8 +395,6 @@ export const agregarAlumnoASlot = async (req, res) => {
     client.release();
   }
 };
-<<<<<<< HEAD
-<<<<<<< HEAD
 
 // Crear un slot individual manualmente
 export const crearSlotIndividual = async (req, res) => {
@@ -446,7 +444,3 @@ export const crearSlotIndividual = async (req, res) => {
     client.release();
   }
 };
-=======
->>>>>>> 235ac91d7ef2c47d55753f14ff7f1316b51f7726
-=======
->>>>>>> f2be98ee68a3d90c41ca4e44b71f3ed421398afe
