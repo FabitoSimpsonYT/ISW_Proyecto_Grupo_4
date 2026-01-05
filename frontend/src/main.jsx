@@ -1,5 +1,9 @@
 import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { Toaster } from 'react-hot-toast';
+import { DeviceProvider } from './context/DeviceContext';
+import { DeviceDebugInfo } from './components/DeviceDebugInfo';
+import NotificationBell from './components/NotificationBell';
 import Login from '@pages/Login';
 import Home from '@pages/HomeV2';
 import VerApelacionCompleta from '@pages/VerApelacionCompleta';
@@ -87,5 +91,22 @@ const router = createBrowserRouter([
 ]);
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <RouterProvider router={router} />
+  <DeviceProvider>
+    <>
+      <Toaster 
+        position="top-right" 
+        reverseOrder={false}
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+        }}
+      />
+      <DeviceDebugInfo />
+      <NotificationBell />
+      <RouterProvider router={router} />
+    </>
+  </DeviceProvider>
 );

@@ -172,7 +172,7 @@ const HomeV2 = () => {
   // Mostrar dashboard para profesores
   if (userRole === 'profesor' || userRole === 'jefecarrera') {
     return (
-      <div className={`transition-all duration-300 ${isNavbarOpen ? 'ml-64' : 'ml-0'}`}>
+      <div className={`transition-all duration-300 ${isNavbarOpen ? 'ml-0 md:ml-64' : 'ml-0'}`}>
         <DashboardProfesor />
       </div>
     );
@@ -180,7 +180,7 @@ const HomeV2 = () => {
 
   // Home mejorada para alumnos
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 transition-all duration-300 ${isNavbarOpen ? 'ml-64' : 'ml-0'}`}>
+    <div className={`min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 transition-all duration-300 ${isNavbarOpen ? 'ml-0 md:ml-64' : 'ml-0'}`}>
       {/* Botón Notificaciones Flotante */}
       <motion.button
         onClick={() => setModalNotificacionesAbierto(true)}

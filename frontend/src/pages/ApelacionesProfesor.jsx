@@ -106,7 +106,7 @@ export default function ApelacionesProfesor() {
   return (
     <div
       className={`min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 transition-all duration-300 ${
-        isNavbarOpen ? "ml-64" : "ml-0"
+        isNavbarOpen ? "ml-0 md:ml-64" : "ml-0"
       } p-8`}
     >
       {/* HEADER */}
