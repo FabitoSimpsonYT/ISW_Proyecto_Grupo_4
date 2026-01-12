@@ -280,7 +280,7 @@ useEffect(() => {
                   <option
                     key={prof.id}
                     value={prof.email}
-                    label={`${prof.nombre} - ${prof.email}${prof.ramos && prof.ramos.length > 0 ? ` (${prof.ramos.map(r => r.codigo).join(', ')})` : ''}`}
+                    label={`${prof.nombre} - ${prof.email}${prof.ramosDisplay ? ` (${prof.ramosDisplay})` : ''}`}
                   />
                 ))}
               </datalist>
@@ -355,7 +355,7 @@ useEffect(() => {
             <option value="">-- Selecciona una evaluación --</option>
             {evaluacionesProximas.map((ev) => (
               <option key={ev.id} value={String(ev.id)}>
-                {ev.codigoRamo} - {ev.titulo} - {new Date(ev.fechaProgramada).toLocaleDateString("es-CL")}
+                {ev.nombreRamo} - {ev.titulo} - {new Date(ev.fechaProgramada).toLocaleDateString("es-CL")}
               </option>
             ))}
           </select>
@@ -381,7 +381,7 @@ useEffect(() => {
             <option value="">-- Selecciona --</option>
             {evaluaciones.map((ev) => (
               <option key={ev.id} value={String(ev.id)}>
-                {ev.codigoRamo} - Nota: {ev.notaFinal}
+                {ev.nombreRamo} - Nota: {ev.notaFinal}
               </option>
             ))}
           </select>
@@ -399,7 +399,7 @@ useEffect(() => {
             type="text"
             disabled
             className="w-full p-3 rounded-lg border border-gray-300 bg-gray-100 text-gray-700 cursor-not-allowed"
-            value={`${apelacionInicial.pautaEvaluada.codigoRamo} - Nota: ${apelacionInicial.pautaEvaluada.notaFinal}`}
+            value={`${apelacionInicial.pautaEvaluada.evaluacionTitulo || apelacionInicial.pautaEvaluada.codigoRamo} - Nota: ${apelacionInicial.pautaEvaluada.notaFinal}`}
           />
         </div>
       )}
@@ -508,18 +508,40 @@ useEffect(() => {
             <label className="block text-sm font-semibold text-gray-600 mb-2">
               Estado
             </label>
-            <select
-              className="w-full p-3 rounded-lg border border-gray-300 bg-gray-50"
-              value={estado}
-              onChange={(e) => setEstado(e.target.value)}
-              disabled={apelacionResuelta}
-            >
-              <option value="">Selecciona...</option>
-              <option value="revisada">Revisada</option>
-              <option value="aceptada">Aceptada</option>
-              <option value="rechazada">Rechazada</option>
-              <option value="cita">Citación</option>
-            </select>
+            {(apelacionInicial?.tipo === "evaluacion" || 
+              (apelacionInicial?.tipo === "inasistencia" && apelacionInicial?.subtipoInasistencia === "evaluacion")) ? (
+              // Si es evaluación o inasistencia a evaluación, solo mostrar Citación y Rechazada
+              <>
+                <p className="text-xs text-blue-600 mb-2 font-semibold">
+                  💡 Para este tipo de apelación, debes responder con Citación o Rechazar
+                </p>
+                <select
+                  className="w-full p-3 rounded-lg border border-gray-300 bg-gray-50"
+                  value={estado}
+                  onChange={(e) => setEstado(e.target.value)}
+                  disabled={apelacionResuelta}
+                >
+                  <option value="">Selecciona...</option>
+                  <option value="revisada">Revisada</option>
+                  <option value="cita">Citación</option>
+                  <option value="rechazada">Rechazada</option>
+                </select>
+              </>
+            ) : (
+              // Otros tipos de apelación
+              <select
+                className="w-full p-3 rounded-lg border border-gray-300 bg-gray-50"
+                value={estado}
+                onChange={(e) => setEstado(e.target.value)}
+                disabled={apelacionResuelta}
+              >
+                <option value="">Selecciona...</option>
+                <option value="revisada">Revisada</option>
+                <option value="aceptada">Aceptada</option>
+                <option value="rechazada">Rechazada</option>
+                <option value="cita">Citación</option>
+              </select>
+            )}
           </div>
 
           <div className="border-b border-gray-200 pb-4">

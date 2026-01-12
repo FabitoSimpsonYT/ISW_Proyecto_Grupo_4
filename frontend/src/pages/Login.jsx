@@ -28,14 +28,14 @@ const Login = () => {
             showErrorAlert('Error', 'Error al conectar con el servidor');
         }
     };    return (
-        <div className="min-h-screen bg-gradient-to-br from-[#1e3a5f] via-[#2c4a6b] to-[#1e3a5f] flex items-center justify-center p-4">
+        <div className="min-h-screen bg-gradient-to-br from-[#1e3a5f] via-[#2c4a6b] to-[#1e3a5f] flex items-center justify-center p-4 md:p-8">
             <div className="w-full max-w-md">
                 {/* Card principal */}
-                <div className="bg-white/10 backdrop-blur-lg rounded-3xl shadow-2xl p-8 border border-white/20">
+                <div className="bg-white/10 backdrop-blur-lg rounded-2xl md:rounded-3xl shadow-2xl p-6 md:p-8 border border-white/20">
                     {/* Logo/Icono */}
                     <div className="flex justify-center mb-6">
-                        <div className="bg-white/20 backdrop-blur-sm p-6 rounded-2xl">
-                            <svg className="w-20 h-20 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <div className="bg-white/20 backdrop-blur-sm p-4 md:p-6 rounded-2xl">
+                            <svg className="w-16 md:w-20 h-16 md:h-20 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                             </svg>
                         </div>
@@ -43,10 +43,10 @@ const Login = () => {
 
                     {/* Título y subtítulo */}
                     <div className="text-center mb-8">
-                        <h1 className="text-3xl font-bold text-white mb-2">
+                        <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
                         GESTION DE EVALUACIONES
                         </h1>
-                        <p className="text-white/70 text-sm">
+                        <p className="text-white/70 text-xs md:text-sm">
                             Ingresa tus credenciales para continuar
                         </p>
                     </div>

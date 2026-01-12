@@ -83,7 +83,7 @@ export default function MiPerfil() {
   };
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-[#e9f7fb] to-[#d5e8f6] transition-all duration-300 ${isNavbarOpen ? 'ml-64' : 'ml-0'} p-8`}>
+    <div className={`min-h-screen bg-gradient-to-br from-[#e9f7fb] to-[#d5e8f6] transition-all duration-300 ${isNavbarOpen ? 'ml-0 md:ml-64' : 'ml-0'} p-4 md:p-8`}>
       <div className="max-w-4xl mx-auto">
         {/* Encabezado */}
         <div className="bg-gradient-to-r from-[#0E2C66] to-[#1a3f8f] text-white px-8 py-6 rounded-t-2xl shadow-lg">
